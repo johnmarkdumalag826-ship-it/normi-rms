@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: NORMI Research Management \u0026 Monitoring System",
+  "description": "A centralized web-based platform for managing research submissions, adviser reviews, defense scheduling, and archiving for Northern Mindanao Colleges, Inc.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
