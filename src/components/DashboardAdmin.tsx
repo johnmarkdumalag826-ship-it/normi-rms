@@ -17,7 +17,7 @@ interface DashboardAdminProps {
   activeSection?: 'dashboard' | 'user-management';
   onToggleUserStatus: (id: string) => void;
   onUpdateUserRole: (id: string, role: UserRole) => void;
-  onAddUserAccount: (newUser: User) => void;
+  onAddUserAccount: (newUser: User, password: string) => void;
   onUpdateUser: (updatedUser: User) => void;
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
@@ -51,7 +51,7 @@ export default function DashboardAdmin({
     role: 'student' as UserRole,
     departmentId: departments[0]?.id || '',
     courseId: courses[0]?.id || '',
-    status: 'active' as 'active' | 'suspended',
+    status: 'active' as User['status'],
     password: ''
   });
 
@@ -127,7 +127,7 @@ export default function DashboardAdmin({
   // Handle adding user
   const handleAddUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserForm.name || !newUserForm.email) return;
+    if (!newUserForm.name || !newUserForm.email || !newUserForm.password) return;
 
     const newId = `usr-${Date.now()}`;
     const userAccount: User = {
@@ -142,7 +142,7 @@ export default function DashboardAdmin({
       registeredAt: new Date().toISOString()
     };
 
-    onAddUserAccount(userAccount);
+    onAddUserAccount(userAccount, newUserForm.password);
     setShowAddUserModal(false);
     // Reset form
     setNewUserForm({
@@ -464,7 +464,7 @@ export default function DashboardAdmin({
                       <td className="p-3">
                         <div className="flex items-center gap-2.5">
                           <img
-                            src={u.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.id}`}
+                            src={u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.id}`}
                             alt={u.name}
                             referrerPolicy="no-referrer"
                             className="w-8 h-8 rounded-full border border-slate-100 bg-slate-50"
@@ -622,7 +622,7 @@ export default function DashboardAdmin({
               >
                 <option value="all">All Rooms</option>
                 {rooms.map(r => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
               </select>
             </div>
@@ -715,7 +715,7 @@ export default function DashboardAdmin({
 
             <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-150">
               <img
-                src={selectedUserDetails.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedUserDetails.id}`}
+                src={selectedUserDetails.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedUserDetails.id}`}
                 alt={selectedUserDetails.name}
                 referrerPolicy="no-referrer"
                 className="w-12 h-12 rounded-full border border-slate-200"
@@ -810,6 +810,19 @@ export default function DashboardAdmin({
                   placeholder="e.g. arthur.pendelton@cit.edu"
                   value={newUserForm.email}
                   onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-800 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Temporary Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  placeholder="At least 8 characters"
+                  value={newUserForm.password}
+                  onChange={(e) => setNewUserForm({...newUserForm, password: e.target.value})}
                   className="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-800 font-semibold"
                 />
               </div>

@@ -407,8 +407,8 @@ export default function InteractiveERD() {
                           >
                             <div className="flex justify-between items-center">
                               <span className="font-mono text-xs text-slate-800 font-bold flex items-center gap-1">
-                                {col.key === 'PK' && <Key className="h-3 w-3 text-yellow-500" title="Primary Key" />}
-                                {col.key === 'FK' && <Link2 className="h-3.5 w-3.5 text-blue-500" title="Foreign Key" />}
+                                {col.key === 'PK' && <span title="Primary Key"><Key className="h-3 w-3 text-yellow-500" /></span>}
+                                {col.key === 'FK' && <span title="Foreign Key"><Link2 className="h-3.5 w-3.5 text-blue-500" /></span>}
                                 {col.name}
                               </span>
                               <span className="font-mono text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.25 rounded font-medium">

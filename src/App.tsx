@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  DEPARTMENTS, COURSES, SCHOOL_YEARS, ROOMS, INITIAL_USERS, 
-  INITIAL_RESEARCH, INITIAL_VERSIONS, INITIAL_COMMENTS, 
-  PANEL_AVAILABILITY, INITIAL_ANNOUNCEMENTS, INITIAL_NOTIFICATIONS, 
-  INITIAL_CONSULTATIONS, INITIAL_SCHEDULES, INITIAL_EVALUATIONS, 
-  INITIAL_AUDIT_LOGS 
-} from './db/mockData';
-import { 
-  User, Research, ResearchVersion, ResearchComment, Announcement, 
-  SystemNotification, Consultation, Schedule, Evaluation, AuditLog, UserRole, ProposalFile 
+import {
+  User, Research, ResearchVersion, ResearchComment, Announcement,
+  SystemNotification, Consultation, Schedule, Evaluation, AuditLog, UserRole, ProposalFile,
+  Department, Course, SchoolYear, Room, PanelAvailability, ResearchStatus,
 } from './types';
 import { ShieldAlert } from 'lucide-react';
+
+import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
+import { ApiError } from './api/client';
+import { listDirectory, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
+import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
+import {
+  listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
+  approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
+  updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts, updateProposalFiles as apiUpdateProposalFiles,
+  listAllVersions, listVersionsForResearch, addVersion, updateChapterStatus as apiUpdateChapterStatus,
+  listAllComments, listCommentsForResearch, createComment as apiCreateComment,
+} from './api/research';
+import { listNotifications, markAllNotificationsRead } from './api/notifications';
+import { listAnnouncements, createAnnouncement, deleteAnnouncement } from './api/announcements';
+import { listConsultations, createConsultation, approveConsultation } from './api/consultations';
+import { listPanelAvailability } from './api/panelAvailability';
+import {
+  listSchedules, createSchedule, updateSchedule as apiUpdateSchedule,
+  cancelSchedule as apiCancelSchedule, deleteSchedule as apiDeleteSchedule, clearDraftSchedules,
+} from './api/schedules';
+import { listEvaluations, createEvaluation } from './api/evaluations';
+import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs';
 
 // Importing Modular sub-components
 import LandingPage from './components/LandingPage';
@@ -37,62 +53,26 @@ export default function App() {
   // Session authentication states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showPortal, setShowPortal] = useState(false);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
-  // Database States (persisted in localStorage or initialized with realistic data)
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('normi_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
-  });
-
-  const [researchList, setResearchList] = useState<Research[]>(() => {
-    const saved = localStorage.getItem('normi_research');
-    return saved ? JSON.parse(saved) : INITIAL_RESEARCH;
-  });
-
-  const [versions, setVersions] = useState<ResearchVersion[]>(() => {
-    const saved = localStorage.getItem('normi_versions');
-    return saved ? JSON.parse(saved) : INITIAL_VERSIONS;
-  });
-
-  const [comments, setComments] = useState<ResearchComment[]>(() => {
-    const saved = localStorage.getItem('normi_comments');
-    return saved ? JSON.parse(saved) : INITIAL_COMMENTS;
-  });
-
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
-    const saved = localStorage.getItem('normi_announcements');
-    return saved ? JSON.parse(saved) : INITIAL_ANNOUNCEMENTS;
-  });
-
-  const [notifications, setNotifications] = useState<SystemNotification[]>(() => {
-    const saved = localStorage.getItem('normi_notifications');
-    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
-  });
-
-  const [consultations, setConsultations] = useState<Consultation[]>(() => {
-    const saved = localStorage.getItem('normi_consultations');
-    return saved ? JSON.parse(saved) : INITIAL_CONSULTATIONS;
-  });
-
-  const [schedules, setSchedules] = useState<Schedule[]>(() => {
-    const saved = localStorage.getItem('normi_schedules');
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULES;
-  });
-
-  const [evaluations, setEvaluations] = useState<Evaluation[]>(() => {
-    const saved = localStorage.getItem('normi_evaluations');
-    return saved ? JSON.parse(saved) : INITIAL_EVALUATIONS;
-  });
-
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
-    const saved = localStorage.getItem('normi_audit_logs');
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
-
-  const [defenseTypes, setDefenseTypes] = useState<string[]>(() => {
-    const saved = localStorage.getItem('normi_defense_types');
-    return saved ? JSON.parse(saved) : ['Proposal Defense', 'Final Defense', 'Mock Defense'];
-  });
+  // Database state — all real, fetched from the backend post-login (see the bulk-load
+  // effect below). Nothing here is seeded from mock data or persisted to localStorage.
+  const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [researchList, setResearchList] = useState<Research[]>([]);
+  const [versions, setVersions] = useState<ResearchVersion[]>([]);
+  const [comments, setComments] = useState<ResearchComment[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [panelAvailabilities, setPanelAvailabilities] = useState<PanelAvailability[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
 
   // Navigation tracking
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -102,578 +82,491 @@ export default function App() {
   // Toast / Status Alerts
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  // Sync to local storage
-  useEffect(() => {
-    localStorage.setItem('normi_users', JSON.stringify(users));
-  }, [users]);
-  useEffect(() => {
-    localStorage.setItem('normi_research', JSON.stringify(researchList));
-  }, [researchList]);
-  useEffect(() => {
-    localStorage.setItem('normi_versions', JSON.stringify(versions));
-  }, [versions]);
-  useEffect(() => {
-    localStorage.setItem('normi_comments', JSON.stringify(comments));
-  }, [comments]);
-  useEffect(() => {
-    localStorage.setItem('normi_announcements', JSON.stringify(announcements));
-  }, [announcements]);
-  useEffect(() => {
-    localStorage.setItem('normi_notifications', JSON.stringify(notifications));
-  }, [notifications]);
-  useEffect(() => {
-    localStorage.setItem('normi_consultations', JSON.stringify(consultations));
-  }, [consultations]);
-  useEffect(() => {
-    localStorage.setItem('normi_schedules', JSON.stringify(schedules));
-  }, [schedules]);
-  useEffect(() => {
-    localStorage.setItem('normi_evaluations', JSON.stringify(evaluations));
-  }, [evaluations]);
-  useEffect(() => {
-    localStorage.setItem('normi_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
-  useEffect(() => {
-    localStorage.setItem('normi_defense_types', JSON.stringify(defenseTypes));
-  }, [defenseTypes]);
-
-  // Alert handler
   const triggerAlert = (message: string, type: 'success' | 'error' = 'success') => {
     setAlert({ message, type });
     setTimeout(() => setAlert(null), 3000);
   };
 
-  // Helper to log transaction
-  const logTransaction = (action: string, details: string, opRole?: UserRole, opName?: string, opId?: string) => {
-    const newLog: AuditLog = {
-      id: `log-${Date.now()}`,
-      userId: opId || currentUser?.id || 'anonymous',
-      userName: opName || currentUser?.name || 'Anonymous User',
-      role: opRole || currentUser?.role || 'student',
-      action,
-      ipAddress: '192.168.10.12',
-      details,
-      createdAt: new Date().toISOString()
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
+  const handleApiError = (err: unknown, fallback: string) => {
+    triggerAlert(err instanceof ApiError ? err.message : fallback, 'error');
   };
+
+  // Public announcements are visible pre-login (LandingPage shows them), so fetch them
+  // once on mount regardless of auth state.
+  useEffect(() => {
+    listAnnouncements().then(setAnnouncements).catch(() => {});
+  }, []);
+
+  // Silently re-authenticate from a stored JWT (real backend session) before rendering
+  // anything, so a page reload doesn't bounce an already-logged-in user back to Login.
+  useEffect(() => {
+    (async () => {
+      const restoredUser = await fetchCurrentUser();
+      if (restoredUser) {
+        setCurrentUser(restoredUser);
+        setShowPortal(true);
+      }
+      setAuthStatus('ready');
+    })();
+  }, []);
+
+  // Once authenticated, load every collection the app needs in one pass. Re-fires
+  // whenever the logged-in identity changes (login, logout, or role emulation).
+  useEffect(() => {
+    if (!currentUser) {
+      setUsers([]); setDepartments([]); setCourses([]); setSchoolYears([]); setRooms([]);
+      setResearchList([]); setVersions([]); setComments([]);
+      setNotifications([]); setConsultations([]); setPanelAvailabilities([]);
+      setSchedules([]); setEvaluations([]); setAuditLogs([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsDataLoading(true);
+
+    (async () => {
+      try {
+        const [
+          directoryUsers, depts, crs, years, roomList,
+          research, allVersions, allComments, notifs,
+          consultList, availList, schedList, evalList,
+        ] = await Promise.all([
+          listDirectory(), listDepartments(), listCourses(), listSchoolYears(), listRooms(),
+          listResearch(), listAllVersions(), listAllComments(), listNotifications(),
+          listConsultations(), listPanelAvailability(), listSchedules(), listEvaluations(),
+        ]);
+        if (cancelled) return;
+
+        setUsers(directoryUsers.some(u => u.id === currentUser.id) ? directoryUsers : [...directoryUsers, currentUser]);
+        setDepartments(depts);
+        setCourses(crs);
+        setSchoolYears(years);
+        setRooms(roomList);
+        setResearchList(research);
+        setVersions(allVersions);
+        setComments(allComments);
+        setNotifications(notifs);
+        setConsultations(consultList);
+        setPanelAvailabilities(availList);
+        setSchedules(schedList);
+        setEvaluations(evalList);
+
+        if (currentUser.role === 'admin') {
+          const logs = await listAuditLogs();
+          if (!cancelled) setAuditLogs(logs);
+        }
+      } catch (err) {
+        if (!cancelled) handleApiError(err, 'Failed to load application data. Please refresh.');
+      } finally {
+        if (!cancelled) setIsDataLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   // Auth Operations
   const handleLoginSuccess = (user: User) => {
-    setUsers(prev => {
-      const exists = prev.some(u => u.email.toLowerCase() === user.email.toLowerCase());
-      if (!exists) {
-        return [...prev, user];
-      }
-      return prev;
-    });
     setCurrentUser(user);
+    setShowPortal(true);
     setActiveTab('dashboard');
-    logTransaction('USER_LOGIN', 'User authenticated via security handshake and completed 2FA simulation.', user.role, user.name, user.id);
   };
 
   const handleLogout = () => {
-    if (currentUser) {
-      logTransaction('USER_LOGOUT', 'User ended secure session.', currentUser.role, currentUser.name, currentUser.id);
-    }
+    logoutRequest();
     setCurrentUser(null);
     setShowPortal(false);
+    setActiveTab('dashboard');
+    setSelectedResearchId(null);
   };
 
+  // Client-side-only convenience for demos: switches which role's dashboard is shown
+  // without a new login. Any write action taken while emulating is still authorized
+  // under the REAL logged-in identity's JWT — the backend's RBAC is the actual gate,
+  // so an emulated role attempting something it can't do will simply get a 403.
   const handleEmulateRole = (role: UserRole) => {
     const u = users.find(x => x.role === role && x.status === 'active');
     if (u) {
       setCurrentUser(u);
       setActiveTab('dashboard');
       setSelectedResearchId(null);
-      logTransaction('ROLE_EMULATION', `Emulated session parameters for ${role} role account: ${u.name}`, u.role, u.name, u.id);
       triggerAlert(`Emulated role switched to: ${u.name}`);
     }
   };
 
   // Notifications
-  const handleMarkNotificationsAsRead = () => {
+  const handleMarkNotificationsAsRead = async () => {
     if (!currentUser) return;
-    setNotifications(prev => prev.map(n => n.userId === currentUser.id ? { ...n, read: true } : n));
+    try {
+      await markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => n.userId === currentUser.id ? { ...n, read: true } : n));
+    } catch (err) {
+      handleApiError(err, 'Could not mark notifications as read.');
+    }
   };
 
   // Announcements
-  const handleAddAnnouncement = (ann: Announcement) => {
-    setAnnouncements(prev => [ann, ...prev]);
-    logTransaction('CREATE_ANNOUNCEMENT', `Published institutional bulletin: "${ann.title}"`);
-    triggerAlert("Announcement published successfully!");
+  const handleAddAnnouncement = async (ann: Announcement) => {
+    try {
+      const created = await createAnnouncement({ title: ann.title, content: ann.content, category: ann.category, isPinned: ann.isPinned });
+      setAnnouncements(prev => [created, ...prev]);
+      triggerAlert("Announcement published successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not publish announcement.');
+    }
   };
 
-  const handleDeleteAnnouncement = (id: string) => {
-    setAnnouncements(prev => prev.filter(a => a.id !== id));
-    logTransaction('DELETE_ANNOUNCEMENT', `Deleted institutional bulletin ID: ${id}`);
-    triggerAlert("Announcement deleted.");
+  const handleDeleteAnnouncement = async (id: string) => {
+    try {
+      await deleteAnnouncement(id);
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      triggerAlert("Announcement deleted.");
+    } catch (err) {
+      handleApiError(err, 'Could not delete announcement.');
+    }
   };
 
   // Research Management Details (Coordinator / Adviser)
-  const handleApproveManuscript = (
-    id: string, 
-    approveOrDecision: boolean | 'Approve' | 'Revision' | 'Reject', 
+  const handleApproveManuscript = async (
+    id: string,
+    approveOrDecision: boolean | 'Approve' | 'Revision' | 'Reject',
     feedbackNote?: string
   ) => {
-    const isApproved = approveOrDecision === true || approveOrDecision === 'Approve';
-    const isRejected = approveOrDecision === 'Reject';
-    const newStatus = isApproved 
-      ? 'Approved by Adviser' 
-      : isRejected 
-        ? 'Revision Required' 
-        : 'Revision Required';
-
-    setResearchList(prev => prev.map(r => {
-      if (r.id === id) {
-        // Notify student group
-        r.studentIds.forEach(sid => {
-          setNotifications(n => [
-            {
-              id: `notif-${Date.now()}-${sid}`,
-              userId: sid,
-              title: isApproved ? 'Manuscript Vetted' : 'Revision Action Required',
-              message: isApproved 
-                ? 'Your adviser approved your manuscript draft. Coordinator will lock defense date.' 
-                : 'Your adviser requested revisions on your chapters. Please check timelines.',
-              type: isApproved ? 'success' : 'warning',
-              read: false,
-              createdAt: new Date().toISOString()
-            },
-            ...n
-          ]);
-        });
-
-        logTransaction(
-          isApproved ? 'APPROVE_MANUSCRIPT' : 'REQUEST_REVISIONS', 
-          `Research supervisor ${currentUser?.name} set status for ID ${id} to: ${newStatus}`
-        );
-
-        if (feedbackNote) {
-          // Add general feedback comment
-          const newComment: ResearchComment = {
-            id: `comm-auto-vett-${Date.now()}`,
-            researchId: id,
-            versionId: 'general',
-            authorId: currentUser?.id || 'system',
-            authorName: currentUser?.name || 'Adviser',
-            authorRole: (currentUser?.role || 'adviser') as any,
-            text: feedbackNote,
-            chapter: 'general',
-            commentAt: new Date().toISOString(),
-            resolved: false
-          };
-          setComments(prev => [newComment, ...prev]);
-        }
-
-        return { ...r, status: newStatus, updatedAt: new Date().toISOString() };
+    try {
+      const updated = await apiApproveManuscript(id, approveOrDecision, feedbackNote);
+      setResearchList(prev => prev.map(r => r.id === id ? updated : r));
+      if (feedbackNote) {
+        const researchComments = await listCommentsForResearch(id);
+        setComments(prev => [...researchComments, ...prev.filter(c => c.researchId !== id)]);
       }
-      return r;
-    }));
-
-    triggerAlert(isApproved ? "Draft approved successfully!" : "Revisions requested.");
+      const isApproved = approveOrDecision === true || approveOrDecision === 'Approve';
+      triggerAlert(isApproved ? "Draft approved successfully!" : "Revisions requested.");
+    } catch (err) {
+      handleApiError(err, 'Could not update manuscript status.');
+    }
   };
 
   // Chapter statuses (Adviser Panel)
-  const handleUpdateChapterStatus = (
-    researchId: string, versionId: string, chapter: string, 
+  const handleUpdateChapterStatus = async (
+    researchId: string, versionId: string, chapter: string,
     status: 'Approved' | 'Revision Required' | 'Pending', feedback: string
   ) => {
-    setVersions(prev => prev.map(v => {
-      if (v.id === versionId) {
-        const updatedChapters = {
-          ...v.chapters,
-          [chapter]: { status, feedback, lastUpdated: new Date().toISOString() }
-        };
-
-        // If a chapter is Revision Required, let's flag the research title status as well
-        if (status === 'Revision Required') {
-          setResearchList(r => r.map(res => res.id === researchId ? { ...res, status: 'Revision Required', updatedAt: new Date().toISOString() } : res));
-          // Create comment
-          setComments(c => [
-            {
-              id: `comm-auto-${Date.now()}`,
-              researchId,
-              versionId,
-              authorId: currentUser?.id || 'system',
-              authorName: currentUser?.name || 'Adviser',
-              authorRole: 'adviser',
-              chapter: chapter as any,
-              text: feedback,
-              commentAt: new Date().toISOString(),
-              resolved: false
-            },
-            ...c
-          ]);
-        }
-
-        return { ...v, chapters: updatedChapters };
+    try {
+      const updatedVersion = await apiUpdateChapterStatus(versionId, chapter, status, feedback);
+      setVersions(prev => prev.map(v => v.id === versionId ? updatedVersion : v));
+      if (status === 'Revision Required') {
+        setResearchList(prev => prev.map(r => r.id === researchId ? { ...r, status: 'Revision Required' } : r));
+        const researchComments = await listCommentsForResearch(researchId);
+        setComments(prev => [...researchComments, ...prev.filter(c => c.researchId !== researchId)]);
       }
-      return v;
-    }));
-
-    // Trigger notification
-    const resObj = researchList.find(x => x.id === researchId);
-    if (resObj) {
-      resObj.studentIds.forEach(sid => {
-        setNotifications(n => [
-          {
-            id: `notif-${Date.now()}-${sid}`,
-            userId: sid,
-            title: `Chapter Status Updated`,
-            message: `Dr. John Dumalag updated ${chapter.toUpperCase()} to: ${status}`,
-            type: status === 'Approved' ? 'success' : 'warning',
-            read: false,
-            createdAt: new Date().toISOString()
-          },
-          ...n
-        ]);
-      });
+      triggerAlert(`Chapter status updated to ${status}.`);
+    } catch (err) {
+      handleApiError(err, 'Could not update chapter status.');
     }
-
-    logTransaction('UPDATE_CHAPTER_STATUS', `Supervisor ${currentUser?.name} marked ${chapter.toUpperCase()} as ${status}.`);
-    triggerAlert(`Chapter status updated to ${status}.`);
   };
 
   // Student upload revision
-  const handleStudentUploadRevision = (
-    researchId: string, 
-    title: string, 
-    abstract: string, 
+  const handleStudentUploadRevision = async (
+    researchId: string,
+    title: string,
+    abstract: string,
     fileName: string,
+    fileUrl: string,
     type: 'adviser_check' | 'defense_manuscript' = 'adviser_check'
   ) => {
-    const resObj = researchList.find(r => r.id === researchId);
-    if (!resObj || !currentUser) return;
-
-    // Get next version number
-    const myVers = versions.filter(v => v.researchId === researchId);
-    const nextVerNum = myVers.length + 1;
-
-    const newVersion: ResearchVersion = {
-      id: `ver-auto-${Date.now()}`,
-      researchId,
-      versionNumber: nextVerNum,
-      title,
-      abstract,
-      fileUrl: `manuscripts/${fileName}`,
-      fileName,
-      submittedBy: currentUser.id,
-      submittedAt: new Date().toISOString(),
-      type,
-      chapters: {
-        chapter1: { status: 'Pending' },
-        chapter2: { status: 'Pending' },
-        chapter3: { status: 'Pending' },
-        chapter4: { status: 'Not Submitted' },
-        chapter5: { status: 'Not Submitted' }
-      }
-    };
-
-    setVersions(prev => [newVersion, ...prev]);
-    
-    // Update Research status
-    setResearchList(prev => prev.map(r => r.id === researchId ? { 
-      ...r, 
-      title, 
-      abstract, 
-      status: type === 'adviser_check' ? 'Submitted' : r.status, 
-      updatedAt: new Date().toISOString() 
-    } : r));
-
-    // Handle notifications depending on type
-    if (type === 'defense_manuscript') {
-      const activeSched = schedules.find(s => s.researchId === researchId);
-      const newNotifs: any[] = [];
-      
-      if (activeSched) {
-        activeSched.panelistIds.forEach(pid => {
-          newNotifs.push({
-            id: `notif-panv-${Date.now()}-${pid}`,
-            userId: pid,
-            title: 'Defense Manuscript Submitted',
-            message: `Student group submitted presentation manuscript for your reception & evaluation: ${fileName}`,
-            type: 'info',
-            read: false,
-            createdAt: new Date().toISOString()
-          });
-        });
-      }
-      
-      if (newNotifs.length > 0) {
-        setNotifications(n => [...newNotifs, ...n]);
-      }
-      
-      logTransaction('UPLOAD_REVISION', `Student uploaded Version ${nextVerNum} defense manuscript for panel reception: ${fileName}`);
-      triggerAlert("Defense manuscript submitted to panel feed successfully!");
-    } else {
-      // Notify Adviser
-      setNotifications(n => [
-        {
-          id: `notif-newv-${Date.now()}`,
-          userId: resObj.adviserId,
-          title: 'New Manuscript Upload',
-          message: `Your student group submitted Version ${nextVerNum} Draft: ${fileName}`,
-          type: 'info',
-          read: false,
-          createdAt: new Date().toISOString()
-        },
-        ...n
-      ]);
-
-      logTransaction('UPLOAD_REVISION', `Student uploaded Version ${nextVerNum} draft proposal for adviser checking: ${fileName}`);
-      triggerAlert("Draft proposal submitted to adviser checking feed!");
+    try {
+      const newVersion = await addVersion(researchId, { title, abstract, fileName, fileUrl, type });
+      setVersions(prev => [newVersion, ...prev]);
+      setResearchList(prev => prev.map(r => r.id === researchId ? {
+        ...r, title, abstract, status: type === 'adviser_check' ? 'Submitted' : r.status,
+      } : r));
+      triggerAlert(type === 'defense_manuscript'
+        ? "Defense manuscript submitted to panel feed successfully!"
+        : "Draft proposal submitted to adviser checking feed!");
+    } catch (err) {
+      handleApiError(err, 'Could not submit revision.');
     }
   };
 
   // Repository view increments
-  const handleIncrementRepositoryCounts = (id: string, type: 'view' | 'download') => {
-    setResearchList(prev => prev.map(r => {
-      if (r.id === id) {
-        return {
-          ...r,
-          viewCount: type === 'view' ? r.viewCount + 1 : r.viewCount,
-          downloadCount: type === 'download' ? r.downloadCount + 1 : r.downloadCount
-        };
-      }
-      return r;
-    }));
+  const handleIncrementRepositoryCounts = async (id: string, type: 'view' | 'download') => {
+    try {
+      const updated = await incrementResearchCounts(id, type);
+      setResearchList(prev => prev.map(r => r.id === id ? updated : r));
+    } catch {
+      // A failed view/download counter bump shouldn't interrupt the user with an alert.
+    }
+  };
+
+  // Comments (ResearchDetailsView, DocumentReview)
+  const handleAddComment = async (c: ResearchComment) => {
+    try {
+      const created = await apiCreateComment(c.researchId, { versionId: c.versionId, chapter: c.chapter, text: c.text });
+      setComments(prev => [created, ...prev]);
+    } catch (err) {
+      handleApiError(err, 'Could not post comment.');
+    }
   };
 
   // Interactive scheduler schedules
-  const handleAddSchedule = (sched: Schedule) => {
-    setSchedules(prev => [sched, ...prev]);
-    
-    // Update Research Status to scheduled
-    setResearchList(prev => prev.map(r => r.id === sched.researchId ? { ...r, status: 'Scheduled', updatedAt: new Date().toISOString() } : r));
-
-    // Notify authors
-    const res = researchList.find(r => r.id === sched.researchId);
-    if (res) {
-      res.studentIds.forEach(sid => {
-        setNotifications(n => [
-          {
-            id: `notif-sched-${Date.now()}-${sid}`,
-            userId: sid,
-            title: 'Defense Schedule Published!',
-            message: `Your defense is set for ${sched.date} @ ${sched.startTime} in the presentation rooms. Check coordinates.`,
-            type: 'success',
-            read: false,
-            createdAt: new Date().toISOString()
-          },
-          ...n
-        ]);
+  const handleAddSchedule = async (sched: Schedule) => {
+    try {
+      const created = await createSchedule({
+        researchId: sched.researchId, date: sched.date, startTime: sched.startTime,
+        endTime: sched.endTime, roomId: sched.roomId, panelistIds: sched.panelistIds, type: sched.type,
       });
+      setSchedules(prev => [created, ...prev]);
+      setResearchList(prev => prev.map(r => r.id === created.researchId ? { ...r, status: 'Scheduled' } : r));
+      triggerAlert("Schedule slot registered!");
+    } catch (err) {
+      handleApiError(err, 'Could not register schedule.');
     }
-
-    logTransaction('CREATE_SCHEDULE', `Coordinator registered defense slot ID ${sched.id} for research ${sched.researchId}`);
-    triggerAlert("Schedule slot registered!");
   };
 
-  const handleUpdateSchedule = (updated: Schedule) => {
-    setSchedules(prev => prev.map(s => s.id === updated.id ? updated : s));
-    logTransaction('UPDATE_SCHEDULE', `Coordinator updated defense schedule ID ${updated.id} date/time coordinates.`);
-    triggerAlert("Defense schedule updated successfully!");
-  };
-
-  const handleCancelSchedule = (scheduleId: string) => {
-    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status: 'cancelled' } : s));
-    const schedObj = schedules.find(s => s.id === scheduleId);
-    if (schedObj) {
-      setResearchList(prev => prev.map(r => r.id === schedObj.researchId ? { ...r, status: 'Approved by Adviser', updatedAt: new Date().toISOString() } : r));
+  const handleUpdateSchedule = async (updated: Schedule) => {
+    try {
+      const { id, ...patch } = updated;
+      const saved = await apiUpdateSchedule(id, patch);
+      setSchedules(prev => prev.map(s => s.id === saved.id ? saved : s));
+      triggerAlert("Defense schedule updated successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not update schedule.');
     }
-    logTransaction('CANCEL_SCHEDULE', `Coordinator cancelled defense schedule ID ${scheduleId}`);
-    triggerAlert("Defense schedule cancelled.", "error");
   };
 
-  const handleDeleteSchedule = (scheduleId: string) => {
-    const schedObj = schedules.find(s => s.id === scheduleId);
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
-    if (schedObj) {
-      setResearchList(prev => prev.map(r => r.id === schedObj.researchId ? { ...r, status: 'Approved by Adviser', updatedAt: new Date().toISOString() } : r));
+  const handleCancelSchedule = async (scheduleId: string) => {
+    try {
+      const updated = await apiCancelSchedule(scheduleId);
+      setSchedules(prev => prev.map(s => s.id === scheduleId ? updated : s));
+      setResearchList(prev => prev.map(r => r.id === updated.researchId ? { ...r, status: 'Approved by Adviser' } : r));
+      triggerAlert("Defense schedule cancelled.", "error");
+    } catch (err) {
+      handleApiError(err, 'Could not cancel schedule.');
     }
-    logTransaction('DELETE_SCHEDULE', `Coordinator permanently deleted schedule ID ${scheduleId}`);
-    triggerAlert("Defense schedule deleted.");
   };
 
-  const handleUpdateResearchAdviser = (researchId: string, adviserId: string) => {
-    setResearchList(prev => prev.map(r => r.id === researchId ? { ...r, adviserId, updatedAt: new Date().toISOString() } : r));
-    logTransaction('UPDATE_ADVISER', `Coordinator reassigned adviser ID ${adviserId} to research group ID ${researchId}`);
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    try {
+      const schedObj = schedules.find(s => s.id === scheduleId);
+      await apiDeleteSchedule(scheduleId);
+      setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+      if (schedObj) {
+        setResearchList(prev => prev.map(r => r.id === schedObj.researchId ? { ...r, status: 'Approved by Adviser' } : r));
+      }
+      triggerAlert("Defense schedule deleted.");
+    } catch (err) {
+      handleApiError(err, 'Could not delete schedule.');
+    }
   };
 
-  const handleClearSchedules = () => {
-    // Keep completed historical schedules, delete draft proposal ones for demo reset
-    setSchedules(prev => prev.filter(s => s.status === 'completed'));
-    // Revert research status to Approved by Adviser
-    setResearchList(prev => prev.map(r => r.status === 'Scheduled' ? { ...r, status: 'Approved by Adviser' } : r));
-    logTransaction('CLEAR_SCHEDULES', "Coordinator cleared draft scheduling calendars.");
-    triggerAlert("Draft calendars cleared.");
+  const handleUpdateResearchAdviser = async (researchId: string, adviserId: string) => {
+    try {
+      const updated = await apiUpdateResearchAdviser(researchId, adviserId);
+      setResearchList(prev => prev.map(r => r.id === researchId ? updated : r));
+    } catch (err) {
+      handleApiError(err, 'Could not reassign adviser.');
+    }
+  };
+
+  const handleClearSchedules = async () => {
+    try {
+      await clearDraftSchedules();
+      const [freshSchedules, freshResearch] = await Promise.all([listSchedules(), listResearch()]);
+      setSchedules(freshSchedules);
+      setResearchList(freshResearch);
+      triggerAlert("Draft calendars cleared.");
+    } catch (err) {
+      handleApiError(err, 'Could not clear schedules.');
+    }
   };
 
   // Evaluator sheets
-  const handleAddEvaluation = (evalObj: Evaluation) => {
-    setEvaluations(prev => [evalObj, ...prev]);
-
-    // Update schedule state to completed if appropriate
-    setSchedules(prev => prev.map(s => s.id === evalObj.scheduleId ? { ...s, status: 'completed' } : s));
-
-    // If defense is completed, move research status to completed or archived
-    const sched = schedules.find(s => s.id === evalObj.scheduleId);
-    if (sched) {
-      setResearchList(prev => prev.map(r => {
-        if (r.id === sched.researchId) {
-          // Notify student
-          r.studentIds.forEach(sid => {
-            setNotifications(n => [
-              {
-                id: `notif-eval-${Date.now()}`,
-                userId: sid,
-                title: 'Jury Recommendation Published',
-                message: `Panelist evaluated defense with recommendation: ${evalObj.recommendation} (Score: ${evalObj.totalScore}/100)`,
-                type: evalObj.recommendation === 'Failed' ? 'error' : 'success',
-                read: false,
-                createdAt: new Date().toISOString()
-              },
-              ...n
-            ]);
-          });
-
-          return { 
-            ...r, 
-            status: evalObj.recommendation === 'Passed' ? 'Completed' : 'Revision Required', 
-            updatedAt: new Date().toISOString() 
-          };
-        }
-        return r;
-      }));
+  const handleAddEvaluation = async (evalObj: Evaluation) => {
+    try {
+      const created = await createEvaluation({
+        scheduleId: evalObj.scheduleId, score1: evalObj.score1, score2: evalObj.score2,
+        score3: evalObj.score3, score4: evalObj.score4, comment: evalObj.comment, recommendation: evalObj.recommendation,
+      });
+      setEvaluations(prev => [created, ...prev]);
+      setSchedules(prev => prev.map(s => s.id === evalObj.scheduleId ? { ...s, status: 'completed' } : s));
+      const sched = schedules.find(s => s.id === evalObj.scheduleId);
+      if (sched) {
+        setResearchList(prev => prev.map(r => r.id === sched.researchId ? {
+          ...r, status: created.recommendation === 'Passed' ? 'Completed' : 'Revision Required',
+        } : r));
+      }
+      triggerAlert("Jury evaluation submitted!");
+    } catch (err) {
+      handleApiError(err, 'Could not submit evaluation.');
     }
-
-    logTransaction('LOCK_EVALUATION', `Jury member ${currentUser?.name} submitted grade evaluation out of 100: ${evalObj.totalScore}`);
-    triggerAlert("Jury evaluation submitted!");
   };
 
   // Consultations
-  const handleAddConsultation = (cons: Consultation) => {
-    setConsultations(prev => [cons, ...prev]);
-    logTransaction('ADD_CONSULTATION', `Supervisor scheduled consultation slot: "${cons.topic}"`);
-    triggerAlert("Consultation slot registered.");
+  const handleAddConsultation = async (cons: Consultation) => {
+    try {
+      const created = await createConsultation({
+        adviserId: cons.adviserId, studentId: cons.studentId, dateTime: cons.dateTime, topic: cons.topic,
+      });
+      setConsultations(prev => [created, ...prev]);
+      triggerAlert("Consultation slot registered.");
+    } catch (err) {
+      handleApiError(err, 'Could not register consultation.');
+    }
   };
 
-  const handleApproveConsultation = (id: string) => {
-    setConsultations(prev => prev.map(c => c.id === id ? { 
-      ...c, status: 'approved', meetLink: 'https://meet.google.com/normi-abc-xyz' 
-    } : c));
-    triggerAlert("Consultation slot approved!");
+  const handleApproveConsultation = async (id: string) => {
+    try {
+      const updated = await approveConsultation(id);
+      setConsultations(prev => prev.map(c => c.id === id ? updated : c));
+      triggerAlert("Consultation slot approved!");
+    } catch (err) {
+      handleApiError(err, 'Could not approve consultation.');
+    }
   };
 
   // Admin user directory
-  const handleToggleUserStatus = (id: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextStatus = u.status === 'active' ? 'suspended' : 'active';
-        logTransaction('TOGGLE_USER_STATUS', `Super Admin set account status of ${u.name} to: ${nextStatus}`);
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
-    triggerAlert("User status updated.");
-  };
-
-  const handleUpdateUserRole = (id: string, role: UserRole) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === id) {
-        logTransaction('UPDATE_USER_ROLE', `Super Admin updated role of ${u.name} to: ${role}`);
-        return { ...u, role };
-      }
-      return u;
-    }));
-    triggerAlert("User permission updated.");
-  };
-
-  // SQL Backups
-  const handleBackupDatabase = () => {
-    logTransaction('BACKUP_DATABASE', "Super Admin triggered physical hot backup of MySQL schemas and DDL transcripts.");
-    triggerAlert("Database backup completed (normi_backup.sql generated).");
-  };
-
-  const handleRestoreDatabase = () => {
-    logTransaction('RESTORE_DATABASE', "Super Admin triggered a hot rollback recover to the latest restore point coordinates.");
-    triggerAlert("Database restore point recovered.");
-  };
-
-  // Student & Faculty Profile Updater
-  const handleUpdateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    if (currentUser && currentUser.id === updatedUser.id) {
-      setCurrentUser(updatedUser);
+  const handleToggleUserStatus = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    try {
+      const nextStatus = target.status === 'active' ? 'suspended' : 'active';
+      const updated = await apiUpdateUser(id, { status: nextStatus });
+      setUsers(prev => prev.map(u => u.id === id ? updated : u));
+      triggerAlert("User status updated.");
+    } catch (err) {
+      handleApiError(err, 'Could not update user status.');
     }
-    logTransaction('UPDATE_USER_PROFILE', `Updated user profile/researcher information for: ${updatedUser.name}`, updatedUser.role, updatedUser.name, updatedUser.id);
-    triggerAlert("Researcher profile updated successfully!");
   };
 
-  const handleUpdateProposalFiles = (researchId: string, files: ProposalFile[]) => {
-    setResearchList(prev => prev.map(r => r.id === researchId ? { ...r, proposalFiles: files, updatedAt: new Date().toISOString() } : r));
-    logTransaction('UPDATE_PROPOSAL_FILES', `Student updated proposal files/attachments list for Research ID: ${researchId}`);
-    triggerAlert("Proposal attachments updated successfully!");
+  const handleUpdateUserRole = async (id: string, role: UserRole) => {
+    try {
+      const updated = await apiUpdateUser(id, { role });
+      setUsers(prev => prev.map(u => u.id === id ? updated : u));
+      triggerAlert("User permission updated.");
+    } catch (err) {
+      handleApiError(err, 'Could not update user role.');
+    }
+  };
+
+  // Database backup/restore — stub actions with no real infra behind them (a managed
+  // Atlas cluster handles that), kept only so the admin audit trail stays complete.
+  const handleBackupDatabase = async () => {
+    try {
+      await backupDatabase();
+      setAuditLogs(await listAuditLogs());
+      triggerAlert("Database backup completed.");
+    } catch (err) {
+      handleApiError(err, 'Backup failed.');
+    }
+  };
+
+  const handleRestoreDatabase = async () => {
+    try {
+      await restoreDatabase();
+      setAuditLogs(await listAuditLogs());
+      triggerAlert("Database restore point recovered.");
+    } catch (err) {
+      handleApiError(err, 'Restore failed.');
+    }
+  };
+
+  // Student & Faculty Profile Updater (admin editing another user's profile)
+  const handleUpdateUser = async (updatedUser: User) => {
+    try {
+      const { id, registeredAt, ...patch } = updatedUser;
+      const saved = await apiUpdateUser(id, patch);
+      setUsers(prev => prev.map(u => u.id === id ? saved : u));
+      if (currentUser && currentUser.id === id) {
+        setCurrentUser(saved);
+      }
+      triggerAlert("Researcher profile updated successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not update user profile.');
+    }
+  };
+
+  const handleUpdateProposalFiles = async (researchId: string, files: ProposalFile[]) => {
+    try {
+      const updated = await apiUpdateProposalFiles(researchId, files);
+      setResearchList(prev => prev.map(r => r.id === researchId ? updated : r));
+      triggerAlert("Proposal attachments updated successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not update proposal attachments.');
+    }
   };
 
   // Coordinator state flows Kanban board
-  const handleUpdateResearchStatus = (id: string, status: any) => {
-    setResearchList(prev => prev.map(r => r.id === id ? { ...r, status, updatedAt: new Date().toISOString() } : r));
-    logTransaction('UPDATE_RESEARCH_STATUS', `Coordinator updated research status of ID ${id} to ${status}`);
-    triggerAlert(`Status updated to: ${status}`);
+  const handleUpdateResearchStatus = async (id: string, status: ResearchStatus) => {
+    try {
+      const updated = await apiUpdateResearchStatus(id, status);
+      setResearchList(prev => prev.map(r => r.id === id ? updated : r));
+      triggerAlert(`Status updated to: ${status}`);
+    } catch (err) {
+      handleApiError(err, 'Could not update research status.');
+    }
   };
 
   // Admin repository management
-  const handleAddRepositoryPaper = (paper: Research) => {
-    setResearchList(prev => [paper, ...prev]);
-    logTransaction('ADD_REPOSITORY_MANUSCRIPT', `Super Admin archived new manuscript: "${paper.title}"`);
-    triggerAlert("New manuscript archived in repository!");
+  const handleAddRepositoryPaper = async (paper: Research) => {
+    try {
+      const created = await createArchivedResearch({
+        title: paper.title, abstract: paper.abstract, departmentId: paper.departmentId,
+        courseId: paper.courseId, schoolYearId: paper.schoolYearId, adviserId: paper.adviserId,
+        keywords: paper.keywords, status: paper.status,
+      });
+      setResearchList(prev => [created, ...prev]);
+      triggerAlert("New manuscript archived in repository!");
+    } catch (err) {
+      handleApiError(err, 'Could not archive manuscript.');
+    }
   };
 
-  const handleEditRepositoryPaper = (paper: Research) => {
-    setResearchList(prev => prev.map(r => r.id === paper.id ? paper : r));
-    logTransaction('EDIT_REPOSITORY_MANUSCRIPT', `Super Admin updated manuscript metadata of ID: ${paper.id}`);
-    triggerAlert("Manuscript updated successfully!");
+  const handleEditRepositoryPaper = async (paper: Research) => {
+    try {
+      const { id, ...patch } = paper;
+      const updated = await apiUpdateResearch(id, patch);
+      setResearchList(prev => prev.map(r => r.id === id ? updated : r));
+      triggerAlert("Manuscript updated successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not update manuscript.');
+    }
   };
 
-  const handleDeleteRepositoryPaper = (id: string) => {
-    setResearchList(prev => prev.filter(r => r.id !== id));
-    logTransaction('DELETE_REPOSITORY_MANUSCRIPT', `Super Admin deleted manuscript of ID: ${id}`);
-    triggerAlert("Manuscript deleted from repository.");
+  const handleDeleteRepositoryPaper = async (id: string) => {
+    try {
+      await deleteResearch(id);
+      setResearchList(prev => prev.filter(r => r.id !== id));
+      triggerAlert("Manuscript deleted from repository.");
+    } catch (err) {
+      handleApiError(err, 'Could not delete manuscript.');
+    }
   };
 
-  const handleAddUserAccount = (newUser: User) => {
-    setUsers(prev => [...prev, newUser]);
-    logTransaction('REGISTER_USER_ACCOUNT', `Academic account registered: ${newUser.name} (${newUser.email})`);
-    triggerAlert("New user account registered!");
+  const handleAddUserAccount = async (newUser: User, password: string) => {
+    try {
+      const created = await createUser({
+        email: newUser.email, password, name: newUser.name, role: newUser.role,
+        departmentId: newUser.departmentId, courseId: newUser.courseId, phone: newUser.phone,
+      });
+      setUsers(prev => [...prev, created]);
+      triggerAlert("New user account registered!");
+    } catch (err) {
+      handleApiError(err, 'Could not register user account.');
+    }
   };
 
-  const handleDeleteUserAccount = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
-    logTransaction('DELETE_USER_ACCOUNT', `Academic account deleted: ID ${id}`);
-    triggerAlert("User account deleted successfully.");
+  const handleDeleteUserAccount = async (id: string) => {
+    try {
+      await apiDeleteUser(id);
+      setUsers(prev => prev.filter(u => u.id !== id));
+      triggerAlert("User account deleted successfully.");
+    } catch (err) {
+      handleApiError(err, 'Could not delete user account.');
+    }
   };
 
-  const handleAddDefenseType = (type: string) => {
-    setDefenseTypes(prev => {
-      if (prev.includes(type)) return prev;
-      logTransaction('ADD_DEFENSE_TYPE', `Institutional defense type category configured: "${type}"`);
-      triggerAlert(`Defense type "${type}" added successfully!`);
-      return [...prev, type];
-    });
-  };
-
-  const handleDeleteDefenseType = (type: string) => {
-    setDefenseTypes(prev => {
-      const filtered = prev.filter(t => t !== type);
-      logTransaction('DELETE_DEFENSE_TYPE', `Removed institutional defense type category: "${type}"`);
-      triggerAlert(`Defense type "${type}" deleted.`);
-      return filtered;
-    });
-  };
-
-  const handleCreateTitleProposal = (data: {
+  const handleCreateTitleProposal = async (data: {
     title: string;
     abstract: string;
     keywords: string[];
@@ -683,66 +576,18 @@ export default function App() {
     proposalFiles?: ProposalFile[];
   }) => {
     if (!currentUser) return;
-
-    const newResearchId = `res-${Date.now()}`;
-    const newResearch: Research = {
-      id: newResearchId,
-      studentIds: [currentUser.id],
-      adviserId: data.adviserId,
-      panelistIds: [],
-      title: data.title,
-      abstract: data.abstract,
-      keywords: data.keywords,
-      status: 'Submitted',
-      departmentId: currentUser.departmentId || DEPARTMENTS[0].id,
-      courseId: currentUser.courseId || COURSES[0].id,
-      schoolYearId: SCHOOL_YEARS.find(s => s.isCurrent)?.id || SCHOOL_YEARS[0].id,
-      viewCount: 0,
-      downloadCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      proposalFiles: data.proposalFiles || []
-    };
-
-    // Create primary version 1 record
-    const newVersion: ResearchVersion = {
-      id: `ver-${Date.now()}`,
-      researchId: newResearchId,
-      versionNumber: 1,
-      title: data.title,
-      abstract: data.abstract,
-      fileUrl: `manuscripts/${data.fileName}`,
-      fileName: data.fileName,
-      submittedBy: currentUser.id,
-      submittedAt: new Date().toISOString(),
-      chapters: {
-        chapter1: { status: 'Pending' },
-        chapter2: { status: 'Pending' },
-        chapter3: { status: 'Pending' },
-        chapter4: { status: 'Not Submitted' },
-        chapter5: { status: 'Not Submitted' }
-      }
-    };
-
-    setResearchList(prev => [newResearch, ...prev]);
-    setVersions(prev => [newVersion, ...prev]);
-
-    // Send dispatch notification to Adviser
-    setNotifications(n => [
-      {
-        id: `notif-newprop-${Date.now()}`,
-        userId: data.adviserId,
-        title: 'New Research Title Proposal',
-        message: `Student group submitted a new Research Proposal: "${data.title}"`,
-        type: 'info',
-        read: false,
-        createdAt: new Date().toISOString()
-      },
-      ...n
-    ]);
-
-    logTransaction('SUBMIT_PROPOSAL', `Student team submitted new Research Proposal Form: "${data.title}"`);
-    triggerAlert("Research Title Proposal submitted successfully!");
+    try {
+      const created = await createResearch({
+        title: data.title, abstract: data.abstract, keywords: data.keywords,
+        adviserId: data.adviserId, fileName: data.fileName, proposalFiles: data.proposalFiles,
+      });
+      setResearchList(prev => [created, ...prev]);
+      const freshVersions = await listVersionsForResearch(created.id);
+      setVersions(prev => [...freshVersions, ...prev]);
+      triggerAlert("Research Title Proposal submitted successfully!");
+    } catch (err) {
+      handleApiError(err, 'Could not submit research proposal.');
+    }
   };
 
   // Navigation router view
@@ -766,8 +611,8 @@ export default function App() {
           <p className="text-xs text-slate-500 leading-relaxed">
             Your designated institutional role (<span className="font-bold text-blue-950 uppercase font-mono">{currentUser.role}</span>) does not possess permission scopes to access the <span className="font-semibold text-slate-700">"{activeTab}"</span> section.
           </p>
-          <button 
-            onClick={() => setActiveTab('dashboard')} 
+          <button
+            onClick={() => setActiveTab('dashboard')}
             className="px-4 py-1.5 bg-blue-800 text-white rounded-lg text-xs font-semibold hover:bg-blue-900 cursor-pointer"
           >
             Return to Authorized Dashboard
@@ -785,7 +630,7 @@ export default function App() {
           comments={comments}
           user={currentUser!}
           onBack={() => setSelectedResearchId(null)}
-          onAddComment={(c) => setComments(prev => [c, ...prev])}
+          onAddComment={handleAddComment}
           onUpdateChapterStatus={handleUpdateChapterStatus}
           onStudentUploadRevision={handleStudentUploadRevision}
         />
@@ -805,17 +650,22 @@ export default function App() {
               versions={versions}
               comments={comments}
               schedules={schedules}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               onNavigateToTimeline={() => {
                 if (res) setSelectedResearchId(res.id);
               }}
               onStudentUploadRevision={handleStudentUploadRevision}
               onUpdateProposalFiles={handleUpdateProposalFiles}
-              onUpdateResearchDetails={(updated: Research) => {
-                setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
-                logTransaction('UPDATE_RESEARCH_METADATA', `Student updated metadata for capstone: "${updated.title}"`);
-                triggerAlert("Capstone research parameters updated!");
+              onUpdateResearchDetails={async (updated: Research) => {
+                try {
+                  const { id, ...patch } = updated;
+                  const saved = await apiUpdateResearch(id, patch);
+                  setResearchList(prev => prev.map(r => r.id === id ? saved : r));
+                  triggerAlert("Capstone research parameters updated!");
+                } catch (err) {
+                  handleApiError(err, 'Could not update research details.');
+                }
               }}
               onCreateTitleProposal={handleCreateTitleProposal}
             />
@@ -841,7 +691,7 @@ export default function App() {
               user={currentUser}
               researchList={researchList}
               announcements={announcements}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
@@ -867,9 +717,9 @@ export default function App() {
               users={users}
               schedules={schedules}
               researchList={researchList}
-              departments={DEPARTMENTS}
-              courses={COURSES}
-              rooms={ROOMS}
+              departments={departments}
+              courses={courses}
+              rooms={rooms}
               onToggleUserStatus={handleToggleUserStatus}
               onUpdateUserRole={handleUpdateUserRole}
               onAddUserAccount={handleAddUserAccount}
@@ -887,9 +737,9 @@ export default function App() {
           <RepositoryView
             user={currentUser!}
             researchList={researchList}
-            departments={DEPARTMENTS}
-            courses={COURSES}
-            schoolYears={SCHOOL_YEARS}
+            departments={departments}
+            courses={courses}
+            schoolYears={schoolYears}
             users={users}
             onIncrementCounts={handleIncrementRepositoryCounts}
             onAddPaper={handleAddRepositoryPaper}
@@ -903,7 +753,7 @@ export default function App() {
           return (
             <SchedulerCalendar
               schedules={schedules}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               researchList={researchList}
               currentUser={currentUser}
@@ -918,7 +768,7 @@ export default function App() {
           return (
             <DefenseSchedulesList
               schedules={schedules}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               researchList={researchList}
               currentUser={currentUser!}
@@ -941,7 +791,7 @@ export default function App() {
                 comments={comments}
                 user={currentUser}
                 onBack={() => setActiveTab('dashboard')}
-                onAddComment={(c) => setComments(prev => [c, ...prev])}
+                onAddComment={handleAddComment}
                 onUpdateChapterStatus={handleUpdateChapterStatus}
                 onStudentUploadRevision={handleStudentUploadRevision}
               />
@@ -976,7 +826,7 @@ export default function App() {
               user={currentUser}
               researchList={researchList}
               announcements={announcements}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
@@ -990,11 +840,11 @@ export default function App() {
         return (
           <AutomatedScheduler
             schedules={schedules}
-            rooms={ROOMS}
+            rooms={rooms}
             users={users}
             researchList={researchList}
-            panelAvailabilities={PANEL_AVAILABILITY}
-            onAddSchedule={handleAddAddSchedule => handleAddSchedule(handleAddAddSchedule)}
+            panelAvailabilities={panelAvailabilities}
+            onAddSchedule={handleAddSchedule}
             onClearSchedules={handleClearSchedules}
           />
         );
@@ -1006,7 +856,7 @@ export default function App() {
               user={currentUser}
               researchList={researchList}
               announcements={announcements}
-              rooms={ROOMS}
+              rooms={rooms}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
@@ -1040,7 +890,7 @@ export default function App() {
               researchList={researchList}
               versions={versions}
               comments={comments}
-              onAddComment={(c) => setComments(prev => [c, ...prev])}
+              onAddComment={handleAddComment}
               onApproveManuscript={handleApproveManuscript}
             />
           );
@@ -1055,9 +905,9 @@ export default function App() {
               users={users}
               schedules={schedules}
               researchList={researchList}
-              departments={DEPARTMENTS}
-              courses={COURSES}
-              rooms={ROOMS}
+              departments={departments}
+              courses={courses}
+              rooms={rooms}
               activeSection="user-management"
               onToggleUserStatus={handleToggleUserStatus}
               onUpdateUserRole={handleUpdateUserRole}
@@ -1076,6 +926,19 @@ export default function App() {
     }
   };
 
+  // Wait for the silent session-restore check before deciding Landing vs Login vs Portal,
+  // otherwise an already-logged-in user briefly flashes the Landing page on every reload.
+  if (authStatus === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-800 border-t-transparent animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Restoring secure session...</span>
+        </div>
+      </div>
+    );
+  }
+
   // Initial gate checking: Landing -> Login -> Portal Space
   if (!showPortal && !currentUser) {
     // Public entrance
@@ -1084,7 +947,7 @@ export default function App() {
         announcements={announcements}
         onEnterPortal={() => setShowPortal(true)}
         stats={{
-          archived: researchList.filter(r => r.status === 'Completed' || r.status === 'Archived').length + 50, // simulated archival count
+          archived: researchList.filter(r => r.status === 'Completed' || r.status === 'Archived').length,
           active: researchList.filter(r => r.status !== 'Completed' && r.status !== 'Archived').length,
           advisers: users.filter(u => u.role === 'adviser').length,
           scheduled: schedules.filter(s => s.status === 'scheduled').length
@@ -1101,6 +964,19 @@ export default function App() {
         users={users}
         onBackToLanding={() => setShowPortal(false)}
       />
+    );
+  }
+
+  // Once logged in, wait for the bulk data load before rendering dashboards — otherwise
+  // every collection briefly renders empty while the initial fetch is still in flight.
+  if (currentUser && isDataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-800 border-t-transparent animate-spin"></div>
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loading your workspace...</span>
+        </div>
+      </div>
     );
   }
 
@@ -1121,7 +997,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff] text-slate-800 font-sans overflow-hidden relative">
-      
+
       {/* Decorative ambient glowing blobs behind the frosted cards */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-300/15 blur-[120px] pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-300/15 blur-[120px] pointer-events-none z-0"></div>
@@ -1152,7 +1028,7 @@ export default function App() {
 
       {/* Main viewport area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
-        
+
         {/* Unified Top header coordinates */}
         <Header
           user={currentUser!}

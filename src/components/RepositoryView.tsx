@@ -178,15 +178,10 @@ export default function RepositoryView({
   };
 
   const handleDownload = (paper: Research) => {
+    const mainDoc = paper.proposalFiles?.find(f => f.category === 'proposal_document');
+    if (!mainDoc) return;
     onIncrementCounts(paper.id, 'download');
-    // Simulate downloading PDF
-    const blob = new Blob([JSON.stringify(paper, null, 2)], { type: 'application/pdf' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${paper.title.substring(0, 30).replace(/\s+/g, '_')}_MANUSCRIPT.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(mainDoc.url, '_blank');
   };
 
   return (

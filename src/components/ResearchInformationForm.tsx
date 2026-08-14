@@ -4,6 +4,7 @@ import {
   ShieldCheck, UploadCloud, Eye, Trash2, Download, RefreshCw, Plus, X
 } from 'lucide-react';
 import { User, ProposalFile } from '../types';
+import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 
 interface ResearchInformationFormProps {
   user: User;
@@ -35,58 +36,59 @@ export default function ResearchInformationForm({
   const [proposalFiles, setProposalFiles] = useState<ProposalFile[]>([]);
   const [uploadCategory, setUploadCategory] = useState<'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments'>('proposal_document');
   const [error, setError] = useState<string | null>(null);
-  
+  const [isUploading, setIsUploading] = useState(false);
+
   // Track specific file ID to replace
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
 
   // File Preview Modal state
   const [previewFile, setPreviewFile] = useState<ProposalFile | null>(null);
 
-  const addSimulatedFile = (name: string, size: number) => {
-    const isPdfOrDocx = name.endsWith('.pdf') || name.endsWith('.docx');
+  const handleFileUpload = async (file: File) => {
+    const isPdfOrDocx = file.name.endsWith('.pdf') || file.name.endsWith('.docx');
     if (!isPdfOrDocx) {
       setError("Only PDF and DOCX documents are accepted for manuscript vetting.");
       return;
     }
 
-    if (replaceTargetId) {
-      setProposalFiles(prev => prev.map(f => f.id === replaceTargetId ? {
-        ...f,
-        name,
-        size,
-        uploadedAt: new Date().toISOString()
-      } : f));
-      setReplaceTargetId(null);
-      setError(null);
-      return;
-    }
-
-    // Auto-replace same category to keep it neat, or append if other attachments
-    const isSingleCategory = uploadCategory === 'proposal_document' || uploadCategory === 'research_summary';
-    const existing = proposalFiles.find(f => f.category === uploadCategory);
-    
-    if (isSingleCategory && existing) {
-      setProposalFiles(prev => prev.map(f => f.category === uploadCategory ? {
-        ...f,
-        name,
-        size,
-        uploadedAt: new Date().toISOString()
-      } : f));
-      setError(null);
-      return;
-    }
-
-    const newFile: ProposalFile = {
-      id: `prop-file-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name,
-      url: `manuscripts/${name}`,
-      size,
-      uploadedAt: new Date().toISOString(),
-      category: uploadCategory
-    };
-
-    setProposalFiles(prev => [...prev, newFile]);
+    setIsUploading(true);
     setError(null);
+    try {
+      const uploaded = await uploadFile(file);
+      const fileData = {
+        name: uploaded.fileName,
+        url: resolveFileUrl(uploaded.url),
+        size: uploaded.size,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      if (replaceTargetId) {
+        setProposalFiles(prev => prev.map(f => f.id === replaceTargetId ? { ...f, ...fileData } : f));
+        setReplaceTargetId(null);
+        return;
+      }
+
+      // Auto-replace same category to keep it neat, or append if other attachments
+      const isSingleCategory = uploadCategory === 'proposal_document' || uploadCategory === 'research_summary';
+      const existing = proposalFiles.find(f => f.category === uploadCategory);
+
+      if (isSingleCategory && existing) {
+        setProposalFiles(prev => prev.map(f => f.category === uploadCategory ? { ...f, ...fileData } : f));
+        return;
+      }
+
+      const newFile: ProposalFile = {
+        id: `prop-file-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        category: uploadCategory,
+        ...fileData,
+      };
+
+      setProposalFiles(prev => [...prev, newFile]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -105,14 +107,14 @@ export default function ResearchInformationForm({
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      addSimulatedFile(file.name, file.size);
+      handleFileUpload(file);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      addSimulatedFile(file.name, file.size);
+      handleFileUpload(file);
       e.target.value = ''; // Reset input
     }
   };
@@ -126,14 +128,8 @@ export default function ResearchInformationForm({
     setProposalFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const handleDownloadSimulation = (file: ProposalFile) => {
-    // Simulating file download with a generated JSON/Text blob matching user-friendly output
-    const dummyContent = `NORMI Capstone Document\nCategory: ${file.category}\nName: ${file.name}\nTimestamp: ${file.uploadedAt}`;
-    const blob = new Blob([dummyContent], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = file.name;
-    link.click();
+  const handleFileDownload = (file: ProposalFile) => {
+    window.open(file.url, '_blank');
   };
 
   const handleNextStep = () => {
@@ -340,18 +336,28 @@ export default function ResearchInformationForm({
                         ? 'border-blue-500 bg-blue-900/20' 
                         : 'border-white/15 bg-slate-900 hover:bg-slate-900/70'
                     }`}
-                    onClick={() => document.getElementById('manuscript-input')?.click()}
+                    onClick={() => !isUploading && document.getElementById('manuscript-input')?.click()}
                   >
                     <input
                       id="manuscript-input"
                       type="file"
                       accept=".pdf,.docx"
                       className="hidden"
+                      disabled={isUploading}
                       onChange={handleFileSelect}
                     />
                     <div className="flex items-center gap-1.5 text-slate-300">
-                      <UploadCloud className="h-4 w-4 text-blue-400 shrink-0" />
-                      <span className="text-[11px] font-semibold">Drop or Click to Upload</span>
+                      {isUploading ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 text-blue-400 shrink-0 animate-spin" />
+                          <span className="text-[11px] font-semibold">Uploading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="h-4 w-4 text-blue-400 shrink-0" />
+                          <span className="text-[11px] font-semibold">Drop or Click to Upload</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -409,7 +415,7 @@ export default function ResearchInformationForm({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDownloadSimulation(file)}
+                              onClick={() => handleFileDownload(file)}
                               title="Download File"
                               className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
                             >

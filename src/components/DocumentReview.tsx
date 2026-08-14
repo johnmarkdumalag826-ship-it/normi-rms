@@ -5,6 +5,7 @@ import {
   User, Calendar, Clock, Check, Trash
 } from 'lucide-react';
 import { User as UserType, Research, ResearchVersion, ResearchComment } from '../types';
+import { resolveFileUrl } from '../api/client';
 
 interface DocumentReviewProps {
   user: UserType;
@@ -311,10 +312,13 @@ export default function DocumentReview({
                 </button>
 
                 <a
-                  href={`/api/download/${currentVersion?.id || 'mock'}`}
-                  download
-                  onClick={(e) => { e.preventDefault(); alert("System download simulation triggered."); }}
-                  className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
+                  href={currentVersion?.fileUrl ? resolveFileUrl(currentVersion.fileUrl) : undefined}
+                  download={currentVersion?.fileName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`p-1.5 rounded-lg text-slate-600 transition-colors ${
+                    currentVersion?.fileUrl ? 'hover:bg-slate-50 hover:text-slate-800' : 'opacity-40 pointer-events-none'
+                  }`}
                   title="Download File"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -645,7 +649,7 @@ export default function DocumentReview({
                           <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] space-y-1">
                             <div className="flex justify-between items-center text-[9px] text-slate-400 font-medium">
                               <span className="font-bold text-slate-700">{c.authorName}</span>
-                              <span>{new Date(c.createdAt).toLocaleDateString()}</span>
+                              <span>{new Date(c.commentAt).toLocaleDateString()}</span>
                             </div>
                             <span className="inline-block px-1.5 py-0.25 bg-blue-50 text-blue-800 rounded font-bold uppercase tracking-wider text-[8px] font-mono">
                               {c.chapter}
@@ -699,7 +703,7 @@ export default function DocumentReview({
                                 <div className="flex items-center gap-2 text-[9px] text-slate-400 font-medium">
                                   <span className="flex items-center gap-0.5">
                                     <Clock className="h-2.5 w-2.5" />
-                                    {new Date(ver.uploadedAt).toLocaleDateString()}
+                                    {new Date(ver.submittedAt).toLocaleDateString()}
                                   </span>
                                 </div>
                               </div>

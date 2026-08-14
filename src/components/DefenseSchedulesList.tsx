@@ -317,14 +317,9 @@ export default function DefenseSchedulesList({
                   {filteredSchedules.map(sched => {
                     const isMySched = isMySchedule(sched);
                     const isOnline = sched.roomId === 'online' || !sched.roomId;
-                    const typeLabel = sched.type === 'title_proposal' ? 'Title Proposal'
-                      : sched.type === 'proposal' ? 'Proposal'
-                      : sched.type === 'mock_defense' ? 'Mock'
-                      : 'Final Defense';
+                    const typeLabel = sched.type === 'proposal' ? 'Proposal' : 'Final Defense';
 
-                    const typeBadgeColor = sched.type === 'title_proposal' ? 'bg-amber-50 text-amber-800 border-amber-100'
-                      : sched.type === 'proposal' ? 'bg-blue-50 text-blue-800 border-blue-100'
-                      : sched.type === 'mock_defense' ? 'bg-purple-50 text-purple-800 border-purple-100'
+                    const typeBadgeColor = sched.type === 'proposal' ? 'bg-blue-50 text-blue-800 border-blue-100'
                       : 'bg-emerald-50 text-emerald-800 border-emerald-100';
 
                     return (

@@ -6,6 +6,7 @@ import {
   Info, Eye, Trash2, Plus, Edit3, Sparkles, Compass, GraduationCap, History
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room, ProposalFile } from '../types';
+import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 
 interface DashboardStudentProps {
   user: User;
@@ -17,7 +18,7 @@ interface DashboardStudentProps {
   rooms: Room[];
   users: User[];
   onNavigateToTimeline: () => void;
-  onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, type: 'adviser_check' | 'defense_manuscript') => void;
+  onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
   onUpdateProposalFiles?: (researchId: string, files: ProposalFile[]) => void;
   onUpdateResearchDetails?: (updated: Research) => void;
   onCreateTitleProposal?: (data: {
@@ -234,24 +235,30 @@ export default function DashboardStudent({
     }
   };
 
-  const handleUploadSubmit = (e: React.FormEvent) => {
+  const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile || !research) return;
 
     setIsUploading(true);
-    setTimeout(() => {
+    setUploadErrorMsg(null);
+    try {
+      const uploaded = await uploadFile(selectedFile);
       onStudentUploadRevision(
         research.id,
         research.title,
         research.abstract,
-        selectedFile.name,
+        uploaded.fileName,
+        resolveFileUrl(uploaded.url),
         activeUploadTab
       );
-      setIsUploading(false);
       setUploadSuccess(true);
       setSelectedFile(null);
       setTimeout(() => setUploadSuccess(false), 4000);
-    }, 1200);
+    } catch (err) {
+      setUploadErrorMsg(err instanceof ApiError ? err.message : 'Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSaveDetails = (e: React.FormEvent) => {

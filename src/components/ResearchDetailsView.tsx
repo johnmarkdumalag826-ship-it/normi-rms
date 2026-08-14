@@ -4,6 +4,7 @@ import {
   Upload, X, HelpCircle, ArrowLeft, Download, RefreshCw, Bookmark, Plus 
 } from 'lucide-react';
 import { Research, ResearchVersion, ResearchComment, User, ChapterStatus } from '../types';
+import { resolveFileUrl } from '../api/client';
 
 interface ResearchDetailsViewProps {
   research: Research;
@@ -434,14 +435,7 @@ export default function ResearchDetailsView({
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            const dummyContent = `NORMI Capstone Document\nCategory: ${file.category}\nName: ${file.name}`;
-                            const blob = new Blob([dummyContent], { type: 'text/plain' });
-                            const link = document.createElement('a');
-                            link.href = URL.createObjectURL(blob);
-                            link.download = file.name;
-                            link.click();
-                          }}
+                          onClick={() => window.open(file.url, '_blank')}
                           className="text-[10px] font-bold text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <Download className="h-3 w-3" /> Download
@@ -475,14 +469,9 @@ export default function ResearchDetailsView({
                   </div>
 
                   <button
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify(ver, null, 2)], { type: 'application/pdf' });
-                      const link = document.createElement('a');
-                      link.href = URL.createObjectURL(blob);
-                      link.download = ver.fileName;
-                      link.click();
-                    }}
-                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 text-[10px] rounded flex items-center gap-1 cursor-pointer transition-colors"
+                    onClick={() => ver.fileUrl && window.open(resolveFileUrl(ver.fileUrl), '_blank')}
+                    disabled={!ver.fileUrl}
+                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 text-[10px] rounded flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <Download className="h-3 w-3" /> Download PDF
                   </button>

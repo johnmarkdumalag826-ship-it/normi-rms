@@ -4,6 +4,8 @@ import {
   GraduationCap, Shield, Users, Briefcase, UserCheck, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { login as loginRequest } from '../api/auth';
+import { ApiError } from '../api/client';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -28,6 +30,7 @@ export default function Login({ onLoginSuccess, users, onBackToLanding }: LoginP
   const [email, setEmail] = useState('student@normi.edu.ph'); 
   const [password, setPassword] = useState('student123'); 
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   
@@ -102,63 +105,25 @@ export default function Login({ onLoginSuccess, users, onBackToLanding }: LoginP
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
-    const emailLower = email.trim().toLowerCase();
-    
-    // Resolve alias to existing rich seed data to provide the best user experience
-    let targetEmail = emailLower;
-    let aliasUser: User | undefined;
-
-    if (emailLower === 'student@normi.edu.ph') {
-      aliasUser = users.find(u => u.email === 'student.capstone@normi.edu.ph');
-    } else if (emailLower === 'adviser@normi.edu.ph') {
-      aliasUser = users.find(u => u.email === 'adv.dumalag@normi.edu.ph');
-    } else if (emailLower === 'panel@normi.edu.ph') {
-      aliasUser = users.find(u => u.email === 'panel.pendelton@normi.edu.ph');
+    try {
+      const { user } = await loginRequest(email.trim().toLowerCase(), password);
+      // The 2FA step below is a UI-only confirmation gate — real authentication
+      // (bcrypt + JWT) already happened in loginRequest() above. See NORMI RMS
+      // roadmap Phase 3: OTP-by-email was intentionally dropped in favor of this.
+      setPendingUser(user);
+      setOtpStage(true);
+      setOtpError(false);
+      setOtpCode(['', '', '', '']);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Unable to reach the server. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    let user: User;
-    if (aliasUser) {
-      user = {
-        ...aliasUser,
-        email: emailLower // Keep their typed login email
-      };
-    } else {
-      const found = users.find(u => u.email.toLowerCase() === emailLower);
-      if (found) {
-        user = found;
-      } else {
-        const prefix = emailLower.split('@')[0];
-        const name = prefix
-          .split(/[._+-]/)
-          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(' ');
-
-        user = {
-          id: `user-gen-${Date.now()}`,
-          email: emailLower,
-          name: name || `${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} User`,
-          role: selectedRole,
-          avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(prefix || 'user')}`,
-          registeredAt: new Date().toISOString(),
-          status: 'active'
-        };
-      }
-    }
-
-    if (user.status !== 'active') {
-      setError('This account has been suspended or is pending approval.');
-      return;
-    }
-
-    // Since this is a high-fidelity demonstration, we simulate OTP multi-factor authentication
-    setPendingUser(user);
-    setOtpStage(true);
-    setOtpError(false);
-    setOtpCode(['', '', '', '']);
   };
 
   const handleOtpSubmit = (e: React.FormEvent) => {

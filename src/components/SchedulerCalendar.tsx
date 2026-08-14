@@ -34,7 +34,7 @@ export default function SchedulerCalendar({
 
   // Form Field States
   const [formResearchId, setFormResearchId] = useState('');
-  const [formType, setFormType] = useState('proposal');
+  const [formType, setFormType] = useState<Schedule['type']>('proposal');
   const [formDate, setFormDate] = useState('2026-07-06');
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:30');
@@ -297,7 +297,7 @@ export default function SchedulerCalendar({
         roomId: formRoomId,
         panelistIds: formPanelistIds,
         status: formStatus,
-        type: formType as any
+        type: formType
       };
       
       // Update designated adviser if changed
@@ -316,7 +316,7 @@ export default function SchedulerCalendar({
         roomId: formRoomId,
         panelistIds: formPanelistIds,
         status: formStatus,
-        type: formType as any
+        type: formType
       };
 
       // Update designated adviser if changed
@@ -522,7 +522,7 @@ export default function SchedulerCalendar({
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-mono bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded font-bold uppercase">
-                        {sched.type === 'proposal' ? 'Proposal Defense' : sched.type === 'final' ? 'Final Defense' : sched.type.replace('_', ' ')}
+                        {sched.type === 'proposal' ? 'Proposal Defense' : 'Final Defense'}
                       </span>
                       <span className="text-slate-300">|</span>
                       <span className="text-slate-500 font-semibold flex items-center gap-1 font-mono">
@@ -685,12 +685,10 @@ export default function SchedulerCalendar({
                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Defense Type</label>
                   <select
                     value={formType}
-                    onChange={(e) => setFormType(e.target.value)}
+                    onChange={(e) => setFormType(e.target.value as Schedule['type'])}
                     className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700 text-ellipsis"
                   >
-                    <option value="title_proposal">Title Proposal</option>
                     <option value="proposal">Proposal Defense</option>
-                    <option value="mock_defense">Mock Defense</option>
                     <option value="final">Final Defense</option>
                   </select>
                 </div>
