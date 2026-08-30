@@ -33,15 +33,30 @@ async function upsertUser({ email, password, name, role, departmentId, courseId,
 async function main() {
   await connectDB();
 
+  console.log('Removing stale departments/courses no longer part of the real curriculum...');
+  const staleDeptCodes = ['CBE', 'CTE', 'CAS'];
+  const staleDepts = await Department.find({ code: { $in: staleDeptCodes } });
+  await Course.deleteMany({ departmentId: { $in: staleDepts.map(d => d._id) } });
+  await Department.deleteMany({ code: { $in: staleDeptCodes } });
+  await Course.deleteMany({ code: 'BSCS' });
+
   console.log('Seeding departments...');
   const cit = await upsertDepartment('College of Information Technology', 'CIT');
-  await upsertDepartment('College of Business Education', 'CBE');
-  await upsertDepartment('College of Teacher Education', 'CTE');
-  await upsertDepartment('College of Arts and Sciences', 'CAS');
+  const ccje = await upsertDepartment('College of Criminal Justice Education', 'CCJE');
+  const chm = await upsertDepartment('College of Hospitality Management', 'CHM');
+  const ceas = await upsertDepartment('College of Education, Arts and Science', 'CEAS');
+  const cba = await upsertDepartment('College of Business Administration', 'CBA');
 
   console.log('Seeding courses...');
   const bsit = await upsertCourse(cit._id, 'Bachelor of Science in Information Technology', 'BSIT');
-  await upsertCourse(cit._id, 'Bachelor of Science in Computer Science', 'BSCS');
+  await upsertCourse(ccje._id, 'Bachelor of Science in Criminology', 'BSC');
+  await upsertCourse(chm._id, 'Bachelor of Science in Hospitality Management', 'BSHM');
+  await upsertCourse(ceas._id, 'Bachelor of Elementary Education', 'BEED');
+  await upsertCourse(ceas._id, 'Bachelor of Secondary Education major in Filipino', 'BSED-FIL');
+  await upsertCourse(ceas._id, 'Bachelor of Secondary Education major in English', 'BSED-ENG');
+  await upsertCourse(ceas._id, 'Bachelor of Secondary Education major in Mathematics', 'BSED-MATH');
+  await upsertCourse(cba._id, 'Bachelor of Science in Business Administration major in Marketing Management', 'BSBA-MM');
+  await upsertCourse(cba._id, 'Bachelor of Science in Business Administration major in Financial Management', 'BSBA-FM');
 
   console.log('Seeding school years...');
   await SchoolYear.updateMany({}, { isCurrent: false });
