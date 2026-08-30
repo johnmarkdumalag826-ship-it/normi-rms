@@ -609,39 +609,37 @@ export default function RepositoryView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
-                  <select
-                    value={departmentId}
-                    onChange={(e) => {
-                      const newDeptId = e.target.value;
-                      setDepartmentId(newDeptId);
-                      const firstMatch = courses.find(c => c.departmentId === newDeptId);
-                      if (firstMatch) setCourseId(firstMatch.id);
-                    }}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {departments.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                <select
+                  value={departmentId}
+                  onChange={(e) => {
+                    const newDeptId = e.target.value;
+                    setDepartmentId(newDeptId);
+                    const firstMatch = courses.find(c => c.departmentId === newDeptId);
+                    if (firstMatch) setCourseId(firstMatch.id);
+                  }}
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
+                >
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
-                  <select
-                    value={courseId}
-                    onChange={(e) => setCourseId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {courses
-                      .filter(c => c.departmentId === departmentId)
-                      .map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
+                <select
+                  value={courseId}
+                  onChange={(e) => setCourseId(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
+                >
+                  {courses
+                    .filter(c => c.departmentId === departmentId)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -752,39 +750,37 @@ export default function RepositoryView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
-                  <select
-                    value={departmentId}
-                    onChange={(e) => {
-                      const newDeptId = e.target.value;
-                      setDepartmentId(newDeptId);
-                      const firstMatch = courses.find(c => c.departmentId === newDeptId);
-                      if (firstMatch) setCourseId(firstMatch.id);
-                    }}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {departments.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                <select
+                  value={departmentId}
+                  onChange={(e) => {
+                    const newDeptId = e.target.value;
+                    setDepartmentId(newDeptId);
+                    const firstMatch = courses.find(c => c.departmentId === newDeptId);
+                    if (firstMatch) setCourseId(firstMatch.id);
+                  }}
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
+                >
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
 
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
-                  <select
-                    value={courseId}
-                    onChange={(e) => setCourseId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {courses
-                      .filter(c => c.departmentId === departmentId)
-                      .map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                  </select>
-                </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
+                <select
+                  value={courseId}
+                  onChange={(e) => setCourseId(e.target.value)}
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
+                >
+                  {courses
+                    .filter(c => c.departmentId === departmentId)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
