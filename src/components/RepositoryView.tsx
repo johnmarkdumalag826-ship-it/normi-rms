@@ -614,7 +614,12 @@ export default function RepositoryView({
                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
                   <select
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
+                    onChange={(e) => {
+                      const newDeptId = e.target.value;
+                      setDepartmentId(newDeptId);
+                      const firstMatch = courses.find(c => c.departmentId === newDeptId);
+                      if (firstMatch) setCourseId(firstMatch.id);
+                    }}
                     className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
                   >
                     {departments.map(d => (
@@ -630,9 +635,11 @@ export default function RepositoryView({
                     onChange={(e) => setCourseId(e.target.value)}
                     className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
                   >
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {courses
+                      .filter(c => c.departmentId === departmentId)
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
                   </select>
                 </div>
               </div>
@@ -750,7 +757,12 @@ export default function RepositoryView({
                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
                   <select
                     value={departmentId}
-                    onChange={(e) => setDepartmentId(e.target.value)}
+                    onChange={(e) => {
+                      const newDeptId = e.target.value;
+                      setDepartmentId(newDeptId);
+                      const firstMatch = courses.find(c => c.departmentId === newDeptId);
+                      if (firstMatch) setCourseId(firstMatch.id);
+                    }}
                     className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
                   >
                     {departments.map(d => (
@@ -766,9 +778,11 @@ export default function RepositoryView({
                     onChange={(e) => setCourseId(e.target.value)}
                     className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
                   >
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
+                    {courses
+                      .filter(c => c.departmentId === departmentId)
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
                   </select>
                 </div>
               </div>
