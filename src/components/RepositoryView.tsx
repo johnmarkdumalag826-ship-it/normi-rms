@@ -36,7 +36,7 @@ export default function RepositoryView({
   const [title, setTitle] = useState('');
   const [abstract, setAbstract] = useState('');
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || '');
-  const [courseId, setCourseId] = useState(courses[0]?.id || '');
+  const [courseId, setCourseId] = useState(courses.find(c => c.departmentId === departments[0]?.id)?.id || '');
   const [schoolYearId, setSchoolYearId] = useState(schoolYears[0]?.id || '');
   const [adviserId, setAdviserId] = useState('');
   const [keywordsString, setKeywordsString] = useState('');
@@ -107,7 +107,7 @@ export default function RepositoryView({
     setTitle('');
     setAbstract('');
     setDepartmentId(departments[0]?.id || '');
-    setCourseId(courses[0]?.id || '');
+    setCourseId(courses.find(c => c.departmentId === departments[0]?.id)?.id || '');
     setSchoolYearId(schoolYears[0]?.id || '');
     setAdviserId(users.filter(u => u.role === 'adviser')[0]?.id || '');
     setKeywordsString('');
