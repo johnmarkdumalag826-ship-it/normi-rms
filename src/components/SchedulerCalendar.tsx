@@ -389,13 +389,13 @@ export default function SchedulerCalendar({
           <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex">
             <button
               onClick={() => setViewMode('month')}
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${viewMode === 'month' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-505 hover:text-slate-700'}`}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${viewMode === 'month' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-505 hover:text-slate-700'}`}
             >
               Calendar Grid
             </button>
             <button
               onClick={() => setViewMode('week')}
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${viewMode === 'week' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-505 hover:text-slate-700'}`}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${viewMode === 'week' ? 'bg-white text-blue-900 shadow-sm' : 'text-slate-505 hover:text-slate-700'}`}
             >
               Sessions Index
             </button>
@@ -407,19 +407,19 @@ export default function SchedulerCalendar({
         <div className="bg-white border border-slate-150 rounded-2xl shadow-sm overflow-hidden">
           {/* Calendar Month Header bar */}
           <div className="bg-slate-50 px-6 py-3.5 border-b border-slate-150 flex justify-between items-center">
-            <h3 className="text-xs font-bold text-slate-700 font-mono tracking-wider">JULY 2026</h3>
+            <h3 className="text-xs font-bold text-slate-700  tracking-normal">JULY 2026</h3>
             <div className="flex gap-1.5">
-              <button className="p-1 rounded border border-slate-200 bg-white text-slate-400 cursor-not-allowed">
+              <button className="p-1 rounded border border-slate-200 bg-white text-slate-500 cursor-not-allowed">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <button className="p-1 rounded border border-slate-200 bg-white text-slate-400 cursor-not-allowed">
+              <button className="p-1 rounded border border-slate-200 bg-white text-slate-500 cursor-not-allowed">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
 
           {/* Days labels */}
-          <div className="grid grid-cols-7 border-b border-slate-100 text-center py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50/50">
+          <div className="grid grid-cols-7 border-b border-slate-100 text-center py-2 text-xs font-bold text-slate-500  tracking-normal bg-slate-50/50">
             <div>Sun</div>
             <div>Mon</div>
             <div>Tue</div>
@@ -438,7 +438,7 @@ export default function SchedulerCalendar({
               >
                 {/* Centered Date Number */}
                 <div className="flex flex-col items-center justify-center pt-1 pb-1">
-                  <span className={`text-xs font-mono font-extrabold flex items-center justify-center h-6 w-6 rounded-full transition-all ${
+                  <span className={`text-xs  font-extrabold flex items-center justify-center h-6 w-6 rounded-full transition-all ${
                     dayObj.dateStr === '2026-07-06' 
                       ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-100' 
                       : dayObj.isFiller 
@@ -448,7 +448,7 @@ export default function SchedulerCalendar({
                     {dayObj.day}
                   </span>
                   {!dayObj.isFiller && dayObj.schedules && dayObj.schedules.length > 0 && (
-                    <span className="text-[8px] font-bold bg-blue-50 text-blue-700 border border-blue-100 px-1 py-0.25 rounded mt-1">
+                    <span className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100 px-1 py-0.25 rounded mt-1">
                       {dayObj.schedules.length} {dayObj.schedules.length === 1 ? 'Defense' : 'Defenses'}
                     </span>
                   )}
@@ -462,7 +462,7 @@ export default function SchedulerCalendar({
                       <button 
                         key={sched.id}
                         onClick={() => handleOpenEditModal(sched)}
-                        className={`w-full text-left p-1 rounded text-[8px] font-semibold font-mono border block transition-all hover:scale-[1.02] ${
+                        className={`w-full text-left p-1 rounded text-xs font-semibold  border block transition-all hover:scale-[1.02] ${
                           hasConflicts 
                             ? 'bg-rose-50 text-rose-750 border-rose-200 hover:bg-rose-100' 
                             : sched.status === 'completed' 
@@ -492,7 +492,7 @@ export default function SchedulerCalendar({
         /* Agenda Feed List View with Management Triggers */
         <div className="space-y-4">
           {filteredSchedules.length === 0 ? (
-            <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-400 text-xs">
+            <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-500 text-xs">
               No scheduled presentation slots matched the selected room filters.
             </div>
           ) : (
@@ -505,7 +505,7 @@ export default function SchedulerCalendar({
                 >
                   {/* Validation Alerts Banner */}
                   {hasConflicts && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-[11px] rounded-lg flex flex-col gap-1">
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex flex-col gap-1">
                       <div className="flex items-center gap-1.5 font-bold">
                         <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
                         <span>RELATIONAL INTEGRITY SCHEDULING CONFLICT DETECTED!</span>
@@ -521,16 +521,16 @@ export default function SchedulerCalendar({
                   {/* Header info */}
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-100 pb-3 gap-3">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="font-mono bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded font-bold uppercase">
+                      <span className=" bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded font-bold ">
                         {sched.type === 'proposal' ? 'Proposal Defense' : 'Final Defense'}
                       </span>
                       <span className="text-slate-300">|</span>
-                      <span className="text-slate-500 font-semibold flex items-center gap-1 font-mono">
+                      <span className="text-slate-500 font-semibold flex items-center gap-1 ">
                         <Clock className="h-3.5 w-3.5 text-blue-600" />
                         {sched.date} • {sched.startTime} - {sched.endTime}
                       </span>
                       {sched.status === 'cancelled' && (
-                        <span className="text-[9px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold font-mono">
+                        <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold ">
                           CANCELLED
                         </span>
                       )}
@@ -539,7 +539,7 @@ export default function SchedulerCalendar({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleOpenEditModal(sched)}
-                        className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+                        className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded border border-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
                         title="Edit Defense Settings"
                       >
                         <Edit className="h-3 w-3" />
@@ -548,7 +548,7 @@ export default function SchedulerCalendar({
                       {sched.status !== 'cancelled' && onCancelSchedule && (
                         <button
                           onClick={() => handleCancelClick(sched.id)}
-                          className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded border border-amber-200 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+                          className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded border border-amber-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
                           title="Mark Cancelled"
                         >
                           <X className="h-3 w-3" />
@@ -558,7 +558,7 @@ export default function SchedulerCalendar({
                       {onDeleteSchedule && (
                         <button
                           onClick={() => handleDeleteClick(sched.id)}
-                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-650 rounded border border-rose-150 transition-colors flex items-center gap-1 text-[10px] font-bold cursor-pointer"
+                          className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-650 rounded border border-rose-150 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
                           title="Delete Permanently"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -570,25 +570,25 @@ export default function SchedulerCalendar({
 
                   {/* Thesis Title */}
                   <div className="space-y-1">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Research Under Defense</span>
+                    <span className="text-xs  font-bold text-slate-500 block tracking-normal">Research Under Defense</span>
                     <h3 className="text-sm font-bold text-slate-800">{getResearchTitle(sched.researchId)}</h3>
                   </div>
 
                   {/* Group authors and Panelists list */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs pt-1">
                     <div className="space-y-1 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 block">Research Authors & Adviser</span>
+                      <span className="text-xs  font-bold text-slate-500 block">Research Authors & Adviser</span>
                       <p className="font-semibold text-slate-700 flex items-center gap-1.5 truncate">
-                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <Users className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                         {getStudentNames(sched.researchId)}
                       </p>
-                      <span className="text-[10px] text-slate-500 font-medium block">
+                      <span className="text-xs text-slate-500 font-medium block">
                         Adviser: <strong className="text-slate-600">{getAdviserName(sched.researchId)}</strong>
                       </span>
                     </div>
 
                     <div className="space-y-1 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 block">Assigned Panel Committee</span>
+                      <span className="text-xs  font-bold text-slate-500 block">Assigned Panel Committee</span>
                       <div className="space-y-0.5">
                         {getPanelistNames(sched.panelistIds).map((pname, index) => (
                           <p key={index} className="font-semibold text-slate-700 flex items-center gap-1">
@@ -603,11 +603,11 @@ export default function SchedulerCalendar({
                   {/* Card footer: room */}
                   <div className="border-t border-slate-100 pt-3 flex flex-wrap justify-between items-center text-xs text-slate-500 gap-2">
                     <div className="flex items-center gap-1.5 font-semibold">
-                      <Landmark className="h-4 w-4 text-slate-400" />
-                      <span>Scheduled venue: <strong className="text-slate-700 font-mono">{getRoomName(sched.roomId)}</strong></span>
+                      <Landmark className="h-4 w-4 text-slate-500" />
+                      <span>Scheduled venue: <strong className="text-slate-700 ">{getRoomName(sched.roomId)}</strong></span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 font-bold font-mono">
+                    <div className="flex items-center gap-1.5 font-bold ">
                       {hasConflicts ? (
                         <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">Conflict Flags Active</span>
                       ) : (
@@ -630,7 +630,7 @@ export default function SchedulerCalendar({
           <div className="bg-white rounded-2xl border border-slate-150 shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="bg-slate-50 border-b border-slate-150 px-5 py-3.5 flex justify-between items-center">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5  tracking-normal">
                 <CalendarIcon className="h-4.5 w-4.5 text-blue-800" />
                 {modalMode === 'create' ? 'Create Defense Schedule' : 'Modify Defense Schedule'}
               </h3>
@@ -647,7 +647,7 @@ export default function SchedulerCalendar({
               
               {/* Dynamic Warning Alerts inside Modal */}
               {currentFormConflicts.length > 0 && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-[11px] rounded-lg flex flex-col gap-1.5 animate-in fade-in">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-lg flex flex-col gap-1.5 animate-in fade-in">
                   <div className="flex items-center gap-1 font-bold text-rose-900">
                     <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
                     <span>OVERLAP DETECTED IN SELECTED PARAMETERS!</span>
@@ -657,13 +657,13 @@ export default function SchedulerCalendar({
                       <li key={cidx}>{conf}</li>
                     ))}
                   </ul>
-                  <span className="text-[9px] text-rose-500 mt-1 block">Scheduling overlaps can cause faculty and room double bookings.</span>
+                  <span className="text-xs text-rose-500 mt-1 block">Scheduling overlaps can cause faculty and room double bookings.</span>
                 </div>
               )}
 
               {/* Research Group selection */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Assigned Research Team</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Assigned Research Team</label>
                 <select
                   required
                   value={formResearchId}
@@ -682,7 +682,7 @@ export default function SchedulerCalendar({
               <div className="grid grid-cols-2 gap-4">
                 {/* Defense Type */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Defense Type</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Defense Type</label>
                   <select
                     value={formType}
                     onChange={(e) => setFormType(e.target.value as Schedule['type'])}
@@ -695,7 +695,7 @@ export default function SchedulerCalendar({
 
                 {/* Status Selection (only for Edit mode) */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Defense Status</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Defense Status</label>
                   <select
                     value={formStatus}
                     onChange={(e) => setFormStatus(e.target.value as any)}
@@ -711,35 +711,35 @@ export default function SchedulerCalendar({
               {/* Date & Timeslot */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Date</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Date</label>
                   <input
                     required
                     type="date"
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-semibold text-slate-700"
+                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500  font-semibold text-slate-700"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Start Time</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Start Time</label>
                   <input
                     required
                     type="time"
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
-                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-semibold text-slate-700"
+                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500  font-semibold text-slate-700"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">End Time</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">End Time</label>
                   <input
                     required
                     type="time"
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
-                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono font-semibold text-slate-700"
+                    className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500  font-semibold text-slate-700"
                   />
                 </div>
               </div>
@@ -747,7 +747,7 @@ export default function SchedulerCalendar({
               {/* Venue Selection & Online Meeting Link */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Venue / Presentation Room</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Venue / Presentation Room</label>
                   <select
                     value={formRoomId}
                     onChange={(e) => setFormRoomId(e.target.value)}
@@ -762,7 +762,7 @@ export default function SchedulerCalendar({
 
                 {/* Adviser Assignment */}
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Designated Adviser</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Designated Adviser</label>
                   <select
                     required
                     value={formAdviserId}
@@ -779,13 +779,13 @@ export default function SchedulerCalendar({
 
               {formRoomId === 'online' && (
                 <div className="animate-in fade-in">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Video Call Link</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Video Call Link</label>
                   <input
                     type="url"
                     placeholder="https://meet.google.com/xxx-xxxx-xxx"
                     value={formMeetLink}
                     onChange={(e) => setFormMeetLink(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-slate-700"
+                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500  text-slate-700"
                   />
                 </div>
               )}
@@ -793,8 +793,8 @@ export default function SchedulerCalendar({
               {/* Panel Committee Assignment */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Assign Panel Members</label>
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${formPanelistIds.length === 3 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-amber-50 text-amber-800 border border-amber-100'}`}>
+                  <label className="text-xs font-bold text-slate-500  block">Assign Panel Members</label>
+                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${formPanelistIds.length === 3 ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-amber-50 text-amber-800 border border-amber-100'}`}>
                     Selected: {formPanelistIds.length} of 3 required
                   </span>
                 </div>
@@ -813,7 +813,7 @@ export default function SchedulerCalendar({
                             : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
                         }`}
                       >
-                        <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] font-bold ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
+                        <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-xs font-bold ${isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'}`}>
                           {isChecked && '✓'}
                         </span>
                         <span className="truncate">{pan.name}</span>

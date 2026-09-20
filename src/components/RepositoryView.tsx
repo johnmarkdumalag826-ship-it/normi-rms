@@ -216,8 +216,8 @@ export default function RepositoryView({
               Archive New Manuscript
             </button>
           )}
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-            <Landmark className="h-4 w-4 text-slate-400" />
+          <div className="flex items-center gap-2 text-xs text-slate-500 ">
+            <Landmark className="h-4 w-4 text-slate-500" />
             <span>NORMI Library Digitization</span>
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function RepositoryView({
         
         {/* Left Column: Filters Panel */}
         <aside className="lg:col-span-3 space-y-4 bg-white p-4 rounded-xl border border-slate-150 shadow-sm h-fit">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700  tracking-normal border-b border-slate-100 pb-2">
             <Filter className="h-3.5 w-3.5 text-blue-600" />
             <span>Search Filters</span>
           </div>
@@ -236,7 +236,7 @@ export default function RepositoryView({
           <div className="space-y-3">
             {/* Department */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+              <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
               <select
                 value={selectedDept}
                 onChange={(e) => { setSelectedDept(e.target.value); setSelectedCourse('all'); }}
@@ -251,7 +251,7 @@ export default function RepositoryView({
 
             {/* Course */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Degree Course</label>
+              <label className="text-xs font-bold text-slate-500  block mb-1">Degree Course</label>
               <select
                 value={selectedCourse}
                 onChange={(e) => setSelectedCourse(e.target.value)}
@@ -269,7 +269,7 @@ export default function RepositoryView({
 
             {/* School Year */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Academic Year</label>
+              <label className="text-xs font-bold text-slate-500  block mb-1">Academic Year</label>
               <select
                 value={selectedSY}
                 onChange={(e) => setSelectedSY(e.target.value)}
@@ -284,7 +284,7 @@ export default function RepositoryView({
 
             {/* Keyword tag filter */}
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Index Keywords</label>
+              <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords</label>
               <select
                 value={selectedKeyword}
                 onChange={(e) => setSelectedKeyword(e.target.value)}
@@ -318,7 +318,7 @@ export default function RepositoryView({
           
           {/* Search bar inputs */}
           <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
             <input
               type="text"
               value={searchTerm}
@@ -338,7 +338,7 @@ export default function RepositoryView({
             <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center space-y-3">
               <BookOpen className="h-8 w-8 text-slate-300 mx-auto" />
               <p className="text-xs font-semibold text-slate-600">No matching manuscripts archived.</p>
-              <p className="text-[11px] text-slate-400">Try modifying search tags, courses, or school years.</p>
+              <p className="text-xs text-slate-500">Try modifying search tags, courses, or school years.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -348,13 +348,13 @@ export default function RepositoryView({
                   className="bg-white border border-slate-150 rounded-xl p-5 shadow-sm space-y-4 hover:border-blue-200 hover:shadow-md transition-all"
                 >
                   {/* Top line departments & details */}
-                  <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                    <span className="font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className=" bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold ">
                       {getCourseCode(paper.courseId)}
                     </span>
-                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-500">•</span>
                     <span className="text-slate-500 font-semibold">{getDepartmentName(paper.departmentId)}</span>
-                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-500">•</span>
                     <span className="text-slate-500">{getSchoolYearName(paper.schoolYearId)}</span>
                   </div>
 
@@ -374,7 +374,7 @@ export default function RepositoryView({
                       <span 
                         key={k} 
                         onClick={() => setSelectedKeyword(k)}
-                        className={`text-[9px] px-1.5 py-0.5 rounded-full border cursor-pointer font-mono font-medium transition-colors ${selectedKeyword === k ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}
+                        className={`text-xs px-1.5 py-0.5 rounded-full border cursor-pointer  font-medium transition-colors ${selectedKeyword === k ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}
                       >
                         <Tag className="h-2 w-2 inline shrink-0 mr-0.5" />
                         {k}
@@ -384,12 +384,12 @@ export default function RepositoryView({
 
                   {/* Card bottom bar: Adviser and interactions */}
                   <div className="border-t border-slate-100 pt-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-xs text-slate-500">
                       <span>Adviser: <strong className="text-slate-700">{getAdviserName(paper.adviserId)}</strong></span>
                     </div>
 
                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className="flex items-center gap-3 text-[10px] text-slate-400 font-mono">
+                      <div className="flex items-center gap-3 text-xs text-slate-500 ">
                         <span title="Views count">
                           <Eye className="h-3 w-3 inline shrink-0 mr-0.5 text-slate-450" /> {paper.viewCount} views
                         </span>
@@ -401,13 +401,13 @@ export default function RepositoryView({
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handlePreview(paper)}
-                          className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-bold rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
                         >
                           <Eye className="h-3 w-3" /> Preview
                         </button>
                         <button
                           onClick={() => handleDownload(paper)}
-                          className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-blue-800 hover:bg-blue-900 text-white flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-800 hover:bg-blue-900 text-white flex items-center gap-1 cursor-pointer"
                         >
                           <Download className="h-3 w-3" /> Download
                         </button>
@@ -415,7 +415,7 @@ export default function RepositoryView({
                           <>
                             <button
                               onClick={() => openEditModal(paper)}
-                              className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
+                              className="px-2.5 py-1 text-xs font-bold rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <Edit className="h-3 w-3" /> Edit
                             </button>
@@ -425,7 +425,7 @@ export default function RepositoryView({
                                   onDeletePaper(paper.id);
                                 }
                               }}
-                              className="px-2.5 py-1 text-[10px] font-bold rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
+                              className="px-2.5 py-1 text-xs font-bold rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <Trash className="h-3 w-3" /> Delete
                             </button>
@@ -450,13 +450,13 @@ export default function RepositoryView({
               <div className="flex items-center gap-2.5">
                 <FileText className="h-5 w-5 text-blue-400" />
                 <div>
-                  <span className="text-[10px] font-mono font-bold uppercase text-blue-300">NORMI SECURE DIGITAL PDF VIEW</span>
+                  <span className="text-xs  font-bold  text-blue-300">NORMI SECURE DIGITAL PDF VIEW</span>
                   <h3 className="text-xs font-bold truncate max-w-xl text-white">{previewingResearch.title}</h3>
                 </div>
               </div>
               <button 
                 onClick={() => setPreviewingResearch(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -473,23 +473,23 @@ export default function RepositoryView({
 
                 {/* Cover Header */}
                 <div className="text-center space-y-2 pb-6 border-b border-dashed border-slate-200">
-                  <span className="text-[10px] uppercase font-bold text-blue-800 tracking-wider">Northern Mindanao Colleges, Inc.</span>
+                  <span className="text-xs  font-bold text-blue-800 tracking-normal">Northern Mindanao Colleges, Inc.</span>
                   <h2 className="text-sm font-serif font-bold text-slate-800 leading-snug tracking-tight px-4">{previewingResearch.title}</h2>
-                  <p className="text-[9px] text-slate-500 font-medium">A Capstone Research Project Submitted to the CIT Faculty Department</p>
+                  <p className="text-xs text-slate-500 font-medium">A Capstone Research Project Submitted to the CIT Faculty Department</p>
                 </div>
 
                 {/* Abstract Text */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1 uppercase tracking-wider">Abstract</h4>
-                  <p className="text-[11px] text-slate-600 leading-relaxed text-justify first-letter:text-xl first-letter:font-bold first-letter:text-blue-900">
+                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1  tracking-normal">Abstract</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed  first-letter:text-xl first-letter:font-bold first-letter:text-blue-900">
                     {previewingResearch.abstract}
                   </p>
                 </div>
 
                 {/* Key components simulation details */}
                 <div className="space-y-3 pt-4">
-                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1 uppercase tracking-wider">Archived Metadata</h4>
-                  <table className="w-full text-[10px] text-slate-500 border-collapse">
+                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1  tracking-normal">Archived Metadata</h4>
+                  <table className="w-full text-xs text-slate-500 border-collapse">
                     <tbody>
                       <tr className="border-b border-slate-100">
                         <td className="py-1.5 font-bold text-slate-700">Course / Class</td>
@@ -512,7 +512,7 @@ export default function RepositoryView({
                 </div>
 
                 {/* PDF Signatures Footer */}
-                <div className="pt-8 text-center text-[9px] text-slate-400 font-mono space-y-1">
+                <div className="pt-8 text-center text-xs text-slate-500  space-y-1">
                   <div className="flex justify-center items-center gap-1.5 text-emerald-600 font-bold">
                     <FileCheck className="h-3 w-3" />
                     <span>AUTHENTICATED BY THE NORMI CIT BOARD FOR REPOSITORY HARDBOUND</span>
@@ -524,18 +524,18 @@ export default function RepositoryView({
               {/* Sidebar helper of Document Viewer */}
               <div className="w-64 bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-between shadow-sm hidden md:flex shrink-0">
                 <div className="space-y-4 text-xs">
-                  <div className="flex items-center gap-1.5 text-blue-800 font-bold uppercase tracking-wider text-[10px] border-b pb-1.5">
+                  <div className="flex items-center gap-1.5 text-blue-800 font-bold  tracking-normal text-xs border-b pb-1.5">
                     <FileText className="h-4 w-4" />
                     <span>Securities Verified</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     This document has been fully checked, revisions addressed, panelists evaluated, and is archived under lock-and-key on the NORMI system.
                   </p>
 
-                  <div className="space-y-1 bg-white p-2.5 border rounded-lg text-[10px]">
-                    <span className="block text-slate-400 font-semibold uppercase">Document Statistics</span>
-                    <span className="block text-slate-700 font-mono">Views: {previewingResearch.viewCount} reads</span>
-                    <span className="block text-slate-700 font-mono">Downloads: {previewingResearch.downloadCount} prints</span>
+                  <div className="space-y-1 bg-white p-2.5 border rounded-lg text-xs">
+                    <span className="block text-slate-500 font-semibold ">Document Statistics</span>
+                    <span className="block text-slate-700 ">Views: {previewingResearch.viewCount} reads</span>
+                    <span className="block text-slate-700 ">Downloads: {previewingResearch.downloadCount} prints</span>
                   </div>
                 </div>
 
@@ -574,19 +574,19 @@ export default function RepositoryView({
               <button 
                 type="button" 
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
+            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
               Add a fully vetted research paper directly to the institution's public digital search indexes.
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Research Thesis Title</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Research Thesis Title</label>
                 <input
                   type="text"
                   required
@@ -598,7 +598,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Thesis Abstract</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Thesis Abstract</label>
                 <textarea
                   rows={4}
                   required
@@ -610,7 +610,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
                 <select
                   value={departmentId}
                   onChange={(e) => {
@@ -628,7 +628,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Course Program</label>
                 <select
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
@@ -644,7 +644,7 @@ export default function RepositoryView({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">School Year</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">School Year</label>
                   <select
                     value={schoolYearId}
                     onChange={(e) => setSchoolYearId(e.target.value)}
@@ -657,7 +657,7 @@ export default function RepositoryView({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Adviser</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Adviser</label>
                   <select
                     value={adviserId}
                     onChange={(e) => setAdviserId(e.target.value)}
@@ -671,7 +671,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Index Keywords (comma separated)</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords (comma separated)</label>
                 <input
                   type="text"
                   required
@@ -717,19 +717,19 @@ export default function RepositoryView({
               <button 
                 type="button" 
                 onClick={() => { setShowEditModal(false); setEditingPaper(null); }}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
-              Modify index descriptors, title coordinates, or advising details for manuscript archive ID: <span className="font-mono font-bold text-blue-900">{editingPaper.id}</span>
+            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
+              Modify index descriptors, title coordinates, or advising details for manuscript archive ID: <span className=" font-bold text-blue-900">{editingPaper.id}</span>
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Research Thesis Title</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Research Thesis Title</label>
                 <input
                   type="text"
                   required
@@ -740,7 +740,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Thesis Abstract</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Thesis Abstract</label>
                 <textarea
                   rows={4}
                   required
@@ -751,7 +751,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
                 <select
                   value={departmentId}
                   onChange={(e) => {
@@ -769,7 +769,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Course Program</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Course Program</label>
                 <select
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
@@ -785,7 +785,7 @@ export default function RepositoryView({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">School Year</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">School Year</label>
                   <select
                     value={schoolYearId}
                     onChange={(e) => setSchoolYearId(e.target.value)}
@@ -798,7 +798,7 @@ export default function RepositoryView({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Adviser</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Adviser</label>
                   <select
                     value={adviserId}
                     onChange={(e) => setAdviserId(e.target.value)}
@@ -812,7 +812,7 @@ export default function RepositoryView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Index Keywords (comma separated)</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords (comma separated)</label>
                 <input
                   type="text"
                   required

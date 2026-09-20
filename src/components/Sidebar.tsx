@@ -1,10 +1,11 @@
-import React from 'react';
-import { 
-  Landmark, LayoutDashboard, FileUp, ListTodo, Calendar, BookOpen, 
-  Settings, Users, ClipboardList, Database, LogOut, RefreshCw, 
-  HelpCircle, UserCheck, Volume2 
+import React, { useEffect } from 'react';
+import {
+  Landmark, Home, FileText, CalendarDays, BookOpen, ClipboardCheck,
+  Database, LogOut, Settings2, X, FileSearch, UserCog,
+  type LucideIcon,
 } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { roleLabels, getPageTitle, cx } from '../ui';
 
 interface SidebarProps {
   user: User;
@@ -17,155 +18,170 @@ interface SidebarProps {
   onCloseSidebar: () => void;
 }
 
-export default function Sidebar({
-  user, activeTab, setActiveTab, onLogout, users, onEmulateRole, isSidebarOpen, onCloseSidebar
-}: SidebarProps) {
-  
-  const getNavItems = () => {
-    const isCoordinator = user.role === 'coordinator';
-    const common = [
-      { id: 'repository', label: 'Digital Repository', icon: BookOpen },
-      { id: 'calendar', label: isCoordinator ? 'Defense Calendar' : 'Defense Schedules', icon: Calendar },
-      { id: 'database-erd', label: 'MySQL ERD Schema', icon: Database },
-    ];
+interface NavItem { id: string; icon: LucideIcon }
+interface NavGroup { heading: string; items: NavItem[] }
 
-    switch (user.role) {
-      case 'student':
-        return [
-          { id: 'dashboard', label: 'My Dashboard', icon: LayoutDashboard },
-          { id: 'research-details', label: 'My Research Timeline', icon: ListTodo },
-          ...common
-        ];
-      case 'adviser':
-        return [
-          { id: 'dashboard', label: 'Adviser Dashboard', icon: LayoutDashboard },
-          { id: 'assigned-students', label: 'Assigned Groups', icon: Users },
-          { id: 'document-review', label: 'Document Review', icon: FileUp },
-          ...common
-        ];
-      case 'coordinator':
-        return [
-          { id: 'dashboard', label: 'Coordinator Dashboard', icon: LayoutDashboard },
-          { id: 'coordinator-manuscripts', label: 'Research Proposals', icon: ClipboardList },
-          ...common
-        ];
-      case 'panelist':
-        return [
-          { id: 'dashboard', label: 'Evaluation Panel', icon: LayoutDashboard },
-          { id: 'assigned-defenses', label: 'Assigned Defenses', icon: ClipboardList },
-          ...common
-        ];
-      case 'admin':
-        return [
-          { id: 'dashboard', label: 'Admin Dashboard', icon: LayoutDashboard },
-          { id: 'user-management', label: 'User & Role Management', icon: Users },
-          ...common
-        ];
-      default:
-        return common;
-    }
+const demoUsers: UserRole[] = ['student', 'adviser', 'coordinator', 'panelist', 'admin'];
+
+/**
+ * The menu. Page ids (dashboard, repository, ...) are internal and unchanged; only the
+ * words people read come from getPageTitle(). Pages that were listed twice but opened the
+ * exact same screen (e.g. "Adviser Dashboard" and "Assigned Groups") now appear once.
+ */
+function getNavGroups(role: UserRole): NavGroup[] {
+  const work: Record<UserRole, NavItem[]> = {
+    student: [
+      { id: 'dashboard', icon: Home },
+      { id: 'research-details', icon: FileText },
+    ],
+    adviser: [
+      { id: 'dashboard', icon: Home },
+      { id: 'document-review', icon: FileSearch },
+    ],
+    coordinator: [
+      { id: 'dashboard', icon: ClipboardCheck },
+    ],
+    panelist: [
+      { id: 'dashboard', icon: ClipboardCheck },
+    ],
+    admin: [
+      { id: 'dashboard', icon: Home },
+      { id: 'user-management', icon: UserCog },
+    ],
   };
 
-  const navItems = getNavItems();
-
-  // Emulation list
-  const emulableRoles: { role: UserRole; label: string; name: string }[] = [
-    { role: 'student', label: 'Student', name: 'Team Alpha' },
-    { role: 'adviser', label: 'Adviser', name: 'Dr. John Dumalag' },
-    { role: 'coordinator', label: 'Coordinator', name: 'Prof. Patrick Kimpang' },
-    { role: 'panelist', label: 'Panelist', name: 'Dr. Arthur Pendelton' },
-    { role: 'admin', label: 'Admin', name: 'Dr. Irish Sajol' }
+  return [
+    { heading: 'My Work', items: work[role] },
+    {
+      heading: 'Explore',
+      items: [
+        { id: 'repository', icon: BookOpen },
+        { id: 'calendar', icon: CalendarDays },
+      ],
+    },
+    { heading: 'For developers', items: [{ id: 'database-erd', icon: Database }] },
   ];
+}
+
+export default function Sidebar({
+  user, activeTab, setActiveTab, onLogout, onEmulateRole, isSidebarOpen, onCloseSidebar,
+}: SidebarProps) {
+  const groups = getNavGroups(user.role);
+
+  // Esc closes the phone menu.
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseSidebar();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isSidebarOpen, onCloseSidebar]);
 
   return (
     <>
-      {/* Backdrop for mobile */}
       {isSidebarOpen && (
-        <div 
-          onClick={onCloseSidebar}
-          className="lg:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-45"
-        />
+        <div onClick={onCloseSidebar} aria-hidden="true" className="lg:hidden fixed inset-0 bg-slate-900/60 z-40" />
       )}
 
-      <aside className={`
-        fixed inset-y-0 left-0 glass-panel-dark text-slate-100 w-64 p-5 flex flex-col justify-between z-50 transition-transform duration-300 shadow-xl
-        lg:translate-x-0 lg:static lg:h-screen shrink-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        {/* Brand Header */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 border-b border-white/10 pb-5">
-            <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md shrink-0">
-              <Landmark className="h-5 w-5" />
+      <aside
+        aria-label="Main menu"
+        className={cx(
+          'fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-navy-900 text-white shadow-xl transition-transform duration-200',
+          'lg:static lg:h-screen lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none shrink-0',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        {/* Brand */}
+        <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-navy-900 shrink-0">
+              <Landmark className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div>
-              <h1 className="text-sm font-serif font-bold text-white tracking-tight leading-none">NORMI</h1>
-              <span className="text-[10px] text-slate-300 uppercase tracking-widest font-bold block mt-1">Research System</span>
+            <div className="min-w-0">
+              <p className="font-serif text-lg font-bold leading-none">NORMI</p>
+              <p className="mt-1 text-xs text-blue-100 leading-tight">Research Management System</p>
             </div>
           </div>
-
-          {/* Navigation Links */}
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    onCloseSidebar();
-                  }}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-all duration-150 cursor-pointer
-                    ${isActive 
-                      ? 'bg-blue-600/80 text-white shadow-lg border border-white/15' 
-                      : 'hover:bg-white/5 hover:text-white text-slate-300'}
-                  `}
-                >
-                  <IconComponent className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <button
+            type="button"
+            onClick={onCloseSidebar}
+            aria-label="Close menu"
+            className="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-100 hover:bg-white/10 cursor-pointer"
+          >
+            <X className="h-5 w-5" aria-hidden="true" />
+          </button>
         </div>
 
-        {/* Bottom Panel: Emulation Widget & Logout */}
-        <div className="space-y-4 border-t border-white/10 pt-5">
-          {/* Real-time Role Switcher for presentation ease */}
-          <div className="bg-white/5 p-3 rounded-xl border border-white/5 space-y-2">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-              <RefreshCw className="h-3 w-3 text-blue-400 animate-spin" />
-              <span>Role Switcher Emulation</span>
+        {/* Menu */}
+        <nav aria-label="Pages" className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+          {groups.map(group => (
+            <div key={group.heading}>
+              <p className="px-3 mb-1.5 text-xs font-bold text-blue-200">{group.heading}</p>
+              <ul className="space-y-1">
+                {group.items.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        aria-current={isActive ? 'page' : undefined}
+                        onClick={() => { setActiveTab(item.id); onCloseSidebar(); }}
+                        className={cx(
+                          'flex w-full min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors cursor-pointer',
+                          isActive
+                            ? 'bg-white text-navy-900'
+                            : 'text-blue-50 hover:bg-white/10',
+                        )}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                        <span>{getPageTitle(item.id, user.role)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            
-            <div className="grid grid-cols-1 gap-1 text-[10px]">
-              {emulableRoles.map((emul) => (
-                <button
-                  key={emul.role}
-                  onClick={() => onEmulateRole(emul.role)}
-                  className={`
-                    w-full text-left px-2 py-1 rounded transition-colors flex justify-between items-center cursor-pointer
-                    ${user.role === emul.role 
-                      ? 'bg-blue-900/40 border border-blue-500/20 text-blue-200' 
-                      : 'hover:bg-white/5 text-slate-300'}
-                  `}
-                >
-                  <span className="font-medium truncate">{emul.label}</span>
-                  {user.role === emul.role && <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>}
-                </button>
-              ))}
-            </div>
-          </div>
+          ))}
+        </nav>
 
-          {/* Logout Action */}
+        {/* Bottom: demo tools + sign out */}
+        <div className="border-t border-white/10 px-3 py-4 space-y-3">
+          <details className="group rounded-lg bg-white/5">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-blue-100 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
+              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Demo tools
+            </summary>
+            <div className="px-3 pb-3 pt-1 space-y-2">
+              <p className="text-xs text-blue-200">
+                For testing only. Pick a role to see the system as that person.
+              </p>
+              <div className="grid grid-cols-1 gap-1">
+                {demoUsers.map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    aria-pressed={user.role === role}
+                    onClick={() => onEmulateRole(role)}
+                    className={cx(
+                      'flex min-h-11 items-center justify-between rounded-md px-3 py-2 text-left text-sm cursor-pointer',
+                      user.role === role ? 'bg-white/20 font-bold text-white' : 'text-blue-50 hover:bg-white/10',
+                    )}
+                  >
+                    <span>View as {roleLabels[role]}</span>
+                    {user.role === role && <span className="text-xs">Current</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </details>
+
           <button
+            type="button"
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-slate-300 hover:text-rose-400 hover:bg-rose-950/20 rounded-lg transition-all cursor-pointer"
+            className="flex w-full min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-blue-50 hover:bg-white/10 cursor-pointer"
           >
-            <LogOut className="h-4 w-4 text-slate-400 hover:text-rose-400" />
-            <span>Sign Out Session</span>
+            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Sign Out
           </button>
         </div>
       </aside>

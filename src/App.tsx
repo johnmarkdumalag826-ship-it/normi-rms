@@ -5,6 +5,7 @@ import {
   Department, Course, SchoolYear, Room, PanelAvailability, ResearchStatus,
 } from './types';
 import { ShieldAlert } from 'lucide-react';
+import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
@@ -55,6 +56,7 @@ export default function App() {
   const [showPortal, setShowPortal] = useState(false);
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false); // shows a "Try Again" screen if loading fails
 
   // Database state — all real, fetched from the backend post-login (see the bulk-load
   // effect below). Nothing here is seeded from mock data or persisted to localStorage.
@@ -84,7 +86,8 @@ export default function App() {
 
   const triggerAlert = (message: string, type: 'success' | 'error' = 'success') => {
     setAlert({ message, type });
-    setTimeout(() => setAlert(null), 3000);
+    // Errors stay longer so people have time to read how to fix them.
+    setTimeout(() => setAlert(null), type === 'error' ? 7000 : 4000);
   };
 
   const handleApiError = (err: unknown, fallback: string) => {
@@ -123,6 +126,7 @@ export default function App() {
 
     let cancelled = false;
     setIsDataLoading(true);
+    setLoadFailed(false);
 
     (async () => {
       try {
@@ -156,7 +160,10 @@ export default function App() {
           if (!cancelled) setAuditLogs(logs);
         }
       } catch (err) {
-        if (!cancelled) handleApiError(err, 'Failed to load application data. Please refresh.');
+        if (!cancelled) {
+          setLoadFailed(true);
+          handleApiError(err, 'We could not load your information. Please check your internet connection and try again.');
+        }
       } finally {
         if (!cancelled) setIsDataLoading(false);
       }
@@ -191,7 +198,7 @@ export default function App() {
       setCurrentUser(u);
       setActiveTab('dashboard');
       setSelectedResearchId(null);
-      triggerAlert(`Emulated role switched to: ${u.name}`);
+      triggerAlert(`You are now viewing the system as ${roleLabels[role]} (${u.name}).`);
     }
   };
 
@@ -603,21 +610,14 @@ export default function App() {
 
     if (currentUser && !allowedTabs[currentUser.role].includes(activeTab)) {
       return (
-        <div className="bg-white/80 backdrop-blur-md rounded-xl border border-rose-200 p-8 text-center space-y-4 shadow-sm max-w-md mx-auto mt-12 animate-in fade-in">
-          <div className="p-3 bg-rose-50 text-rose-700 rounded-full w-fit mx-auto">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Access Restricted</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Your designated institutional role (<span className="font-bold text-blue-950 uppercase font-mono">{currentUser.role}</span>) does not possess permission scopes to access the <span className="font-semibold text-slate-700">"{activeTab}"</span> section.
-          </p>
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className="px-4 py-1.5 bg-blue-800 text-white rounded-lg text-xs font-semibold hover:bg-blue-900 cursor-pointer"
-          >
-            Return to Authorized Dashboard
-          </button>
-        </div>
+        <Card className="max-w-lg mx-auto mt-8">
+          <EmptyState
+            icon={ShieldAlert}
+            title="This page is not available for your account"
+            description={`Your role is ${roleLabels[currentUser.role]}, and this page is for someone else. You can go back to your home page.`}
+            action={<Button onClick={() => setActiveTab('dashboard')}>Go to My Home Page</Button>}
+          />
+        </Card>
       );
     }
 
@@ -730,7 +730,7 @@ export default function App() {
             />
           );
         }
-        return <div className="text-xs text-slate-500">Dashboard loading...</div>;
+        return <p className="text-sm text-slate-600">Getting your home page ready…</p>;
 
       case 'repository':
         return (
@@ -798,7 +798,15 @@ export default function App() {
             );
           }
         }
-        return <div className="p-12 text-center text-slate-400 text-xs">Choose a manuscript from your panels or repositories list to see revision histories.</div>;
+        return (
+          <Card>
+            <EmptyState
+              title="You have no research paper yet"
+              description="Once you send in your research paper, its progress and your adviser's feedback will show here."
+              action={<Button onClick={() => setActiveTab('dashboard')}>Go to Home</Button>}
+            />
+          </Card>
+        );
 
       case 'assigned-students':
         if (currentUser?.role === 'adviser') {
@@ -922,7 +930,15 @@ export default function App() {
         break;
 
       default:
-        return <div className="p-12 text-center text-slate-400 text-xs">Tab selection is currently loading...</div>;
+        return (
+          <Card>
+            <EmptyState
+              title="We could not find that page"
+              description="Please choose a page from the menu."
+              action={<Button onClick={() => setActiveTab('dashboard')}>Go to Home</Button>}
+            />
+          </Card>
+        );
     }
   };
 
@@ -930,10 +946,10 @@ export default function App() {
   // otherwise an already-logged-in user briefly flashes the Landing page on every reload.
   if (authStatus === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-blue-800 border-t-transparent animate-spin"></div>
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Restoring secure session...</span>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" role="status" aria-live="polite">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 rounded-full border-4 border-blue-800 border-t-transparent animate-spin" aria-hidden="true"></div>
+          <p className="text-base font-semibold text-slate-700">Signing you in…</p>
         </div>
       </div>
     );
@@ -971,11 +987,28 @@ export default function App() {
   // every collection briefly renders empty while the initial fetch is still in flight.
   if (currentUser && isDataLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-blue-800 border-t-transparent animate-spin"></div>
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loading your workspace...</span>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" role="status" aria-live="polite">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 rounded-full border-4 border-blue-800 border-t-transparent animate-spin" aria-hidden="true"></div>
+          <p className="text-base font-semibold text-slate-700">Getting your page ready…</p>
         </div>
+      </div>
+    );
+  }
+
+  if (currentUser && loadFailed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <Card className="max-w-lg w-full">
+          <ErrorState
+            title="We could not load your information"
+            description="This is usually a slow or lost internet connection. Please check it and try again."
+            onRetry={() => window.location.reload()}
+          />
+          <div className="text-center pb-2">
+            <Button variant="ghost" onClick={handleLogout}>Sign Out</Button>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -996,22 +1029,19 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-tr from-[#f1f5f9] via-[#f8fafc] to-[#e0e7ff] text-slate-800 font-sans overflow-hidden relative">
+    <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
+      {/* Skip link: lets keyboard users jump past the menu */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[90] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-blue-900 focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
 
-      {/* Decorative ambient glowing blobs behind the frosted cards */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-300/15 blur-[120px] pointer-events-none z-0"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-300/15 blur-[120px] pointer-events-none z-0"></div>
-      <div className="absolute top-[40%] left-[30%] w-[35%] h-[35%] rounded-full bg-sky-200/10 blur-[100px] pointer-events-none z-0"></div>
+      {/* Pop-up message ("Saved!", or what went wrong) */}
+      {alert && <Toast message={alert.message} type={alert.type} />}
 
-      {/* Toast notifications alert banners */}
-      {alert && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-md text-slate-100 py-2.5 px-5 rounded-full text-xs font-semibold shadow-2xl z-55 flex items-center gap-2 border border-white/10 animate-bounce">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
-          <span>{alert.message}</span>
-        </div>
-      )}
-
-      {/* Persistent Left Sidebar with Switcher */}
+      {/* Menu */}
       <Sidebar
         user={currentUser!}
         activeTab={activeTab}
@@ -1027,7 +1057,7 @@ export default function App() {
       />
 
       {/* Main viewport area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Unified Top header coordinates */}
         <Header
@@ -1039,8 +1069,10 @@ export default function App() {
         />
 
         {/* Dynamic content canvas */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 relative z-10">
-          {renderTabContent()}
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 md:px-8 md:py-8 space-y-6 focus:outline-none">
+          <div className="mx-auto w-full max-w-7xl space-y-6">
+            {renderTabContent()}
+          </div>
         </main>
       </div>
     </div>

@@ -291,7 +291,7 @@ export default function InteractiveERD() {
       {showSQL ? (
         <div className="bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-800">
           <div className="bg-slate-850 px-4 py-2 border-b border-slate-800 flex justify-between items-center">
-            <span className="text-xs text-slate-400 font-mono">normi_research_schema.sql</span>
+            <span className="text-xs text-slate-500 font-mono">normi_research_schema.sql</span>
             <button
               onClick={copyToClipboard}
               className="px-2 py-1 text-xs text-slate-350 hover:text-white flex items-center gap-1 hover:bg-slate-800 rounded transition-colors"
@@ -318,7 +318,7 @@ export default function InteractiveERD() {
           {/* Table List / Diagram Canvas */}
           <div className="lg:col-span-8 space-y-4">
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 relative min-h-[480px] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded border text-[10px] text-slate-400 flex items-center gap-2 z-10 shadow-sm">
+              <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded border text-xs text-slate-500 flex items-center gap-2 z-10 shadow-sm">
                 <span className="flex items-center gap-1 font-semibold text-blue-600">
                   <span className="inline-block w-2 h-2 rounded-full bg-blue-600"></span> Active Table
                 </span>
@@ -346,26 +346,26 @@ export default function InteractiveERD() {
                         <span className={`font-mono text-xs font-bold ${isActive ? 'text-blue-700' : 'text-slate-800'}`}>
                           {table.name}
                         </span>
-                        <Database className={`h-3 w-3 ${isActive ? 'text-blue-600' : isRelated ? 'text-orange-500' : 'text-slate-400'}`} />
+                        <Database className={`h-3 w-3 ${isActive ? 'text-blue-600' : isRelated ? 'text-orange-500' : 'text-slate-500'}`} />
                       </div>
-                      <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
                         {table.description}
                       </p>
                     </div>
 
                     <div className="border-t border-slate-100 mt-2 pt-2 flex flex-col gap-1">
                       {table.columns.slice(0, 3).map(col => (
-                        <div key={col.name} className="flex justify-between items-center text-[9px] font-mono text-slate-600">
+                        <div key={col.name} className="flex justify-between items-center text-xs font-mono text-slate-600">
                           <span className="flex items-center gap-0.5 font-medium truncate">
                             {col.key === 'PK' && <Key className="h-2.5 w-2.5 text-yellow-500 shrink-0" />}
                             {col.key === 'FK' && <Link2 className="h-2.5 w-2.5 text-blue-500 shrink-0" />}
                             {col.name}
                           </span>
-                          <span className="text-[8px] text-slate-400 truncate ml-1">{col.type}</span>
+                          <span className="text-xs text-slate-500 truncate ml-1">{col.type}</span>
                         </div>
                       ))}
                       {table.columns.length > 3 && (
-                        <span className="text-[8px] text-slate-400 text-right mt-0.5">
+                        <span className="text-xs text-slate-500 text-right mt-0.5">
                           + {table.columns.length - 3} more columns
                         </span>
                       )}
@@ -384,7 +384,7 @@ export default function InteractiveERD() {
                 return (
                   <div className="space-y-4">
                     <div>
-                      <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono font-semibold uppercase">
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono font-semibold ">
                         MySQL Database Entity
                       </span>
                       <h3 className="text-lg font-bold text-slate-800 font-mono mt-1">
@@ -396,7 +396,7 @@ export default function InteractiveERD() {
                     </div>
 
                     <div className="border-t border-slate-100 pt-3">
-                      <h4 className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+                      <h4 className="text-xs font-semibold text-slate-700 mb-2  tracking-wide">
                         Columns Schema ({table.columns.length})
                       </h4>
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
@@ -411,12 +411,12 @@ export default function InteractiveERD() {
                                 {col.key === 'FK' && <span title="Foreign Key"><Link2 className="h-3.5 w-3.5 text-blue-500" /></span>}
                                 {col.name}
                               </span>
-                              <span className="font-mono text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.25 rounded font-medium">
+                              <span className="font-mono text-xs bg-slate-200 text-slate-700 px-1.5 py-0.25 rounded font-medium">
                                 {col.type}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center text-[9px]">
-                              <span className="text-slate-400">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-slate-500">
                                 {col.nullable ? 'NULLABLE' : 'NOT NULL'}
                               </span>
                               {col.key === 'FK' && col.refTable && (
@@ -430,7 +430,7 @@ export default function InteractiveERD() {
                       </div>
                     </div>
 
-                    <div className="bg-slate-50 p-2.5 rounded border border-slate-150 text-[11px] leading-relaxed text-slate-600">
+                    <div className="bg-slate-50 p-2.5 rounded border border-slate-150 text-xs leading-relaxed text-slate-600">
                       <strong className="text-slate-700">Relational Mapping:</strong>
                       {highlightedConnections.length > 0 ? (
                         <div className="mt-1 flex flex-wrap gap-1">
@@ -438,21 +438,21 @@ export default function InteractiveERD() {
                             <span 
                               key={c} 
                               onClick={() => setSelectedTable(c)}
-                              className="cursor-pointer font-mono text-[9px] bg-white border border-slate-200 hover:border-orange-300 hover:text-orange-700 text-slate-600 px-1.5 py-0.5 rounded transition-colors"
+                              className="cursor-pointer font-mono text-xs bg-white border border-slate-200 hover:border-orange-300 hover:text-orange-700 text-slate-600 px-1.5 py-0.5 rounded transition-colors"
                             >
                               {c}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-slate-400 mt-0.5">This table is self-contained without active constraints.</div>
+                        <div className="text-slate-500 mt-0.5">This table is self-contained without active constraints.</div>
                       )}
                     </div>
                   </div>
                 );
               })()
             ) : (
-              <div className="text-center py-12 text-slate-400 text-xs">
+              <div className="text-center py-12 text-slate-500 text-xs">
                 Select a table to inspect columns, constraints, and relationships.
               </div>
             )}

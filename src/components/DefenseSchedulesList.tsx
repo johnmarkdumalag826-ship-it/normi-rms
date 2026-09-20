@@ -127,7 +127,7 @@ export default function DefenseSchedulesList({
             <CalendarIcon className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-mono">Total Defenses</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Total Defenses</span>
             <span className="text-base font-extrabold text-slate-800">{stats.total} Sessions</span>
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function DefenseSchedulesList({
             <CheckCircle className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-mono">Completed</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Completed</span>
             <span className="text-base font-extrabold text-slate-800">{stats.completed} Presentations</span>
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function DefenseSchedulesList({
             <Clock3 className="h-5 w-5 animate-pulse" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-mono">Scheduled</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Scheduled</span>
             <span className="text-base font-extrabold text-slate-800">{stats.active} Pending</span>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function DefenseSchedulesList({
             <UserCheck className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-mono">My Assignments</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">My Assignments</span>
             <span className="text-base font-extrabold text-slate-800">{stats.myCount} Slotted</span>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function DefenseSchedulesList({
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
           {/* Search bar */}
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
             <input
               type="text"
               placeholder="Search by title, team members, adviser, or venue..."
@@ -209,7 +209,7 @@ export default function DefenseSchedulesList({
           <button
             type="button"
             onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer ${
+            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer ${
               viewMode === 'grid' ? 'bg-white shadow text-blue-900' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -219,7 +219,7 @@ export default function DefenseSchedulesList({
           <button
             type="button"
             onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer ${
+            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer ${
               viewMode === 'table' ? 'bg-white shadow text-blue-900' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -237,7 +237,7 @@ export default function DefenseSchedulesList({
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b border-blue-100 pb-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse"></span>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-blue-900">My Assigned Presentations</h3>
+                <h3 className="text-xs font-bold  tracking-normal text-blue-900">My Assigned Presentations</h3>
               </div>
               
               <div className="grid grid-cols-1 gap-6">
@@ -261,12 +261,12 @@ export default function DefenseSchedulesList({
           {/* General Calendar Directory */}
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              <h3 className="text-xs font-bold  tracking-normal text-slate-500">
                 {currentUser.role === 'student' || currentUser.role === 'adviser' || currentUser.role === 'panelist' 
                   ? 'General Defense Calendar Feed' 
                   : 'Institutional Defense Registry'}
               </h3>
-              <span className="text-[10px] text-slate-400 font-mono font-bold">
+              <span className="text-xs text-slate-500  font-bold">
                 Showing {otherSchedules.length} schedules
               </span>
             </div>
@@ -305,7 +305,7 @@ export default function DefenseSchedulesList({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-150 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-150 text-xs font-bold text-slate-500  tracking-normal">
                     <th className="p-4">Type & Date</th>
                     <th className="p-4">Time & Venue</th>
                     <th className="p-4">Capstone Title & Team</th>
@@ -332,11 +332,11 @@ export default function DefenseSchedulesList({
                         {/* Type & Date */}
                         <td className="p-4 space-y-1.5">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[9px] font-extrabold px-2 py-0.5 border rounded-lg uppercase ${typeBadgeColor}`}>
+                            <span className={`text-xs font-extrabold px-2 py-0.5 border rounded-lg  ${typeBadgeColor}`}>
                               {typeLabel}
                             </span>
                             {isMySched && (
-                              <span className="text-[8px] bg-blue-700 text-white px-1.5 py-0.25 rounded font-bold font-mono">
+                              <span className="text-xs bg-blue-700 text-white px-1.5 py-0.25 rounded font-bold ">
                                 MY ASSIGNMENT
                               </span>
                             )}
@@ -349,7 +349,7 @@ export default function DefenseSchedulesList({
 
                         {/* Time & Venue */}
                         <td className="p-4 space-y-1">
-                          <div className="flex items-center gap-1.5 text-slate-700 font-semibold font-mono">
+                          <div className="flex items-center gap-1.5 text-slate-700 font-semibold ">
                             <Clock className="h-3.5 w-3.5 text-slate-450" />
                             <span>{sched.startTime} - {sched.endTime}</span>
                           </div>
@@ -357,9 +357,9 @@ export default function DefenseSchedulesList({
                             {isOnline ? (
                               <Video className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                             ) : (
-                              <Landmark className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                              <Landmark className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                             )}
-                            <span className="truncate max-w-[150px] font-medium text-[11px]" title={getRoomName(sched.roomId)}>
+                            <span className="truncate max-w-[150px] font-medium text-xs" title={getRoomName(sched.roomId)}>
                               {getRoomName(sched.roomId)}
                             </span>
                           </div>
@@ -370,7 +370,7 @@ export default function DefenseSchedulesList({
                           <h4 className="font-serif font-bold text-slate-800 line-clamp-2 leading-relaxed" title={getResearchTitle(sched.researchId)}>
                             {getResearchTitle(sched.researchId)}
                           </h4>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-450 truncate" title={getStudentNames(sched.researchId)}>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-450 truncate" title={getStudentNames(sched.researchId)}>
                             <Users className="h-3.5 w-3.5 text-slate-350 shrink-0" />
                             <span className="font-medium">{getStudentNames(sched.researchId)}</span>
                           </div>
@@ -378,13 +378,13 @@ export default function DefenseSchedulesList({
 
                         {/* Adviser & Jury Panel */}
                         <td className="p-4 space-y-2">
-                          <div className="text-[11px] font-semibold text-slate-700">
-                            <span className="text-[9px] uppercase text-slate-400 block font-mono">Adviser</span>
+                          <div className="text-xs font-semibold text-slate-700">
+                            <span className="text-xs  text-slate-500 block ">Adviser</span>
                             <span className="font-bold">{getAdviserName(sched.researchId)}</span>
                           </div>
                           <div>
-                            <span className="text-[9px] uppercase text-slate-400 block font-mono">Jury Panel</span>
-                            <span className="text-[10px] text-slate-600 font-medium line-clamp-1" title={getPanelistNames(sched.panelistIds).join(', ')}>
+                            <span className="text-xs  text-slate-500 block ">Jury Panel</span>
+                            <span className="text-xs text-slate-600 font-medium line-clamp-1" title={getPanelistNames(sched.panelistIds).join(', ')}>
                               {getPanelistNames(sched.panelistIds).join(', ')}
                             </span>
                           </div>
@@ -393,17 +393,17 @@ export default function DefenseSchedulesList({
                         {/* Status */}
                         <td className="p-4">
                           {sched.status === 'completed' && (
-                            <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold uppercase">
+                            <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold ">
                               Completed
                             </span>
                           )}
                           {sched.status === 'cancelled' && (
-                            <span className="text-[9px] bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold uppercase">
+                            <span className="text-xs bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold ">
                               Cancelled
                             </span>
                           )}
                           {sched.status === 'scheduled' && (
-                            <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold uppercase">
+                            <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold ">
                               Confirmed
                             </span>
                           )}
@@ -482,22 +482,22 @@ function ScheduleCard({
         {/* Left column: Date/Time Slot (col-span-4) */}
         <div className="lg:col-span-4 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-lg border uppercase tracking-wider font-mono ${themeAccent.badge}`}>
+            <span className={`text-xs font-extrabold px-2.5 py-1 rounded-lg border  tracking-normal  ${themeAccent.badge}`}>
               {themeAccent.typeText}
             </span>
 
             {sched.status === 'completed' && (
-              <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold uppercase">
+              <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold ">
                 Completed
               </span>
             )}
             {sched.status === 'cancelled' && (
-              <span className="text-[9px] bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold uppercase">
+              <span className="text-xs bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold ">
                 Cancelled
               </span>
             )}
             {sched.status === 'scheduled' && (
-              <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold uppercase animate-pulse">
+              <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold  animate-pulse">
                 Scheduled
               </span>
             )}
@@ -506,19 +506,19 @@ function ScheduleCard({
           <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 bg-slate-50/50 p-3 rounded-xl border border-slate-150/40">
             {/* Date block */}
             <div className="flex items-center gap-2.5 text-xs text-slate-600 font-medium">
-              <CalendarIcon className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+              <CalendarIcon className="h-4.5 w-4.5 text-slate-500 shrink-0" />
               <div className="space-y-0.5">
-                <span className="text-[8px] text-slate-400 block uppercase font-mono font-bold leading-none">Schedule Date</span>
+                <span className="text-xs text-slate-500 block   font-bold leading-none">Schedule Date</span>
                 <span className="font-sans text-slate-800 font-bold">{sched.date}</span>
               </div>
             </div>
 
             {/* Time Block */}
             <div className="flex items-center gap-2.5 text-xs text-slate-600 font-medium">
-              <Clock className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+              <Clock className="h-4.5 w-4.5 text-slate-500 shrink-0" />
               <div className="space-y-0.5">
-                <span className="text-[8px] text-slate-400 block uppercase font-mono font-bold leading-none">Time Duration</span>
-                <span className="font-mono text-slate-800 font-bold">{sched.startTime} - {sched.endTime}</span>
+                <span className="text-xs text-slate-500 block   font-bold leading-none">Time Duration</span>
+                <span className=" text-slate-800 font-bold">{sched.startTime} - {sched.endTime}</span>
               </div>
             </div>
 
@@ -527,16 +527,16 @@ function ScheduleCard({
               {isOnline ? (
                 <Video className="h-4.5 w-4.5 text-blue-600 shrink-0 mt-0.5" />
               ) : (
-                <Landmark className="h-4.5 w-4.5 text-slate-400 shrink-0 mt-0.5" />
+                <Landmark className="h-4.5 w-4.5 text-slate-500 shrink-0 mt-0.5" />
               )}
               <div className="space-y-0.5 min-w-0 flex-1">
-                <span className="text-[8px] text-slate-400 block uppercase font-mono font-bold leading-none">Presentation Venue</span>
+                <span className="text-xs text-slate-500 block   font-bold leading-none">Presentation Venue</span>
                 {isOnline ? (
                   <a 
                     href="https://meet.google.com/cit-capstone-session" 
                     target="_blank" 
                     rel="noreferrer"
-                    className="text-blue-800 hover:underline font-mono text-[10px] break-all flex items-center gap-0.5 mt-0.5 font-bold"
+                    className="text-blue-800 hover:underline  text-xs break-all flex items-center gap-0.5 mt-0.5 font-bold"
                   >
                     <span>Google Meet Session</span>
                     <ExternalLink className="h-3 w-3 inline" />
@@ -554,20 +554,20 @@ function ScheduleCard({
         {/* Center column: Research Title and Authors (col-span-5) */}
         <div className="lg:col-span-5 space-y-4 border-t lg:border-t-0 lg:border-l lg:border-r border-slate-100 lg:px-5 pt-4 lg:pt-0">
           <div className="space-y-1">
-            <span className="text-[8px] uppercase font-bold text-slate-400 block tracking-wider font-mono">Capstone Manuscript</span>
-            <h4 className="text-xs font-bold text-slate-850 leading-relaxed font-serif text-justify" style={{ fontSize: '13px' }}>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Capstone Manuscript</span>
+            <h4 className="text-xs font-bold text-slate-850 leading-relaxed font-serif " style={{ fontSize: '13px' }}>
               {getResearchTitle(sched.researchId)}
             </h4>
           </div>
 
           <div className="space-y-2 pt-1">
             <div className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-[8px] uppercase font-bold text-slate-400 block tracking-wider font-mono">Authors / Research Team</span>
+              <Users className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Authors / Research Team</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {getStudentNames(sched.researchId).split(', ').map((student, sidx) => (
-                <span key={sidx} className="bg-slate-50 text-slate-650 text-[10px] font-bold px-2.5 py-0.5 rounded-lg border border-slate-200">
+                <span key={sidx} className="bg-slate-50 text-slate-650 text-xs font-bold px-2.5 py-0.5 rounded-lg border border-slate-200">
                   {student}
                 </span>
               ))}
@@ -578,18 +578,18 @@ function ScheduleCard({
         {/* Right column: Adviser and Committee Panelists (col-span-3) */}
         <div className="lg:col-span-3 space-y-4 pt-4 lg:pt-0">
           <div className="space-y-1.5">
-            <span className="text-[8px] uppercase font-bold text-slate-400 block font-mono tracking-wider">Research Adviser</span>
+            <span className="text-xs  font-bold text-slate-500 block  tracking-normal">Research Adviser</span>
             <div className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl flex items-center gap-2">
-              <User className="h-4 w-4 text-slate-400 shrink-0" />
+              <User className="h-4 w-4 text-slate-500 shrink-0" />
               <p className="text-xs text-slate-700 font-bold truncate">{getAdviserName(sched.researchId)}</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <span className="text-[8px] uppercase font-bold text-slate-400 block font-mono tracking-wider">Evaluation Panel jury</span>
+            <span className="text-xs  font-bold text-slate-500 block  tracking-normal">Evaluation Panel jury</span>
             <div className="px-3 py-2.5 bg-blue-50/10 border border-blue-100/50 rounded-xl space-y-1.5">
               {getPanelistNames(sched.panelistIds).map((pname, index) => (
-                <div key={index} className="flex items-center gap-2 text-[11px] text-slate-650 font-semibold min-w-0">
+                <div key={index} className="flex items-center gap-2 text-xs text-slate-650 font-semibold min-w-0">
                   <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
                   <span className="truncate">{pname}</span>
                 </div>

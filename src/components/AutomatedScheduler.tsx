@@ -234,7 +234,7 @@ export default function AutomatedScheduler({
       {/* Top action grid */}
       <div className="bg-slate-50 border border-slate-150 p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1.5">
-          <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded font-mono">
+          <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded ">
             ALGORITHMIC OPTIMIZATION UNIT
           </span>
           <h3 className="text-base font-serif font-bold text-slate-800 leading-none">
@@ -269,7 +269,7 @@ export default function AutomatedScheduler({
         
         {/* Left Form: Manual Placement */}
         <div className="lg:col-span-8 bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2.5">
+          <h3 className="text-sm font-bold text-slate-800  tracking-normal border-b pb-2.5">
             Manual Placement Panel
           </h3>
 
@@ -290,7 +290,7 @@ export default function AutomatedScheduler({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Research selection */}
               <div className="md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Un-Scheduled Approved Paper</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Un-Scheduled Approved Paper</label>
                 <select
                   required
                   value={selectedResearchId}
@@ -306,7 +306,7 @@ export default function AutomatedScheduler({
 
               {/* Room Selection */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Defense Room Venue</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Defense Room Venue</label>
                 <select
                   required
                   value={selectedRoomId}
@@ -322,7 +322,7 @@ export default function AutomatedScheduler({
 
               {/* Date Selection */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Presentation Date</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Presentation Date</label>
                 <input
                   type="date"
                   required
@@ -334,7 +334,7 @@ export default function AutomatedScheduler({
 
               {/* Hours */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Start Hour</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Start Hour</label>
                 <input
                   type="time"
                   required
@@ -345,7 +345,7 @@ export default function AutomatedScheduler({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">End Hour</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">End Hour</label>
                 <input
                   type="time"
                   required
@@ -358,7 +358,7 @@ export default function AutomatedScheduler({
 
             {/* Panelists Checklist Selection */}
             <div className="space-y-2 border-t pt-3">
-              <label className="text-[10px] font-bold text-slate-500 uppercase block">Assign 3 Panelists (Select {selectedPanelistIds.length}/3)</label>
+              <label className="text-xs font-bold text-slate-500  block">Assign 3 Panelists (Select {selectedPanelistIds.length}/3)</label>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {panelistUsers.map(p => {
@@ -370,7 +370,7 @@ export default function AutomatedScheduler({
                       className={`p-2 border rounded-lg cursor-pointer text-center text-xs space-y-1.5 transition-colors ${isChecked ? 'bg-blue-50/70 border-blue-400 text-blue-900 ring-1 ring-blue-100' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
                     >
                       <strong className="block truncate font-semibold">{p.name.split(' ')[1] || p.name}</strong>
-                      <span className="text-[9px] text-slate-400 font-medium">Panelist Faculty</span>
+                      <span className="text-xs text-slate-500 font-medium">Panelist Faculty</span>
                     </div>
                   );
                 })}
@@ -390,14 +390,14 @@ export default function AutomatedScheduler({
         </div>
 
         {/* Right Log terminal */}
-        <div className="lg:col-span-4 bg-slate-900 text-slate-300 rounded-xl p-5 shadow-sm space-y-4 font-mono select-none flex flex-col justify-between max-h-[480px]">
+        <div className="lg:col-span-4 bg-slate-900 text-slate-300 rounded-xl p-5 shadow-sm space-y-4  select-none flex flex-col justify-between max-h-[480px]">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-450 border-b border-slate-800 pb-2.5">
               <span className="inline-block w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></span>
               <span>Optimizer Log Output</span>
             </div>
 
-            <div className="text-[10px] space-y-2.5 max-h-80 overflow-y-auto mt-3 scrollbar-none pr-1">
+            <div className="text-xs space-y-2.5 max-h-80 overflow-y-auto mt-3 scrollbar-none pr-1">
               {schedulerLogs.length === 0 ? (
                 <div className="text-slate-500 italic">Logs are empty. Run the Auto-Scheduler to populate optimized metrics.</div>
               ) : (
@@ -410,7 +410,7 @@ export default function AutomatedScheduler({
             </div>
           </div>
 
-          <div className="text-[9px] text-slate-500 border-t border-slate-850 pt-2 text-right">
+          <div className="text-xs text-slate-500 border-t border-slate-850 pt-2 text-right">
             System Optimizer Model v2.4.0
           </div>
         </div>

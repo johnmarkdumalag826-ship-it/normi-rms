@@ -201,7 +201,7 @@ export default function DashboardAdmin({
       {/* Top Banner Navigation Bar */}
       <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1.5">
-          <span className="text-[10px] uppercase font-bold text-blue-800 tracking-wider">NORMI Administrative Panel</span>
+          <span className="text-xs  font-bold text-blue-800 tracking-normal">NORMI Administrative Panel</span>
           <h2 className="text-xl font-bold text-slate-800 font-serif leading-none">Super Administrator Suite</h2>
           <p className="text-xs text-slate-500 max-w-xl">
             Audit system operations, modify core records, configure role authorizations, and examine defense schedules across all departments.
@@ -252,7 +252,7 @@ export default function DashboardAdmin({
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Total Accounts</span>
+                <span className="text-xs  font-bold text-slate-500 block tracking-normal">Total Accounts</span>
                 <span className="text-base font-extrabold text-slate-800">{userStats.total} registered</span>
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function DashboardAdmin({
                 <Shield className="h-5 w-5" />
               </div>
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Assigned Coordinators</span>
+                <span className="text-xs  font-bold text-slate-500 block tracking-normal">Assigned Coordinators</span>
                 <span className="text-base font-extrabold text-slate-800">{userStats.coordinators} active</span>
               </div>
             </div>
@@ -272,7 +272,7 @@ export default function DashboardAdmin({
                 <Calendar className="h-5 w-5" />
               </div>
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Defense Schedules</span>
+                <span className="text-xs  font-bold text-slate-500 block tracking-normal">Defense Schedules</span>
                 <span className="text-base font-extrabold text-slate-800">{schedules.length} tracked</span>
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function DashboardAdmin({
                 <UserCheck className="h-5 w-5" />
               </div>
               <div>
-                <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Vetted Accounts</span>
+                <span className="text-xs  font-bold text-slate-500 block tracking-normal">Vetted Accounts</span>
                 <span className="text-base font-extrabold text-slate-800">{userStats.active} Active</span>
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function DashboardAdmin({
             {/* System Status / Maintenance card */}
             <div className="lg:col-span-8 bg-white rounded-xl border border-slate-150 p-6 shadow-sm space-y-6">
               <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                <h3 className="text-sm font-bold text-slate-800  tracking-normal">
                   NORMI MySQL Schema Integrity & Maintenance
                 </h3>
                 <p className="text-xs text-slate-500">Perform institutional hot backups and database structural audits</p>
@@ -302,9 +302,9 @@ export default function DashboardAdmin({
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex items-center gap-2">
                     <Database className="h-5 w-5 text-blue-800" />
-                    <h4 className="text-xs font-bold text-slate-800 uppercase">Physical Database Backups</h4>
+                    <h4 className="text-xs font-bold text-slate-800 ">Physical Database Backups</h4>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Trigger full DDL script transcription. This exports all tables (users, schedules, research, comments) into a secure standalone SQL backup archive.
                   </p>
                   <button
@@ -319,9 +319,9 @@ export default function DashboardAdmin({
                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                   <div className="flex items-center gap-2">
                     <RotateCcw className="h-5 w-5 text-indigo-800" />
-                    <h4 className="text-xs font-bold text-slate-800 uppercase">Hot Rollback Points</h4>
+                    <h4 className="text-xs font-bold text-slate-800 ">Hot Rollback Points</h4>
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Recover previous database states immediately. This restores all records to their latest secure rollback coordinates to clear system conflicts.
                   </p>
                   <button
@@ -337,13 +337,13 @@ export default function DashboardAdmin({
 
             {/* Diagnostics Panel */}
             <div className="lg:col-span-4 bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b pb-2">
+              <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b pb-2">
                 Operational Handshake Metrics
               </h3>
               
-              <div className="space-y-4 text-xs font-mono text-slate-650">
+              <div className="space-y-4 text-xs  text-slate-650">
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold">
+                  <div className="flex justify-between text-xs font-bold">
                     <span>CPU Allocation</span>
                     <span className="text-blue-800">12.4% Optimal</span>
                   </div>
@@ -353,7 +353,7 @@ export default function DashboardAdmin({
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold">
+                  <div className="flex justify-between text-xs font-bold">
                     <span>Heap Memory Load</span>
                     <span className="text-blue-800">145MB / 512MB</span>
                   </div>
@@ -363,7 +363,7 @@ export default function DashboardAdmin({
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold">
+                  <div className="flex justify-between text-xs font-bold">
                     <span>Database Index Size</span>
                     <span className="text-blue-800">22KB Index | 14 Tables</span>
                   </div>
@@ -384,11 +384,11 @@ export default function DashboardAdmin({
           {/* Header Actions */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-slate-800  tracking-normal flex items-center gap-1.5">
                 <Users className="h-4.5 w-4.5 text-blue-800" />
                 Institutional Directory & Role Credentials
               </h3>
-              <p className="text-xs text-slate-400">Search, edit, reset passwords, delete, and adjust system permissions for all campus personnel.</p>
+              <p className="text-xs text-slate-500">Search, edit, reset passwords, delete, and adjust system permissions for all campus personnel.</p>
             </div>
 
             <button
@@ -403,7 +403,7 @@ export default function DashboardAdmin({
           {/* Filters Bar */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
               <input
                 type="text"
                 placeholder="Search user accounts by name, email, or ID..."
@@ -442,7 +442,7 @@ export default function DashboardAdmin({
           {/* Directory Table */}
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
             <table className="w-full text-xs text-left text-slate-650 border-collapse">
-              <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-b border-slate-200">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-500  tracking-normal  border-b border-slate-200">
                 <tr>
                   <th className="p-3">User/Researcher</th>
                   <th className="p-3">Role</th>
@@ -454,7 +454,7 @@ export default function DashboardAdmin({
               <tbody className="divide-y divide-slate-150">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-400">
+                    <td colSpan={5} className="p-8 text-center text-slate-500">
                       No registered user accounts match your search parameters.
                     </td>
                   </tr>
@@ -471,12 +471,12 @@ export default function DashboardAdmin({
                           />
                           <div>
                             <span className="font-bold text-slate-800 block leading-snug">{u.name}</span>
-                            <span className="text-[10px] text-slate-400 block font-mono">ID: {u.id}</span>
+                            <span className="text-xs text-slate-500 block ">ID: {u.id}</span>
                           </div>
                         </div>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded font-mono ${
+                        <span className={`px-2 py-0.5 text-xs font-bold  rounded  ${
                           u.role === 'admin' ? 'bg-rose-50 text-rose-700 border border-rose-100'
                             : u.role === 'coordinator' ? 'bg-blue-50 text-blue-700 border border-blue-100'
                             : u.role === 'adviser' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
@@ -490,7 +490,7 @@ export default function DashboardAdmin({
                       <td className="p-3">
                         <button
                           onClick={() => onToggleUserStatus(u.id)}
-                          className={`px-2 py-0.5 text-[9px] font-extrabold uppercase rounded cursor-pointer border transition-colors ${
+                          className={`px-2 py-0.5 text-xs font-extrabold  rounded cursor-pointer border transition-colors ${
                             u.status === 'active'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-100 hover:bg-emerald-100'
                               : 'bg-rose-50 text-rose-800 border-rose-100 hover:bg-rose-100'
@@ -528,7 +528,7 @@ export default function DashboardAdmin({
                             className={`p-1 rounded-lg transition-all ${
                               u.id === user.id 
                                 ? 'text-slate-200 cursor-not-allowed' 
-                                : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                                : 'text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
                             }`}
                             title="Delete Account"
                           >
@@ -550,11 +550,11 @@ export default function DashboardAdmin({
         <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
           
           <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-800  tracking-normal flex items-center gap-2">
               <Calendar className="h-4.5 w-4.5 text-blue-800" />
               Active Institutional Defense Schedules Monitor
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Admin possesses read-only access to schedules and reserves the right to audit and filter schedules across all departments.
             </p>
           </div>
@@ -562,7 +562,7 @@ export default function DashboardAdmin({
           {/* Multi filters bar */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3 pt-1">
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Department</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Department</label>
               <select
                 value={schedDeptFilter}
                 onChange={(e) => setSchedDeptFilter(e.target.value)}
@@ -576,7 +576,7 @@ export default function DashboardAdmin({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Date</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Date</label>
               <input
                 type="date"
                 value={schedDateFilter}
@@ -586,7 +586,7 @@ export default function DashboardAdmin({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Adviser</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Adviser</label>
               <select
                 value={schedAdviserFilter}
                 onChange={(e) => setSchedAdviserFilter(e.target.value)}
@@ -600,7 +600,7 @@ export default function DashboardAdmin({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Panelist</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Panelist</label>
               <select
                 value={schedPanelFilter}
                 onChange={(e) => setSchedPanelFilter(e.target.value)}
@@ -614,7 +614,7 @@ export default function DashboardAdmin({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Room</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Room</label>
               <select
                 value={schedRoomFilter}
                 onChange={(e) => setSchedRoomFilter(e.target.value)}
@@ -628,7 +628,7 @@ export default function DashboardAdmin({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Status</label>
+              <label className="text-xs font-bold  text-slate-500 tracking-normal">Status</label>
               <select
                 value={schedStatusFilter}
                 onChange={(e) => setSchedStatusFilter(e.target.value)}
@@ -655,10 +655,10 @@ export default function DashboardAdmin({
                 return (
                   <div key={sched.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 relative overflow-hidden flex flex-col justify-between gap-3.5 shadow-sm">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-mono font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-150 uppercase">
+                      <span className="text-xs  font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded border border-blue-150 ">
                         {dpt ? dpt.code : 'NORMI'}
                       </span>
-                      <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded uppercase ${
+                      <span className={`text-xs  font-bold px-2 py-0.5 rounded  ${
                         sched.status === 'completed' ? 'bg-emerald-50 text-emerald-700'
                           : sched.status === 'cancelled' ? 'bg-rose-50 text-rose-700'
                           : 'bg-blue-50 text-blue-700'
@@ -671,19 +671,19 @@ export default function DashboardAdmin({
                       <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-snug" title={res?.title}>
                         {res ? res.title : 'Capstone Presentation Title'}
                       </h4>
-                      <p className="text-[10px] text-slate-450 font-medium font-mono flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                      <p className="text-xs text-slate-450 font-medium  flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-slate-500" />
                         {sched.date} ({sched.startTime} - {sched.endTime})
                       </p>
                     </div>
 
-                    <div className="border-t border-slate-200/60 pt-2 flex flex-col gap-1 text-[10px] text-slate-500 font-medium">
+                    <div className="border-t border-slate-200/60 pt-2 flex flex-col gap-1 text-xs text-slate-500 font-medium">
                       <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <MapPin className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                         <span className="truncate">{sched.roomId || 'Virtual Classroom'}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <Users className="h-3.5 w-3.5 text-slate-500 shrink-0" />
                         <span className="truncate">Panelists: {sched.panelistIds.length} members</span>
                       </div>
                     </div>
@@ -723,7 +723,7 @@ export default function DashboardAdmin({
               <div>
                 <h4 className="text-sm font-bold text-slate-800 leading-snug">{selectedUserDetails.name}</h4>
                 <p className="text-xs text-slate-500 font-medium">{selectedUserDetails.email}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-800 text-[9px] font-bold rounded uppercase font-mono">
+                <span className="inline-block mt-1 px-2 py-0.5 bg-blue-50 text-blue-800 text-xs font-bold rounded  ">
                   {selectedUserDetails.role}
                 </span>
               </div>
@@ -731,24 +731,24 @@ export default function DashboardAdmin({
 
             <div className="grid grid-cols-2 gap-3 text-xs pt-1 text-slate-600 font-medium">
               <div className="p-2.5 bg-slate-50/50 rounded-lg border border-slate-150">
-                <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block mb-0.5">Account ID</span>
-                <span className="font-mono text-slate-800 font-bold">{selectedUserDetails.id}</span>
+                <span className="text-xs   font-bold text-slate-500 block mb-0.5">Account ID</span>
+                <span className=" text-slate-800 font-bold">{selectedUserDetails.id}</span>
               </div>
 
               <div className="p-2.5 bg-slate-50/50 rounded-lg border border-slate-150">
-                <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block mb-0.5">Authorization Role</span>
+                <span className="text-xs   font-bold text-slate-500 block mb-0.5">Authorization Role</span>
                 <span className="text-slate-800 font-bold capitalize">{selectedUserDetails.role}</span>
               </div>
 
               <div className="p-2.5 bg-slate-50/50 rounded-lg border border-slate-150">
-                <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block mb-0.5">Assigned Department</span>
+                <span className="text-xs   font-bold text-slate-500 block mb-0.5">Assigned Department</span>
                 <span className="text-slate-800 font-bold">
                   {departments.find(d => d.id === selectedUserDetails.departmentId)?.code || 'N/A'}
                 </span>
               </div>
 
               <div className="p-2.5 bg-slate-50/50 rounded-lg border border-slate-150">
-                <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block mb-0.5">Activity Status</span>
+                <span className="text-xs   font-bold text-slate-500 block mb-0.5">Activity Status</span>
                 <span className={`font-bold ${selectedUserDetails.status === 'active' ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {selectedUserDetails.status === 'active' ? 'Active' : 'Suspended'}
                 </span>
@@ -791,7 +791,7 @@ export default function DashboardAdmin({
 
             <div className="space-y-3">
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Full Name</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Full Name</label>
                 <input
                   type="text"
                   required
@@ -803,7 +803,7 @@ export default function DashboardAdmin({
               </div>
 
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Email Address</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Email Address</label>
                 <input
                   type="email"
                   required
@@ -815,7 +815,7 @@ export default function DashboardAdmin({
               </div>
 
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Temporary Password</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Temporary Password</label>
                 <input
                   type="password"
                   required
@@ -829,7 +829,7 @@ export default function DashboardAdmin({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">System Role</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">System Role</label>
                   <select
                     value={newUserForm.role}
                     onChange={(e) => setNewUserForm({...newUserForm, role: e.target.value as UserRole})}
@@ -844,7 +844,7 @@ export default function DashboardAdmin({
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
                   <select
                     value={newUserForm.departmentId}
                     onChange={(e) => setNewUserForm({...newUserForm, departmentId: e.target.value})}
@@ -900,7 +900,7 @@ export default function DashboardAdmin({
 
             <div className="space-y-3">
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Full Name</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Full Name</label>
                 <input
                   type="text"
                   required
@@ -911,7 +911,7 @@ export default function DashboardAdmin({
               </div>
 
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Email Address</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Email Address</label>
                 <input
                   type="email"
                   required
@@ -923,7 +923,7 @@ export default function DashboardAdmin({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">System Role</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">System Role</label>
                   <select
                     value={newUserForm.role}
                     onChange={(e) => setNewUserForm({...newUserForm, role: e.target.value as UserRole})}
@@ -938,7 +938,7 @@ export default function DashboardAdmin({
                 </div>
 
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Department</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
                   <select
                     value={newUserForm.departmentId}
                     onChange={(e) => setNewUserForm({...newUserForm, departmentId: e.target.value})}

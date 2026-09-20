@@ -67,7 +67,7 @@ export default function DashboardCoordinator({
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-sans">Registered Teams</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal font-sans">Registered Teams</span>
             <span className="text-sm font-extrabold text-slate-800">{totalStudents} active teams</span>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function DashboardCoordinator({
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-sans">Vetted by Advisers</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal font-sans">Vetted by Advisers</span>
             <span className="text-sm font-extrabold text-slate-800">{pendingCoordinatorApproval} papers ready</span>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function DashboardCoordinator({
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-sans">Archived in Repository</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal font-sans">Archived in Repository</span>
             <span className="text-sm font-extrabold text-slate-800">{totalApprovedArchives} publications</span>
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function DashboardCoordinator({
             <Calendar className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider font-sans">Defense Schedules</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal font-sans">Defense Schedules</span>
             <span className="text-sm font-extrabold text-slate-800">{scheduledDefensesCount} slots locked</span>
           </div>
         </div>
@@ -108,10 +108,10 @@ export default function DashboardCoordinator({
 
       {/* Title Header */}
       <div className="border-b border-slate-200 flex justify-between items-center pb-2.5">
-        <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+        <h2 className="text-sm font-bold text-slate-800  tracking-normal">
           Coordinator Control Workspace
         </h2>
-        <span className="text-[10px] text-slate-400 uppercase font-mono font-bold">Research Coordinator</span>
+        <span className="text-xs text-slate-500   font-bold">Research Coordinator</span>
       </div>
 
       {/* Release Pipelines & Bulletins Layout */}
@@ -123,7 +123,7 @@ export default function DashboardCoordinator({
           {/* Adviser-approved release grid */}
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-150 px-5 py-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-slate-700  tracking-normal flex items-center gap-1.5">
                 <ShieldCheck className="h-4.5 w-4.5 text-emerald-600" />
                 Adviser Vetted Release Pipeline
               </h3>
@@ -131,7 +131,7 @@ export default function DashboardCoordinator({
 
             <div className="divide-y divide-slate-100">
               {researchList.filter(r => r.status === 'Approved by Adviser' || r.status === 'Pending Coordinator').length === 0 ? (
-                <div className="p-12 text-center text-slate-400 text-xs">
+                <div className="p-12 text-center text-slate-500 text-xs">
                   No adviser-approved manuscripts are currently awaiting coordinator release parameters.
                 </div>
               ) : (
@@ -141,7 +141,7 @@ export default function DashboardCoordinator({
                     <div key={res.id} className="p-5 hover:bg-slate-50/20 transition-colors space-y-2.5">
                       <div className="flex justify-between items-start gap-3">
                         <div className="space-y-0.5">
-                          <span className="text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-100 font-mono font-bold px-2 py-0.25 rounded uppercase">
+                          <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-100  font-bold px-2 py-0.25 rounded ">
                             Adviser Approved
                           </span>
                           <h4 className="text-xs font-bold text-slate-850 leading-snug">{res.title}</h4>
@@ -150,14 +150,14 @@ export default function DashboardCoordinator({
                         <div className="flex gap-1.5 shrink-0">
                           <button
                             onClick={() => onApproveManuscript(res.id, true)}
-                            className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-1 px-2.5 text-[10px] rounded cursor-pointer transition-colors"
+                            className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-1 px-2.5 text-xs rounded cursor-pointer transition-colors"
                           >
                             Mark Scheduled
                           </button>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-3 text-[10px] text-slate-500 font-mono">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 ">
                         <span>Adviser: <strong className="text-slate-700">{getAdviserName(res.adviserId)}</strong></span>
                         <span>•</span>
                         <span>Keywords: {res.keywords.slice(0, 3).join(', ')}</span>
@@ -171,7 +171,7 @@ export default function DashboardCoordinator({
           {/* Active Announcements bulletin directory */}
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-150 px-5 py-3">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Active Pin bulletins</h3>
+              <h3 className="text-xs font-bold text-slate-700  tracking-normal">Active Pin bulletins</h3>
             </div>
 
             <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
@@ -184,22 +184,22 @@ export default function DashboardCoordinator({
                   <div key={ann.id} className="p-4 flex justify-between items-start gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[9px] font-bold uppercase border bg-slate-50 px-1.5 py-0.25 rounded">
+                        <span className=" text-xs font-bold  border bg-slate-50 px-1.5 py-0.25 rounded">
                           {ann.category}
                         </span>
                         {ann.isPinned && (
-                          <span className="font-mono text-[8px] bg-amber-50 text-amber-700 border border-amber-100 font-bold px-1.5 rounded">
+                          <span className=" text-xs bg-amber-50 text-amber-700 border border-amber-100 font-bold px-1.5 rounded">
                             PINNED
                           </span>
                         )}
                       </div>
                       <h4 className="text-xs font-bold text-slate-800">{ann.title}</h4>
-                      <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">{ann.content}</p>
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{ann.content}</p>
                     </div>
 
                     <button
                       onClick={() => onDeleteAnnouncement(ann.id)}
-                      className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      className="p-1 rounded text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Delete Announcement"
                     >
                       <Trash className="h-3.5 w-3.5" />
@@ -214,14 +214,14 @@ export default function DashboardCoordinator({
         {/* Right Col: Announcements poster */}
         <section className="lg:col-span-4 space-y-4">
           <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
               <Megaphone className="h-4.5 w-4.5 text-blue-700 animate-bounce" />
               Publish Bulletins
             </h3>
 
             <form onSubmit={handlePostAnnouncement} className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Bulletin Title</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Bulletin Title</label>
                 <input
                   type="text"
                   required
@@ -233,7 +233,7 @@ export default function DashboardCoordinator({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Announcement Body</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Announcement Body</label>
                 <textarea
                   rows={4}
                   required
@@ -246,7 +246,7 @@ export default function DashboardCoordinator({
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Target Category</label>
+                  <label className="text-xs font-bold text-slate-500  block mb-1">Target Category</label>
                   <select
                     value={annCategory}
                     onChange={(e) => setAnnCategory(e.target.value as any)}
@@ -266,7 +266,7 @@ export default function DashboardCoordinator({
                     onChange={(e) => setAnnIsPinned(e.target.checked)}
                     className="h-3.5 w-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="pin" className="ml-1.5 text-[11px] text-slate-600 font-medium">
+                  <label htmlFor="pin" className="ml-1.5 text-xs text-slate-600 font-medium">
                     Pin Bulletin
                   </label>
                 </div>

@@ -203,7 +203,7 @@ export default function DocumentReview({
       {/* Top Banner and Paper Selector */}
       <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1.5">
-          <span className="text-[10px] uppercase font-bold text-blue-800 tracking-wider">Faculty Portal</span>
+          <span className="text-xs  font-bold text-blue-800 tracking-normal">Faculty Portal</span>
           <h2 className="text-xl font-bold text-slate-800 font-serif">Dedicated Document Review Suite</h2>
           <p className="text-xs text-slate-500 max-w-xl">
             Audit manuscript drafts, leave sticky notes and overlays, explore version histories, and issue formal vetting decisions.
@@ -211,7 +211,7 @@ export default function DocumentReview({
         </div>
 
         <div className="w-full md:w-80 space-y-1.5">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Select Manuscript to Review</label>
+          <label className="text-xs font-bold text-slate-500  tracking-normal block">Select Manuscript to Review</label>
           <select
             value={selectedResearchId}
             onChange={(e) => {
@@ -233,10 +233,10 @@ export default function DocumentReview({
 
       {!selectedResearch ? (
         <div className="bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center max-w-2xl mx-auto space-y-4">
-          <div className="p-4 bg-slate-100 text-slate-400 rounded-full w-fit mx-auto">
+          <div className="p-4 bg-slate-100 text-slate-500 rounded-full w-fit mx-auto">
             <FileText className="h-8 w-8" />
           </div>
-          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider">No Manuscripts Found</h3>
+          <h3 className="text-sm font-bold text-slate-700  tracking-normal">No Manuscripts Found</h3>
           <p className="text-xs text-slate-500 leading-relaxed">
             You are not currently registered as the adviser of any active research groups, or no groups have submitted draft documents yet.
           </p>
@@ -248,7 +248,7 @@ export default function DocumentReview({
             {/* PDF Toolbar Controls */}
             <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                <span className="font-bold text-slate-800 font-mono">v{currentVersion?.versionNumber || 1.0}</span>
+                <span className="font-bold text-slate-800 ">v{currentVersion?.versionNumber || 1.0}</span>
                 <span className="text-slate-350">|</span>
                 <span className="truncate max-w-[180px] font-medium" title={currentVersion?.fileName}>
                   {currentVersion?.fileName || `${selectedResearch.title.substring(0, 20)}.pdf`}
@@ -292,7 +292,7 @@ export default function DocumentReview({
                 >
                   <ZoomOut className="h-3.5 w-3.5" />
                 </button>
-                <span className="text-[10px] font-mono font-bold text-slate-600 min-w-[32px] text-center">{zoom}%</span>
+                <span className="text-xs  font-bold text-slate-600 min-w-[32px] text-center">{zoom}%</span>
                 <button 
                   onClick={() => setZoom(Math.min(150, zoom + 10))}
                   className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
@@ -344,7 +344,7 @@ export default function DocumentReview({
 
                 {/* PDF simulated Page content */}
                 <div className="space-y-6 relative z-10">
-                  <div className="border-b border-slate-100 pb-3 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                  <div className="border-b border-slate-100 pb-3 flex justify-between items-center text-xs text-slate-500 ">
                     <span>NORMI CAPSTONE VETTING ENGINE</span>
                     <span>PAGE {currentPage} OF 3</span>
                   </div>
@@ -359,7 +359,7 @@ export default function DocumentReview({
                       return (
                         <p 
                           key={pIdx} 
-                          className={`text-xs text-slate-650 leading-relaxed text-justify transition-all duration-150 p-1.5 rounded ${
+                          className={`text-xs text-slate-650 leading-relaxed  transition-all duration-150 p-1.5 rounded ${
                             isHighlighted ? 'bg-amber-100 text-amber-900 font-medium border-l-2 border-amber-500 shadow-sm' : ''
                           }`}
                         >
@@ -369,7 +369,7 @@ export default function DocumentReview({
                     })}
                   </div>
 
-                  <div className="border-t border-slate-100 pt-8 text-center text-[8px] text-slate-350 font-mono">
+                  <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-350 ">
                     PROPOSAL ID: {selectedResearch.id} | VER: {currentVersion?.versionNumber || 1.0}
                   </div>
                 </div>
@@ -383,7 +383,7 @@ export default function DocumentReview({
                     <div
                       key={note.id}
                       style={{ left: `${note.x}%`, top: `${note.y}%` }}
-                      className={`absolute w-36 p-2 rounded-lg border shadow-md text-[9px] font-medium leading-relaxed z-30 transition-all ${colorClass}`}
+                      className={`absolute w-36 p-2 rounded-lg border shadow-md text-xs font-medium leading-relaxed z-30 transition-all ${colorClass}`}
                     >
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleDeleteSticky(note.id); }}
@@ -391,7 +391,7 @@ export default function DocumentReview({
                       >
                         <XCircle className="h-2.5 w-2.5 text-rose-600" />
                       </button>
-                      <span className="block font-mono text-[7px] text-slate-400 font-bold mb-1 uppercase tracking-wider">Adviser Sticky</span>
+                      <span className="block  text-[7px] text-slate-500 font-bold mb-1  tracking-normal">Adviser Sticky</span>
                       <p className="line-clamp-4">{note.text}</p>
                     </div>
                   );
@@ -410,7 +410,7 @@ export default function DocumentReview({
                 Previous Page
               </button>
 
-              <span className="font-mono text-xs text-slate-500">
+              <span className=" text-xs text-slate-500">
                 Page <span className="text-slate-850 font-bold">{currentPage}</span> of <span className="font-semibold">3</span>
               </span>
 
@@ -432,10 +432,10 @@ export default function DocumentReview({
             <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center gap-2 border-b border-white/10 pb-3">
                 <FileCheck className="h-5 w-5 text-emerald-400" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-white">Issue Vetting Decision</h3>
+                <h3 className="text-xs font-bold  tracking-normal text-white">Issue Vetting Decision</h3>
               </div>
 
-              <p className="text-[11px] text-slate-300 leading-relaxed">
+              <p className="text-xs text-slate-300 leading-relaxed">
                 Render a binding assessment on this manuscript draft. Decisions update student progress states.
               </p>
 
@@ -443,7 +443,7 @@ export default function DocumentReview({
                 <button
                   type="button"
                   onClick={() => setDecision('Approve')}
-                  className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                     decision === 'Approve'
                       ? 'bg-emerald-600/30 border-emerald-500 text-emerald-400 font-extrabold ring-1 ring-emerald-500'
                       : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
@@ -456,7 +456,7 @@ export default function DocumentReview({
                 <button
                   type="button"
                   onClick={() => setDecision('Revision')}
-                  className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                     decision === 'Revision'
                       ? 'bg-amber-600/30 border-amber-500 text-amber-400 font-extrabold ring-1 ring-amber-500'
                       : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
@@ -469,7 +469,7 @@ export default function DocumentReview({
                 <button
                   type="button"
                   onClick={() => setDecision('Reject')}
-                  className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
                     decision === 'Reject'
                       ? 'bg-rose-600/30 border-rose-500 text-rose-400 font-extrabold ring-1 ring-rose-500'
                       : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
@@ -483,7 +483,7 @@ export default function DocumentReview({
               {decision && (
                 <div className="space-y-3 animate-in fade-in slide-in-from-top-1">
                   <div className="space-y-1.5">
-                    <label className="text-[9px] font-bold uppercase text-slate-400 block tracking-wider">
+                    <label className="text-xs font-bold  text-slate-500 block tracking-normal">
                       Provide Vetting Comments / Feedback
                     </label>
                     <textarea
@@ -512,30 +512,30 @@ export default function DocumentReview({
               <div className="flex border-b border-slate-100 bg-slate-50/50">
                 <button
                   onClick={() => setActiveTab('content')}
-                  className={`flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
                     activeTab === 'content' 
                       ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-600'
                   }`}
                 >
                   Document Notes
                 </button>
                 <button
                   onClick={() => setActiveTab('comments')}
-                  className={`flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
                     activeTab === 'comments' 
                       ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-600'
                   }`}
                 >
                   System Comments ({currentComments.length})
                 </button>
                 <button
                   onClick={() => setActiveTab('history')}
-                  className={`flex-1 py-3 text-center text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
                     activeTab === 'history' 
                       ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-600'
                   }`}
                 >
                   Versions ({selectedVersions.length})
@@ -549,8 +549,8 @@ export default function DocumentReview({
                 {activeTab === 'content' && (
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Quick Sticky Annotations</h4>
-                      <p className="text-[10px] text-slate-400 leading-snug">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Quick Sticky Annotations</h4>
+                      <p className="text-xs text-slate-500 leading-snug">
                         Add temporary visual sticky tags overlayed onto the PDF. Drag-and-drop simulated color tags.
                       </p>
                     </div>
@@ -571,7 +571,7 @@ export default function DocumentReview({
                         onClick={() => setStickyColor('blue')}
                         className={`w-6 h-6 rounded-full bg-blue-300 border-2 transition-all ${stickyColor === 'blue' ? 'border-slate-800 scale-110' : 'border-transparent'}`}
                       />
-                      <span className="text-[10px] text-slate-450 font-medium font-mono ml-auto">Selected: {stickyColor}</span>
+                      <span className="text-xs text-slate-450 font-medium  ml-auto">Selected: {stickyColor}</span>
                     </div>
 
                     <div className="space-y-2">
@@ -584,7 +584,7 @@ export default function DocumentReview({
                       <button
                         type="button"
                         onClick={handleAddStickyManual}
-                        className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                        className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Plus className="h-3.5 w-3.5" />
                         Place Sticky Tag on Page {currentPage}
@@ -592,17 +592,17 @@ export default function DocumentReview({
                     </div>
 
                     <div className="border-t border-slate-100 pt-3 space-y-2">
-                      <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider block">Active Sticky Notes ({stickyNotes.length})</span>
+                      <span className="text-xs font-bold  text-slate-500 tracking-normal block">Active Sticky Notes ({stickyNotes.length})</span>
                       <div className="space-y-2 max-h-[160px] overflow-auto">
                         {stickyNotes.map(n => (
-                          <div key={n.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex justify-between gap-3 text-[10px]">
+                          <div key={n.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex justify-between gap-3 text-xs">
                             <div className="space-y-1">
                               <span className="font-bold text-slate-600 block">Page {n.page} (X:{n.x}, Y:{n.y})</span>
                               <p className="text-slate-700 font-medium">{n.text}</p>
                             </div>
                             <button
                               onClick={() => handleDeleteSticky(n.id)}
-                              className="text-slate-400 hover:text-rose-600 shrink-0 self-start p-0.5"
+                              className="text-slate-500 hover:text-rose-600 shrink-0 self-start p-0.5"
                             >
                               <Trash className="h-3.5 w-3.5" />
                             </button>
@@ -617,8 +617,8 @@ export default function DocumentReview({
                 {activeTab === 'comments' && (
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Formal Chapter Commentary</h4>
-                      <p className="text-[10px] text-slate-400">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Formal Chapter Commentary</h4>
+                      <p className="text-xs text-slate-500">
                         Formal feedback stored in system records. Visible to student groups on their timeline reports.
                       </p>
                     </div>
@@ -641,17 +641,17 @@ export default function DocumentReview({
 
                     <div className="border-t border-slate-150 pt-3 space-y-2.5 max-h-[180px] overflow-auto">
                       {currentComments.length === 0 ? (
-                        <div className="text-center py-6 text-slate-400 text-xs">
+                        <div className="text-center py-6 text-slate-500 text-xs">
                           No logged feedback logs for this capstone yet.
                         </div>
                       ) : (
                         currentComments.map(c => (
-                          <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] space-y-1">
-                            <div className="flex justify-between items-center text-[9px] text-slate-400 font-medium">
+                          <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                            <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
                               <span className="font-bold text-slate-700">{c.authorName}</span>
                               <span>{new Date(c.commentAt).toLocaleDateString()}</span>
                             </div>
-                            <span className="inline-block px-1.5 py-0.25 bg-blue-50 text-blue-800 rounded font-bold uppercase tracking-wider text-[8px] font-mono">
+                            <span className="inline-block px-1.5 py-0.25 bg-blue-50 text-blue-800 rounded font-bold  tracking-normal text-xs ">
                               {c.chapter}
                             </span>
                             <p className="text-slate-600 font-medium leading-relaxed">{c.text}</p>
@@ -666,15 +666,15 @@ export default function DocumentReview({
                 {activeTab === 'history' && (
                   <div className="space-y-3">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-sans">Version Submission History</h4>
-                      <p className="text-[10px] text-slate-400">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal font-sans">Version Submission History</h4>
+                      <p className="text-xs text-slate-500">
                         Tracks draft progression over time. Choose sub-versions to inspect overlay notes.
                       </p>
                     </div>
 
                     <div className="space-y-2 max-h-[300px] overflow-auto">
                       {selectedVersions.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400 text-xs">
+                        <div className="text-center py-8 text-slate-500 text-xs">
                           No version logs found.
                         </div>
                       ) : (
@@ -692,15 +692,15 @@ export default function DocumentReview({
                             >
                               <div className="space-y-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className={`px-1.5 py-0.25 text-[9px] font-bold rounded uppercase ${
+                                  <span className={`px-1.5 py-0.25 text-xs font-bold rounded  ${
                                     ver.type === 'defense_manuscript' ? 'bg-amber-100 text-amber-850' : 'bg-blue-100 text-blue-800'
                                   }`}>
                                     {ver.type === 'defense_manuscript' ? 'Defense Copy' : 'Chapter Checking'}
                                   </span>
-                                  <span className="text-slate-900 font-bold font-mono">v{ver.versionNumber}</span>
+                                  <span className="text-slate-900 font-bold ">v{ver.versionNumber}</span>
                                 </div>
-                                <span className="text-[10px] text-slate-500 truncate block">{ver.fileName}</span>
-                                <div className="flex items-center gap-2 text-[9px] text-slate-400 font-medium">
+                                <span className="text-xs text-slate-500 truncate block">{ver.fileName}</span>
+                                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
                                   <span className="flex items-center gap-0.5">
                                     <Clock className="h-2.5 w-2.5" />
                                     {new Date(ver.submittedAt).toLocaleDateString()}

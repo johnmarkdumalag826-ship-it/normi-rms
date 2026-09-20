@@ -441,7 +441,7 @@ export default function DashboardStudent({
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-blue-900 to-indigo-950 text-white rounded-2xl p-6.5 shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-1.5">
-            <span className="text-[10px] uppercase font-mono font-bold text-blue-200 tracking-wider bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">
+            <span className="text-xs   font-bold text-blue-200 tracking-normal bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">
               A.Y. 2025-2026 Normal Enrollment
             </span>
             <h2 className="text-xl font-bold font-serif leading-tight">Welcome to NMSC Capstone Portal, {user.name}</h2>
@@ -462,31 +462,31 @@ export default function DashboardStudent({
         {/* Informative Dashboard Guide */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center font-bold font-mono">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center font-bold ">
               01
             </div>
             <h4 className="font-bold text-slate-850 text-sm">Formulate & Register Title</h4>
-            <p className="text-xs text-slate-450 leading-relaxed text-justify">
+            <p className="text-xs text-slate-450 leading-relaxed ">
               Define your capstone title, abstract problem details, core keywords, and select your preferred thesis advisor faculty member.
             </p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center font-bold font-mono">
+            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center font-bold ">
               02
             </div>
             <h4 className="font-bold text-slate-850 text-sm">Mentorship Consultations</h4>
-            <p className="text-xs text-slate-450 leading-relaxed text-justify">
+            <p className="text-xs text-slate-450 leading-relaxed ">
               Upload draft revisions of Chapters 1 to 3 regularly. Review supervisor feedback markup boxes and make corrections reactively.
             </p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold font-mono">
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold ">
               03
             </div>
             <h4 className="font-bold text-slate-850 text-sm">Oral Presentation Defense</h4>
-            <p className="text-xs text-slate-450 leading-relaxed text-justify">
+            <p className="text-xs text-slate-450 leading-relaxed ">
               Once adviser clearance is obtained, the system automatically schedules your presentation room slot, jury panel, and publishes scores.
             </p>
           </div>
@@ -515,7 +515,7 @@ export default function DashboardStudent({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1">
                 <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Proposed Research Title</label>
+                  <label className="text-xs font-bold text-slate-500  block">Proposed Research Title</label>
                   <input
                     type="text"
                     required
@@ -527,7 +527,7 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="md:col-span-2 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Research Abstract / Problem Statement</label>
+                  <label className="text-xs font-bold text-slate-500  block">Research Abstract / Problem Statement</label>
                   <textarea
                     required
                     rows={4}
@@ -539,7 +539,7 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Keywords (comma separated)</label>
+                  <label className="text-xs font-bold text-slate-500  block">Keywords (comma separated)</label>
                   <input
                     type="text"
                     required
@@ -551,7 +551,7 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Preferred Faculty Adviser</label>
+                  <label className="text-xs font-bold text-slate-500  block">Preferred Faculty Adviser</label>
                   <select
                     required
                     value={propAdviser}
@@ -566,7 +566,7 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Team Members (comma separated names)</label>
+                  <label className="text-xs font-bold text-slate-500  block">Team Members (comma separated names)</label>
                   <input
                     type="text"
                     required
@@ -578,7 +578,7 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Initial Manuscript Filename</label>
+                  <label className="text-xs font-bold text-slate-500  block">Initial Manuscript Filename</label>
                   <input
                     type="text"
                     required
@@ -618,10 +618,10 @@ export default function DashboardStudent({
       <div className="bg-gradient-to-r from-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1.5 min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-[9px] uppercase font-mono font-bold text-blue-200 tracking-wider bg-blue-950/50 px-2 py-0.5 rounded border border-blue-800">
+            <span className="text-xs   font-bold text-blue-200 tracking-normal bg-blue-950/50 px-2 py-0.5 rounded border border-blue-800">
               A.Y. 2025-2026 Active
             </span>
-            <span className="text-[9px] uppercase font-mono font-bold text-indigo-200 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">
+            <span className="text-xs   font-bold text-indigo-200 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">
               {research.id.toUpperCase()}
             </span>
           </div>
@@ -633,7 +633,7 @@ export default function DashboardStudent({
 
         <div className="flex items-center gap-3.5 shrink-0 bg-white/5 border border-white/10 px-4 py-2.5 rounded-xl">
           <div className="text-right">
-            <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Designated Research Adviser</span>
+            <span className="text-xs text-slate-500 font-bold block  tracking-normal">Designated Research Adviser</span>
             <span className="text-xs font-extrabold text-white">{getAdviserName()}</span>
           </div>
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
@@ -650,11 +650,11 @@ export default function DashboardStudent({
               <circle cx="24" cy="24" r="20" stroke="#f1f5f9" strokeWidth="3.5" fill="transparent" />
               <circle cx="24" cy="24" r="20" stroke="#1e40af" strokeWidth="3.5" strokeDasharray={125} strokeDashoffset={125 - (125 * getProgressPercentage()) / 100} strokeLinecap="round" fill="transparent" />
             </svg>
-            <span className="text-[10px] font-extrabold text-blue-900 font-mono">{getProgressPercentage()}%</span>
+            <span className="text-xs font-extrabold text-blue-900 ">{getProgressPercentage()}%</span>
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Journey Stage</span>
-            <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide leading-tight block">{research.status}</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Journey Stage</span>
+            <span className="text-xs font-extrabold text-slate-800  tracking-wide leading-tight block">{research.status}</span>
           </div>
         </div>
 
@@ -664,7 +664,7 @@ export default function DashboardStudent({
             <FileText className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Latest Submission</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Latest Submission</span>
             <span className="text-xs font-extrabold text-slate-800 block">
               {currentVersion ? `v${currentVersion.versionNumber} File Draft` : 'No Uploads yet'}
             </span>
@@ -677,7 +677,7 @@ export default function DashboardStudent({
             <MessageSquare className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Active Comments</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Active Comments</span>
             <span className="text-xs font-extrabold text-slate-800 block">
               {activeComments.length} unresolved
             </span>
@@ -690,7 +690,7 @@ export default function DashboardStudent({
             <Calendar className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Defense Booking</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Defense Booking</span>
             <span className="text-xs font-extrabold text-slate-800 block">
               {mySchedule ? `${mySchedule.date} (${mySchedule.startTime})` : 'Not Booked'}
             </span>
@@ -702,7 +702,7 @@ export default function DashboardStudent({
       <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
           <div className="space-y-0.5">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-2">
               <TrendingUp className="h-4.5 w-4.5 text-blue-800" />
               Academic Research Journey Stepper
             </h3>
@@ -748,7 +748,7 @@ export default function DashboardStudent({
                     {phase.isCompleted ? (
                       <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                     ) : phase.isActive ? (
-                      <span className="text-[7px] bg-amber-500 text-slate-850 font-extrabold px-1.5 py-0.25 rounded uppercase font-mono leading-none">
+                      <span className="text-[7px] bg-amber-500 text-slate-850 font-extrabold px-1.5 py-0.25 rounded   leading-none">
                         Active
                       </span>
                     ) : (
@@ -757,12 +757,12 @@ export default function DashboardStudent({
                   </div>
 
                   <div>
-                    <h4 className={`text-[10px] font-extrabold tracking-tight leading-tight line-clamp-1 ${
+                    <h4 className={`text-xs font-extrabold tracking-tight leading-tight line-clamp-1 ${
                       isSelected ? 'text-blue-900' : 'text-slate-700'
                     }`}>
                       {phase.title}
                     </h4>
-                    <p className="text-[8px] text-slate-400 font-bold mt-0.5 truncate">{phase.subtitle}</p>
+                    <p className="text-xs text-slate-500 font-bold mt-0.5 truncate">{phase.subtitle}</p>
                   </div>
                 </div>
 
@@ -785,21 +785,21 @@ export default function DashboardStudent({
               <div className="flex items-center gap-2">
                 <span className="text-lg">{phases[selectedJourneyStage].icon}</span>
                 <div>
-                  <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  <h4 className="text-xs font-extrabold text-slate-800  tracking-normal">
                     Stage {selectedJourneyStage + 1}: {phases[selectedJourneyStage].title}
                   </h4>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.25 rounded font-bold font-mono">
+                  <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.25 rounded font-bold ">
                     {phases[selectedJourneyStage].subtitle}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed text-justify">
+              <p className="text-xs text-slate-600 leading-relaxed ">
                 {phases[selectedJourneyStage].description}
               </p>
 
               <div className="border-t border-slate-200/60 pt-3">
-                <span className="text-[9px] uppercase font-mono font-bold text-slate-400 block tracking-wider">COORDINATOR INSTRUCTION:</span>
+                <span className="text-xs   font-bold text-slate-500 block tracking-normal">COORDINATOR INSTRUCTION:</span>
                 <p className="text-xs text-blue-900 font-semibold mt-1 flex items-start gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5"></span>
                   {phases[selectedJourneyStage].guide}
@@ -809,9 +809,9 @@ export default function DashboardStudent({
 
             {/* Stage Checklist requirements */}
             <div className="md:col-span-6 bg-white p-4.5 rounded-xl border border-slate-150 space-y-3">
-              <h5 className="text-[9px] font-bold uppercase tracking-wider text-slate-500 flex justify-between items-center">
+              <h5 className="text-xs font-bold  tracking-normal text-slate-500 flex justify-between items-center">
                 <span>STAGE CHECKLIST AUDIT</span>
-                <span className="font-mono text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.25 rounded">
+                <span className=" text-xs font-bold bg-slate-100 text-slate-600 px-1.5 py-0.25 rounded">
                   {getStageChecklist(selectedJourneyStage).filter(x => x.met).length} of {getStageChecklist(selectedJourneyStage).length} complete
                 </span>
               </h5>
@@ -826,7 +826,7 @@ export default function DashboardStudent({
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                       </div>
                     )}
-                    <span className={item.met ? 'text-slate-400 font-medium line-through' : 'text-slate-700 font-semibold'}>
+                    <span className={item.met ? 'text-slate-500 font-medium line-through' : 'text-slate-700 font-semibold'}>
                       {item.label}
                     </span>
                   </div>
@@ -843,7 +843,7 @@ export default function DashboardStudent({
         {/* Left Column: Outstanding Revisions & Adviser Feed */}
         <div className="lg:col-span-8 space-y-6">
           <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
               <MessageSquare className="h-4.5 w-4.5 text-amber-500" />
               Unresolved Adviser Revisions ({activeComments.length})
             </h3>
@@ -856,17 +856,17 @@ export default function DashboardStudent({
               <div className="space-y-4">
                 {activeComments.map(comm => (
                   <div key={comm.id} className="p-4 rounded-xl border border-slate-150 bg-slate-50/50 flex gap-4 hover:border-slate-300 transition-colors">
-                    <span className="bg-amber-100 text-amber-850 text-[10px] font-mono font-bold px-2.5 py-1 rounded h-fit shrink-0 uppercase tracking-wider">
+                    <span className="bg-amber-100 text-amber-850 text-xs  font-bold px-2.5 py-1 rounded h-fit shrink-0  tracking-normal">
                       {comm.chapter}
                     </span>
                     <div className="space-y-1.5 flex-1">
                       <div className="flex justify-between items-center gap-2">
                         <strong className="text-xs font-bold text-slate-800 block">{comm.authorName}</strong>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-xs text-slate-500 ">
                           {new Date(comm.commentAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-650 leading-relaxed text-justify">{comm.text}</p>
+                      <p className="text-xs text-slate-650 leading-relaxed ">{comm.text}</p>
                     </div>
                   </div>
                 ))}
@@ -879,24 +879,24 @@ export default function DashboardStudent({
         <div className="lg:col-span-4 space-y-6">
           {mySchedule ? (
             <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-xl p-5 shadow-md relative overflow-hidden">
-              <div className="absolute top-3 right-3 bg-white/15 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-blue-200 tracking-wider">
+              <div className="absolute top-3 right-3 bg-white/15 px-2 py-0.5 rounded text-xs  font-bold text-blue-200 tracking-normal">
                 CONFIRMED SLOT
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <span className="text-[9px] uppercase font-bold text-blue-300 block tracking-wider font-mono">DEFENSE DESIGNATION</span>
+                  <span className="text-xs  font-bold text-blue-300 block tracking-normal ">DEFENSE DESIGNATION</span>
                   <h4 className="font-serif font-bold text-sm">
                     {mySchedule.type === 'proposal' ? 'Proposal Defense Presentation' : 'Final Capstone Defense'}
                   </h4>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2.5 text-slate-200 font-mono">
+                  <div className="flex items-center gap-2.5 text-slate-200 ">
                     <Calendar className="h-4 w-4 text-blue-300" />
                     <span>{mySchedule.date}</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-slate-200 font-mono">
+                  <div className="flex items-center gap-2.5 text-slate-200 ">
                     <Clock className="h-4 w-4 text-blue-300" />
                     <span>{mySchedule.startTime} - {mySchedule.endTime}</span>
                   </div>
@@ -907,8 +907,8 @@ export default function DashboardStudent({
                 </div>
 
                 <div className="border-t border-white/10 pt-3">
-                  <span className="text-[9px] uppercase font-bold text-blue-300 block tracking-wider mb-1">Defense Committee</span>
-                  <div className="space-y-1 text-[11px] text-slate-200">
+                  <span className="text-xs  font-bold text-blue-300 block tracking-normal mb-1">Defense Committee</span>
+                  <div className="space-y-1 text-xs text-slate-200">
                     {mySchedule.panelistIds.map((pid, idx) => {
                       const u = users.find(x => x.id === pid);
                       return <span key={idx} className="block">• {u ? u.name : 'Panelist Faculty'}</span>;
@@ -921,7 +921,7 @@ export default function DashboardStudent({
             <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm text-center py-8 space-y-3">
               <Calendar className="h-8 w-8 text-slate-300 mx-auto animate-pulse" />
               <p className="text-xs font-semibold text-slate-700">Presentation Booking Pending</p>
-              <p className="text-[11px] text-slate-450 leading-relaxed text-justify">
+              <p className="text-xs text-slate-450 leading-relaxed ">
                 Once Chapters 1 to 3 drafts are approved by your designated adviser, the Research Coordinator will assign panelists and publish your defense calendar slot here.
               </p>
             </div>
@@ -953,7 +953,7 @@ export default function DashboardStudent({
 
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Research Title</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Research Title</label>
                 <input
                   type="text"
                   required
@@ -964,18 +964,18 @@ export default function DashboardStudent({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Project Abstract</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Project Abstract</label>
                 <textarea
                   required
                   rows={5}
                   value={editAbstract}
                   onChange={(e) => setEditAbstract(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans text-justify"
+                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans "
                 />
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Keywords (Comma Separated)</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Keywords (Comma Separated)</label>
                 <input
                   type="text"
                   required
@@ -986,14 +986,14 @@ export default function DashboardStudent({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Registered Co-Authors</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Registered Co-Authors</label>
                 <input
                   type="text"
                   disabled
                   value={editMembers || "No other co-authors matching studentIds."}
                   className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-450 focus:outline-none cursor-not-allowed"
                 />
-                <span className="text-[9px] text-slate-400 mt-1 block">Co-authors can be registered at initial Title Formulation or adjusted by the Academic Coordinator.</span>
+                <span className="text-xs text-slate-500 mt-1 block">Co-authors can be registered at initial Title Formulation or adjusted by the Academic Coordinator.</span>
               </div>
             </div>
 
@@ -1027,10 +1027,10 @@ export default function DashboardStudent({
                   <FileText className="h-4 w-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider truncate max-w-[350px]">
+                  <h4 className="text-xs font-bold text-slate-800  tracking-normal truncate max-w-[350px]">
                     {dashboardPreviewFile.name}
                   </h4>
-                  <span className="text-[9px] font-semibold text-slate-400 font-mono">
+                  <span className="text-xs font-semibold text-slate-500 ">
                     Category: {dashboardPreviewFile.category.toUpperCase().replace('_', ' ')}
                   </span>
                 </div>
@@ -1048,31 +1048,31 @@ export default function DashboardStudent({
               <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-150 space-y-8 min-h-full">
                 {/* Academic Letterhead mock */}
                 <div className="text-center space-y-1">
-                  <h5 className="text-[10px] font-serif font-bold text-slate-800 uppercase tracking-widest">Northern Mindanao State College</h5>
-                  <span className="text-[8px] font-mono font-semibold text-slate-400 uppercase tracking-wider block">COLLEGE OF INFORMATION TECHNOLOGY</span>
+                  <h5 className="text-xs font-serif font-bold text-slate-800  tracking-normal">Northern Mindanao State College</h5>
+                  <span className="text-xs  font-semibold text-slate-500  tracking-normal block">COLLEGE OF INFORMATION TECHNOLOGY</span>
                   <div className="w-16 h-0.5 bg-blue-800 mx-auto mt-2" />
                 </div>
 
                 {/* Document Title */}
                 <div className="space-y-3 pt-4">
-                  <h3 className="text-sm font-bold text-slate-850 text-center uppercase tracking-wide leading-snug">
+                  <h3 className="text-sm font-bold text-slate-850 text-center  tracking-wide leading-snug">
                     {research.title}
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-medium text-center font-mono">
+                  <p className="text-xs text-slate-500 font-medium text-center ">
                     Registered Research Code: <span className="font-bold text-blue-800">{research.id.toUpperCase()}</span>
                   </p>
                 </div>
 
                 {/* Abstract Text block */}
                 <div className="space-y-2 pt-4">
-                  <span className="text-[9px] font-mono font-bold text-slate-450 block uppercase tracking-wider">Document Segment Preview:</span>
-                  <p className="text-xs text-slate-600 text-justify leading-relaxed italic">
+                  <span className="text-xs  font-bold text-slate-450 block  tracking-normal">Document Segment Preview:</span>
+                  <p className="text-xs text-slate-600  leading-relaxed italic">
                     {research.abstract || "No abstract content registered for this proposal document."}
                   </p>
                 </div>
 
                 {/* Footer mock metadata */}
-                <div className="border-t border-slate-100 pt-6 flex justify-between items-center text-[9px] font-mono text-slate-400">
+                <div className="border-t border-slate-100 pt-6 flex justify-between items-center text-xs  text-slate-500">
                   <span>File size: {dashboardPreviewFile.size ? `${Math.round(dashboardPreviewFile.size / 102.4) / 10} KB` : "150 KB"}</span>
                   <span>Uploaded: {new Date(dashboardPreviewFile.uploadedAt).toLocaleDateString()}</span>
                 </div>

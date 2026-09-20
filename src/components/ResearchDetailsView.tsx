@@ -149,7 +149,7 @@ export default function ResearchDetailsView({
       case 'Approved': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       case 'Revision Required': return 'bg-amber-50 text-amber-700 border-amber-100';
       case 'Pending': return 'bg-blue-50 text-blue-700 border-blue-100';
-      default: return 'bg-slate-50 text-slate-400 border-slate-100';
+      default: return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
@@ -165,7 +165,7 @@ export default function ResearchDetailsView({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <span className="text-[10px] bg-blue-50 text-blue-700 font-mono font-bold px-2 py-0.5 rounded font-bold uppercase">
+            <span className="text-xs bg-blue-50 text-blue-700  font-bold px-2 py-0.5 rounded font-bold ">
               Manuscript Detail Panel
             </span>
             <h2 className="text-sm font-bold text-slate-800 leading-snug mt-1 max-w-xl truncate" title={research.title}>
@@ -197,7 +197,7 @@ export default function ResearchDetailsView({
           {/* Chapter checklist card */}
           {currentVersion ? (
             <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-              <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+              <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
                 <Bookmark className="h-4 w-4 text-blue-700" />
                 Chapters Checkpoint Board (Current Version {currentVersion.versionNumber})
               </h3>
@@ -217,13 +217,13 @@ export default function ResearchDetailsView({
                     >
                       <div className="flex justify-between items-start">
                         <strong className="text-xs text-slate-700 font-serif leading-none">{chName}</strong>
-                        <span className={`text-[9px] font-mono font-bold px-1.5 py-0.25 rounded border uppercase ${getChapterBadgeColor(statusObj)}`}>
+                        <span className={`text-xs  font-bold px-1.5 py-0.25 rounded border  ${getChapterBadgeColor(statusObj)}`}>
                           {statusObj?.status || 'Not Submitted'}
                         </span>
                       </div>
 
                       {statusObj?.feedback && (
-                        <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">
+                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
                           Feedback: "{statusObj.feedback}"
                         </p>
                       )}
@@ -235,7 +235,7 @@ export default function ResearchDetailsView({
                             setSelectedReviewChapter(chapterKey);
                             setReviewFeedback(statusObj?.feedback || '');
                           }}
-                          className="mt-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 text-[9px] font-bold py-1 px-2 rounded self-end cursor-pointer transition-colors"
+                          className="mt-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold py-1 px-2 rounded self-end cursor-pointer transition-colors"
                         >
                           Assess Chapter
                         </button>
@@ -246,11 +246,11 @@ export default function ResearchDetailsView({
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-dashed p-12 text-center text-slate-400 text-xs">
+            <div className="bg-white rounded-xl border border-dashed p-12 text-center text-slate-500 text-xs">
               {user.role === 'panelist' ? (
                 <div className="space-y-2">
                   <div className="text-sm font-bold text-slate-700">Awaiting Presentation Manuscript Submission</div>
-                  <p className="max-w-md mx-auto text-[11px] text-slate-400 leading-relaxed">
+                  <p className="max-w-md mx-auto text-xs text-slate-500 leading-relaxed">
                     The student research team has not submitted their final defense manuscript copy under the <strong>"Jury Panelists"</strong> category yet. Once they upload it, the presentation copy will immediately populate here for committee reception and vetting.
                   </p>
                 </div>
@@ -262,12 +262,12 @@ export default function ResearchDetailsView({
 
           {/* Interactive Annotation & Highlighting Hub */}
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-            <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider border-b pb-2 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center justify-between gap-2">
               <span className="flex items-center gap-2">
                 <Bookmark className="h-4 w-4 text-orange-600" />
                 Manuscript Annotation & Text Highlighting Hub
               </span>
-              <span className="text-[10px] bg-orange-50 text-orange-700 font-mono font-bold px-1.5 py-0.5 rounded border border-orange-200">
+              <span className="text-xs bg-orange-50 text-orange-700  font-bold px-1.5 py-0.5 rounded border border-orange-200">
                 Panel & Adviser Tool
               </span>
             </h3>
@@ -277,7 +277,7 @@ export default function ResearchDetailsView({
             </p>
 
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+              <div className="text-xs font-bold text-slate-500  tracking-normal ">
                 Active Abstract Manuscript Screen:
               </div>
               <div className="text-xs text-slate-700 leading-relaxed font-serif p-3 bg-white rounded border border-slate-150 select-text">
@@ -286,7 +286,7 @@ export default function ResearchDetailsView({
 
               {/* Quick interactive sentence triggers */}
               <div className="flex flex-wrap gap-2 pt-1.5">
-                <span className="text-[10px] text-slate-400 font-mono self-center">Quick Select:</span>
+                <span className="text-xs text-slate-500  self-center">Quick Select:</span>
                 {[
                   'Centralized database systems for local colleges',
                   'replaces manual document tracking',
@@ -300,7 +300,7 @@ export default function ResearchDetailsView({
                       setSelectedTextToHighlight(sentence);
                       setShowHighlightForm(true);
                     }}
-                    className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 border px-2 py-0.5 rounded cursor-pointer transition-colors"
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 border px-2 py-0.5 rounded cursor-pointer transition-colors"
                   >
                     "{sentence.substring(0, 30)}..."
                   </button>
@@ -316,7 +316,7 @@ export default function ResearchDetailsView({
                   <button 
                     type="button" 
                     onClick={() => setShowHighlightForm(false)}
-                    className="text-slate-400 hover:text-slate-600"
+                    className="text-slate-500 hover:text-slate-600"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -324,7 +324,7 @@ export default function ResearchDetailsView({
 
                 <div className="space-y-2.5">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Target Phrase</label>
+                    <label className="text-xs font-bold text-slate-500  block mb-1">Target Phrase</label>
                     <input
                       type="text"
                       required
@@ -337,7 +337,7 @@ export default function ResearchDetailsView({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Highlight Color</label>
+                      <label className="text-xs font-bold text-slate-500  block mb-1">Highlight Color</label>
                       <select
                         value={highlightColor}
                         onChange={(e) => setHighlightColor(e.target.value)}
@@ -351,7 +351,7 @@ export default function ResearchDetailsView({
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Annotation Note</label>
+                      <label className="text-xs font-bold text-slate-500  block mb-1">Annotation Note</label>
                       <input
                         type="text"
                         required
@@ -368,13 +368,13 @@ export default function ResearchDetailsView({
                   <button
                     type="button"
                     onClick={() => setShowHighlightForm(false)}
-                    className="px-2.5 py-1 text-[10px] border border-slate-200 text-slate-600 rounded bg-white cursor-pointer"
+                    className="px-2.5 py-1 text-xs border border-slate-200 text-slate-600 rounded bg-white cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-3 py-1 bg-orange-700 hover:bg-orange-800 text-white font-semibold text-[10px] rounded cursor-pointer shadow-sm transition-colors"
+                    className="px-3 py-1 bg-orange-700 hover:bg-orange-800 text-white font-semibold text-xs rounded cursor-pointer shadow-sm transition-colors"
                   >
                     Save Highlight Trace
                   </button>
@@ -384,9 +384,9 @@ export default function ResearchDetailsView({
 
             {/* List of active highlights on this document */}
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Active Trace Marks:</span>
+              <span className="text-xs font-bold text-slate-500 block  tracking-normal">Active Trace Marks:</span>
               {highlights.length === 0 ? (
-                <div className="text-center p-3 text-slate-400 text-xs italic">
+                <div className="text-center p-3 text-slate-500 text-xs italic">
                   No highlight marks laid on this document.
                 </div>
               ) : (
@@ -394,10 +394,10 @@ export default function ResearchDetailsView({
                   {highlights.map(h => (
                     <div key={h.id} className={`p-3 rounded-lg border flex flex-col justify-between gap-1.5 ${h.color}`}>
                       <div className="space-y-1">
-                        <span className="text-[9px] font-mono font-bold text-slate-500 block uppercase">Marked Text:</span>
+                        <span className="text-xs  font-bold text-slate-500 block ">Marked Text:</span>
                         <p className="text-xs font-semibold text-slate-800 leading-tight">"{h.text}"</p>
                       </div>
-                      <div className="border-t border-slate-200/55 pt-1.5 mt-1 text-[11px] text-slate-600">
+                      <div className="border-t border-slate-200/55 pt-1.5 mt-1 text-xs text-slate-600">
                         <strong className="text-slate-800 font-semibold block mb-0.5">Annotation Comment:</strong>
                         "{h.comment}"
                       </div>
@@ -411,7 +411,7 @@ export default function ResearchDetailsView({
           {/* Uploaded Proposal Attachments */}
           {research.proposalFiles && research.proposalFiles.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-3">
-              <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+              <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-600" />
                 Uploaded Proposal Attachments
               </h3>
@@ -426,17 +426,17 @@ export default function ResearchDetailsView({
                   return (
                     <div key={file.id} className="p-3 rounded-lg border border-slate-150 bg-slate-50/55 flex flex-col justify-between gap-2">
                       <div className="space-y-1">
-                        <span className="text-[9px] font-semibold uppercase px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-100">
+                        <span className="text-xs font-semibold  px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-100">
                           {catLabel}
                         </span>
                         <p className="text-xs font-bold text-slate-700 truncate" title={file.name}>{file.name}</p>
-                        <span className="text-[9px] text-slate-400 font-mono block">Size: {sizeInKb} KB</span>
+                        <span className="text-xs text-slate-500  block">Size: {sizeInKb} KB</span>
                       </div>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => window.open(file.url, '_blank')}
-                          className="text-[10px] font-bold text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+                          className="text-xs font-bold text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <Download className="h-3 w-3" /> Download
                         </button>
@@ -450,7 +450,7 @@ export default function ResearchDetailsView({
 
           {/* Historical versions tracker */}
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-            <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+            <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
               <History className="h-4 w-4 text-slate-500" />
               Manuscript Version Timeline
             </h3>
@@ -459,11 +459,11 @@ export default function ResearchDetailsView({
               {myVersions.map(ver => (
                 <div key={ver.id} className="p-3.5 rounded-lg border border-slate-150 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-mono font-bold bg-blue-100 text-blue-800 px-1.5 py-0.25 rounded uppercase">
+                    <span className="text-xs  font-bold bg-blue-100 text-blue-800 px-1.5 py-0.25 rounded ">
                       Draft Version {ver.versionNumber}
                     </span>
                     <strong className="text-xs text-slate-700 block mt-1">{ver.fileName}</strong>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className="text-xs text-slate-500 ">
                       Uploaded by student on {new Date(ver.submittedAt).toLocaleString()}
                     </span>
                   </div>
@@ -471,7 +471,7 @@ export default function ResearchDetailsView({
                   <button
                     onClick={() => ver.fileUrl && window.open(resolveFileUrl(ver.fileUrl), '_blank')}
                     disabled={!ver.fileUrl}
-                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 text-[10px] rounded flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 text-xs rounded flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <Download className="h-3 w-3" /> Download PDF
                   </button>
@@ -484,7 +484,7 @@ export default function ResearchDetailsView({
         {/* Right Column: Peer comments section */}
         <div className="lg:col-span-4 bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4 flex flex-col h-[520px]">
           <div className="border-b pb-2 shrink-0">
-            <h3 className="text-xs font-bold text-slate-850 uppercase tracking-wider flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-slate-850  tracking-normal flex items-center gap-1.5">
               <MessageSquare className="h-4 w-4 text-blue-700" />
               Reviewer Conversation Feed
             </h3>
@@ -495,7 +495,7 @@ export default function ResearchDetailsView({
                 <button
                   key={f}
                   onClick={() => setActiveChapterFilter(f as any)}
-                  className={`px-1.5 py-0.5 text-[9px] font-bold font-mono rounded-full border shrink-0 cursor-pointer ${activeChapterFilter === f ? 'bg-blue-800 text-white border-blue-800' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'}`}
+                  className={`px-1.5 py-0.5 text-xs font-bold  rounded-full border shrink-0 cursor-pointer ${activeChapterFilter === f ? 'bg-blue-800 text-white border-blue-800' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'}`}
                 >
                   {f.toUpperCase()}
                 </button>
@@ -512,9 +512,9 @@ export default function ResearchDetailsView({
             ) : (
               activeComments.map(comm => (
                 <div key={comm.id} className="p-3 bg-slate-50 rounded-lg border border-slate-150 space-y-1">
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-slate-700">{comm.authorName}</span>
-                    <span className="text-slate-400 font-mono text-[9px]">{new Date(comm.commentAt).toLocaleDateString()}</span>
+                    <span className="text-slate-500  text-xs">{new Date(comm.commentAt).toLocaleDateString()}</span>
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{comm.text}</p>
                 </div>
@@ -559,19 +559,19 @@ export default function ResearchDetailsView({
               <button 
                 type="button" 
                 onClick={() => setShowUploadModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
+            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
               Upload the next iteration of your manuscript. This triggers notification pings to your supervisor and logs revision response counters.
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Upload Purpose / Recipient</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Upload Purpose / Recipient</label>
                 <select
                   value={uploadType}
                   onChange={(e) => setUploadType(e.target.value as any)}
@@ -580,7 +580,7 @@ export default function ResearchDetailsView({
                   <option value="adviser_check">Submit for Adviser Vetting & Checking</option>
                   <option value="defense_manuscript">Submit Defense Copy for Panel Committee</option>
                 </select>
-                <span className="text-[9px] text-slate-400 mt-1 block">
+                <span className="text-xs text-slate-500 mt-1 block">
                   {uploadType === 'adviser_check' 
                     ? 'Only your Adviser will receive and check this draft.' 
                     : 'The 3-member panel committee will receive and evaluate this copy.'}
@@ -588,7 +588,7 @@ export default function ResearchDetailsView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Refined Thesis Title</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Refined Thesis Title</label>
                 <input
                   type="text"
                   required
@@ -599,7 +599,7 @@ export default function ResearchDetailsView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Updated Abstract summary</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Updated Abstract summary</label>
                 <textarea
                   rows={4}
                   required
@@ -610,7 +610,7 @@ export default function ResearchDetailsView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Upload PDF File name</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Upload PDF File name</label>
                 <input
                   type="text"
                   required
@@ -656,7 +656,7 @@ export default function ResearchDetailsView({
               <button 
                 type="button" 
                 onClick={() => setSelectedReviewChapter(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
@@ -664,7 +664,7 @@ export default function ResearchDetailsView({
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Set Chapter Status</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Set Chapter Status</label>
                 <select
                   required
                   value={reviewStatus}
@@ -677,7 +677,7 @@ export default function ResearchDetailsView({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Review Feedback Details</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Review Feedback Details</label>
                 <textarea
                   rows={4}
                   required

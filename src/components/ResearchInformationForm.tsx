@@ -184,12 +184,12 @@ export default function ResearchInformationForm({
           </div>
           <div>
             <h1 className="text-sm font-serif font-bold text-white tracking-tight leading-none">NORMI</h1>
-            <span className="text-[10px] text-slate-300 uppercase tracking-widest font-bold block mt-1">Research Portal</span>
+            <span className="text-xs text-slate-300  tracking-normal font-bold block mt-1">Research Portal</span>
           </div>
         </div>
         <button 
           onClick={onLogout}
-          className="text-xs font-semibold text-slate-400 hover:text-rose-400 transition-colors"
+          className="text-xs font-semibold text-slate-500 hover:text-rose-400 transition-colors"
         >
           Sign Out Session
         </button>
@@ -201,10 +201,10 @@ export default function ResearchInformationForm({
         {/* Step Indicator Header */}
         <div className="flex items-center justify-between border-b border-white/15 pb-4">
           <div>
-            <span className="text-[9px] uppercase tracking-wider font-bold text-blue-400">Prerequisite Registration</span>
+            <span className="text-xs  tracking-normal font-bold text-blue-400">Prerequisite Registration</span>
             <h2 className="text-lg font-serif font-bold text-white">Research Information Form</h2>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-mono">
+          <div className="flex items-center gap-1.5 text-xs ">
             <span className={`px-2 py-0.5 rounded font-bold ${step === 1 ? 'bg-blue-900/50 text-blue-300 border border-blue-500/20' : 'bg-slate-900 text-slate-500'}`}>1</span>
             <span className="text-slate-500">/</span>
             <span className={`px-2 py-0.5 rounded font-bold ${step === 2 ? 'bg-blue-900/50 text-blue-300 border border-blue-500/20' : 'bg-slate-900 text-slate-500'}`}>2</span>
@@ -221,13 +221,13 @@ export default function ResearchInformationForm({
         {step === 1 ? (
           /* Step 1: Research Title & Abstract Proposal */
           <div className="space-y-4 animate-in fade-in duration-150">
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               Complete your initial research team and proposal details to generate your system timeline. This triggers adviser feedback loops instantly.
             </p>
 
             <div className="space-y-3.5">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Proposed Research Title</label>
+                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Proposed Research Title</label>
                 <input
                   type="text"
                   required
@@ -239,7 +239,7 @@ export default function ResearchInformationForm({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Executive Summary / Abstract</label>
+                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Executive Summary / Abstract</label>
                 <textarea
                   rows={4}
                   required
@@ -252,7 +252,7 @@ export default function ResearchInformationForm({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Designated Thesis Adviser</label>
+                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Designated Thesis Adviser</label>
                   <select
                     value={adviserId}
                     onChange={(e) => setAdviserId(e.target.value)}
@@ -266,7 +266,7 @@ export default function ResearchInformationForm({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Project Keywords (Comma Separated)</label>
+                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Project Keywords (Comma Separated)</label>
                   <input
                     type="text"
                     placeholder="e.g. Web-based, Monitoring, MySQL"
@@ -294,7 +294,7 @@ export default function ResearchInformationForm({
           <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-150">
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Co-Authors / Team Members (Comma Separated)</label>
+                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Co-Authors / Team Members (Comma Separated)</label>
                 <div className="relative">
                   <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
                   <input
@@ -305,12 +305,12 @@ export default function ResearchInformationForm({
                     className="w-full text-xs pl-10 pr-4 p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white"
                   />
                 </div>
-                <span className="text-[9px] text-slate-500 block mt-1">Your own account: <strong className="text-slate-300">{user.name}</strong> will be registered automatically as the group lead.</span>
+                <span className="text-xs text-slate-500 block mt-1">Your own account: <strong className="text-slate-300">{user.name}</strong> will be registered automatically as the group lead.</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Target Document Category</label>
+                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Target Document Category</label>
                   <select
                     value={uploadCategory}
                     onChange={(e) => setUploadCategory(e.target.value as any)}
@@ -324,7 +324,7 @@ export default function ResearchInformationForm({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Upload Selected Category</label>
+                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Upload Selected Category</label>
                   
                   <div 
                     onDragEnter={handleDrag}
@@ -350,12 +350,12 @@ export default function ResearchInformationForm({
                       {isUploading ? (
                         <>
                           <RefreshCw className="h-4 w-4 text-blue-400 shrink-0 animate-spin" />
-                          <span className="text-[11px] font-semibold">Uploading...</span>
+                          <span className="text-xs font-semibold">Uploading...</span>
                         </>
                       ) : (
                         <>
                           <UploadCloud className="h-4 w-4 text-blue-400 shrink-0" />
-                          <span className="text-[11px] font-semibold">Drop or Click to Upload</span>
+                          <span className="text-xs font-semibold">Drop or Click to Upload</span>
                         </>
                       )}
                     </div>
@@ -365,7 +365,7 @@ export default function ResearchInformationForm({
 
               {/* Organized files list */}
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
+                <span className="text-xs font-bold text-slate-500  block tracking-normal">
                   Uploaded Proposal Attachment Grid
                 </span>
 
@@ -385,16 +385,16 @@ export default function ResearchInformationForm({
                       const catBadgeColor = file.category === 'proposal_document' ? 'bg-blue-950 text-blue-300 border-blue-500/20'
                         : file.category === 'research_summary' ? 'bg-indigo-950 text-indigo-300 border-indigo-500/20'
                         : file.category === 'supporting_files' ? 'bg-emerald-950 text-emerald-300 border-emerald-500/20'
-                        : 'bg-slate-900 text-slate-400 border-white/10';
+                        : 'bg-slate-900 text-slate-500 border-white/10';
 
                       return (
                         <div key={file.id} className="p-3 flex items-center justify-between gap-3 text-xs hover:bg-white/2">
                           <div className="space-y-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[9px] font-semibold uppercase px-2 py-0.5 rounded border ${catBadgeColor}`}>
+                              <span className={`text-xs font-semibold  px-2 py-0.5 rounded border ${catBadgeColor}`}>
                                 {catLabel}
                               </span>
-                              <span className="text-[10px] font-mono text-slate-500">
+                              <span className="text-xs  text-slate-500">
                                 {sizeInKb} KB
                               </span>
                             </div>
@@ -433,7 +433,7 @@ export default function ResearchInformationForm({
                               type="button"
                               onClick={() => handleDeleteFile(file.id)}
                               title="Delete File"
-                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-white/10 cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-white/10 cursor-pointer"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -472,7 +472,7 @@ export default function ResearchInformationForm({
           <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
               <div className="min-w-0">
-                <span className="text-[9px] font-bold uppercase bg-blue-900/50 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded">
+                <span className="text-xs font-bold  bg-blue-900/50 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded">
                   {previewFile.category.replace('_', ' ').toUpperCase()}
                 </span>
                 <h4 className="text-xs font-bold text-white mt-1 truncate" title={previewFile.name}>
@@ -481,17 +481,17 @@ export default function ResearchInformationForm({
               </div>
               <button 
                 onClick={() => setPreviewFile(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-500 hover:text-white p-1 rounded-lg"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="bg-slate-950 rounded-xl p-4 border border-white/5 h-60 overflow-y-auto text-xs text-slate-300 leading-relaxed font-serif space-y-3 scrollbar-none">
-              <h3 className="text-xs font-bold text-center text-white border-b border-white/5 pb-2 uppercase tracking-wide">
+              <h3 className="text-xs font-bold text-center text-white border-b border-white/5 pb-2  tracking-wide">
                 {title || "Proposed Research Title Placeholder"}
               </h3>
-              <p className="text-center italic text-[10px] text-slate-400">
+              <p className="text-center italic text-xs text-slate-500">
                 Submitted by: {user.name} {memberNames ? `, ${memberNames}` : ""}
               </p>
               <p className="pt-2">
@@ -503,7 +503,7 @@ export default function ResearchInformationForm({
               <p>
                 <strong>Abstract Context:</strong> {abstract || "No abstract details provided."}
               </p>
-              <p className="text-[10px] text-slate-500 italic">
+              <p className="text-xs text-slate-500 italic">
                 System Status: Verified and compiled securely on NORMI Academic handshakes. No viruses or checksum anomalies detected.
               </p>
             </div>
@@ -522,7 +522,7 @@ export default function ResearchInformationForm({
       )}
 
       {/* Footer credits */}
-      <div className="text-center text-[10px] text-slate-500">
+      <div className="text-center text-xs text-slate-500">
         Northern Mindanao Colleges, Inc. • High-Fidelity Research Defense Management Engine
       </div>
     </div>

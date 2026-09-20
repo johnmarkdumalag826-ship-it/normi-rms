@@ -229,7 +229,7 @@ export default function DashboardAdviser({
       {/* Top Welcome Panel */}
       <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1">
-          <span className="text-[10px] uppercase font-mono font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-150">
+          <span className="text-xs   font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-150">
             Assigned Adviser Hub
           </span>
           <h2 className="text-xl font-bold text-slate-800 font-serif leading-none mt-2">
@@ -256,7 +256,7 @@ export default function DashboardAdviser({
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Assigned Teams</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Assigned Teams</span>
             <span className="text-sm font-extrabold text-slate-800">{stats.totalAssigned} Groups</span>
           </div>
         </div>
@@ -266,7 +266,7 @@ export default function DashboardAdviser({
             <Layers className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Pending Reviews</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Pending Reviews</span>
             <span className="text-sm font-extrabold text-slate-800">{stats.pendingReview} Drafts</span>
           </div>
         </div>
@@ -276,7 +276,7 @@ export default function DashboardAdviser({
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Approved Papers</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Approved Papers</span>
             <span className="text-sm font-extrabold text-slate-800">{stats.approvedPapers} Approved</span>
           </div>
         </div>
@@ -286,7 +286,7 @@ export default function DashboardAdviser({
             <AlertCircle className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Revisions Required</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Revisions Required</span>
             <span className="text-sm font-extrabold text-slate-800">{stats.revisionRequests} Pending Re-submit</span>
           </div>
         </div>
@@ -299,18 +299,18 @@ export default function DashboardAdviser({
         <section className="lg:col-span-4 space-y-4">
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-150 px-4 py-3 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-slate-700  tracking-normal flex items-center gap-1.5">
                 <Compass className="h-4 w-4 text-blue-700" />
                 Active Advising Portfolio
               </h3>
-              <span className="text-[10px] bg-slate-200 px-1.5 rounded font-mono font-bold">
+              <span className="text-xs bg-slate-200 px-1.5 rounded  font-bold">
                 {assignedResearchList.length}
               </span>
             </div>
 
             <div className="divide-y divide-slate-150 max-h-[480px] overflow-y-auto">
               {assignedResearchList.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
+                <div className="p-8 text-center text-slate-500 text-xs">
                   No research groups are currently assigned under your mentorship.
                 </div>
               ) : (
@@ -326,17 +326,17 @@ export default function DashboardAdviser({
                           : 'border-transparent hover:bg-slate-50/40'
                       }`}
                     >
-                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">
+                      <span className="text-xs  font-bold text-slate-500 ">
                         {res.id.toUpperCase()}
                       </span>
                       <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-snug mt-0.5">
                         {res.title}
                       </h4>
                       <div className="flex justify-between items-center mt-2.5">
-                        <span className="text-[10px] text-slate-450 truncate max-w-[120px] font-medium">
+                        <span className="text-xs text-slate-450 truncate max-w-[120px] font-medium">
                           {getStudentNames(res.studentIds).split(',')[0]} (Lead)
                         </span>
-                        <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                        <span className={`text-xs  font-bold px-2 py-0.5 rounded border  ${
                           res.status === 'Approved by Adviser' ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
                             : res.status === 'Revision Required' ? 'bg-rose-50 text-rose-800 border-rose-100'
                             : 'bg-blue-50 text-blue-800 border-blue-100'
@@ -353,7 +353,7 @@ export default function DashboardAdviser({
 
           {/* Activity Alerts Widget */}
           <div className="bg-white rounded-xl border border-slate-150 p-4 shadow-sm space-y-3.5">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2 flex items-center gap-1.5">
+            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2 flex items-center gap-1.5">
               <Bell className="h-4 w-4 text-amber-600 shrink-0" />
               Assigned Activity Logs
             </h3>
@@ -370,10 +370,10 @@ export default function DashboardAdviser({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 text-[11px] truncate">{notif.title}</span>
-                      <span className="text-[9px] text-slate-400 font-mono font-semibold">{notif.date}</span>
+                      <span className="font-bold text-slate-800 text-xs truncate">{notif.title}</span>
+                      <span className="text-xs text-slate-500  font-semibold">{notif.date}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
                       {notif.message}
                     </p>
                   </div>
@@ -392,7 +392,7 @@ export default function DashboardAdviser({
               <div className="p-5 border-b border-slate-200 bg-slate-50/60 space-y-3">
                 <div className="flex justify-between items-start gap-4">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-mono font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded border border-blue-150 uppercase">
+                    <span className="text-xs  font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded border border-blue-150 ">
                       Active Mentored Capstone
                     </span>
                     <h3 className="text-base font-bold text-slate-850 leading-snug">
@@ -400,7 +400,7 @@ export default function DashboardAdviser({
                     </h3>
                   </div>
 
-                  <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded border uppercase shrink-0 ${
+                  <span className={`text-xs  font-bold px-3 py-1 rounded border  shrink-0 ${
                     selectedGroup.status === 'Approved by Adviser' ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
                       : selectedGroup.status === 'Revision Required' ? 'bg-rose-50 text-rose-800 border-rose-100'
                       : 'bg-blue-50 text-blue-800 border-blue-100'
@@ -409,7 +409,7 @@ export default function DashboardAdviser({
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-slate-500 font-medium pt-1">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 font-medium pt-1">
                   <span>Course: <strong className="text-slate-800 font-semibold">{selectedGroupCourseName}</strong></span>
                   <span>•</span>
                   <span>College: <strong className="text-slate-800 font-semibold">{selectedGroupDepartmentName}</strong></span>
@@ -419,7 +419,7 @@ export default function DashboardAdviser({
               </div>
 
               {/* Organized Sub-tabs Navigation */}
-              <div className="bg-white border-b border-slate-150 px-4 flex gap-4 text-xs font-bold text-slate-400">
+              <div className="bg-white border-b border-slate-150 px-4 flex gap-4 text-xs font-bold text-slate-500">
                 <button
                   onClick={() => setDetailTab('info')}
                   className={`py-2.5 border-b-2 cursor-pointer transition-colors ${
@@ -461,7 +461,7 @@ export default function DashboardAdviser({
                 {detailTab === 'info' && (
                   <div className="space-y-5 animate-in fade-in duration-100">
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1">
                         <Users className="h-4 w-4 text-blue-700" />
                         Student Researchers Team
                       </h4>
@@ -477,7 +477,7 @@ export default function DashboardAdviser({
                             />
                             <div className="truncate">
                               <span className="font-extrabold text-slate-800 text-xs block leading-snug">{student.name}</span>
-                              <span className="text-[10px] text-slate-400 font-medium font-mono">{idx === 0 ? 'Team Leader' : 'Co-Researcher'}</span>
+                              <span className="text-xs text-slate-500 font-medium ">{idx === 0 ? 'Team Leader' : 'Co-Researcher'}</span>
                             </div>
                           </div>
                         ))}
@@ -485,23 +485,23 @@ export default function DashboardAdviser({
                     </div>
 
                     <div className="space-y-2 text-xs text-slate-650">
-                      <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">Academic Context</h4>
+                      <h4 className="font-bold text-slate-800  tracking-normal text-xs">Academic Context</h4>
                       <div className="grid grid-cols-2 gap-3 text-slate-550 pt-1 font-medium">
                         <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-150">
-                          <span className="text-[9px] uppercase font-bold text-slate-400 font-mono block mb-0.5">Assigned Faculty Mentor</span>
+                          <span className="text-xs  font-bold text-slate-500  block mb-0.5">Assigned Faculty Mentor</span>
                           <span className="text-slate-800 font-bold">{user.name}</span>
                         </div>
                         <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-150">
-                          <span className="text-[9px] uppercase font-bold text-slate-400 font-mono block mb-0.5">School Year Term</span>
+                          <span className="text-xs  font-bold text-slate-500  block mb-0.5">School Year Term</span>
                           <span className="text-slate-800 font-bold">2025 - 2026 Normal Enrollment</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-2">
-                      <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Historical System Log</h4>
-                      <p className="text-[11px] text-slate-400">Recorded action sequences regarding this capstone group:</p>
-                      <div className="space-y-1.5 pt-1.5 font-mono text-[10px] text-slate-500">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Historical System Log</h4>
+                      <p className="text-xs text-slate-500">Recorded action sequences regarding this capstone group:</p>
+                      <div className="space-y-1.5 pt-1.5  text-xs text-slate-500">
                         <div className="flex justify-between border-b border-dashed pb-1 border-slate-200">
                           <span>[INFO] Title Proposal vetted</span>
                           <span>{selectedGroup.createdAt ? new Date(selectedGroup.createdAt).toLocaleDateString() : '07/04/2026'}</span>
@@ -526,11 +526,11 @@ export default function DashboardAdviser({
                       <div className="space-y-4">
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                           <div className="space-y-1">
-                            <span className="text-[10px] font-bold text-blue-800 font-mono uppercase bg-blue-100 border border-blue-150 px-2 py-0.25 rounded">
+                            <span className="text-xs font-bold text-blue-800   bg-blue-100 border border-blue-150 px-2 py-0.25 rounded">
                               V{selectedGroupLatestVersion.versionNumber} Manuscript
                             </span>
                             <h4 className="text-xs font-bold text-slate-800">{selectedGroupLatestVersion.fileName}</h4>
-                            <p className="text-[10px] text-slate-400 font-mono">Uploaded: {new Date(selectedGroupLatestVersion.submittedAt).toLocaleString()}</p>
+                            <p className="text-xs text-slate-500 ">Uploaded: {new Date(selectedGroupLatestVersion.submittedAt).toLocaleString()}</p>
                           </div>
 
                           <div className="flex gap-2 shrink-0">
@@ -546,8 +546,8 @@ export default function DashboardAdviser({
 
                         {/* Interactive fast action buttons */}
                         <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-150 space-y-3 text-xs">
-                          <h4 className="font-bold text-slate-800 uppercase tracking-wider">Fast Manuscript Action Vetting</h4>
-                          <p className="text-slate-450 text-[11px]">Directly adjust manuscript pipeline status coordinates from here or load the detailed reader panel above.</p>
+                          <h4 className="font-bold text-slate-800  tracking-normal">Fast Manuscript Action Vetting</h4>
+                          <p className="text-slate-450 text-xs">Directly adjust manuscript pipeline status coordinates from here or load the detailed reader panel above.</p>
                           
                           <div className="flex gap-2 pt-1">
                             {selectedGroup.status !== 'Approved by Adviser' && (
@@ -572,7 +572,7 @@ export default function DashboardAdviser({
                         {/* Chapters Check summary */}
                         <div className="border border-slate-150 rounded-xl overflow-hidden">
                           <table className="w-full text-xs text-left text-slate-650 border-collapse">
-                            <thead className="bg-slate-50 text-[9px] uppercase font-bold tracking-wider font-mono border-b">
+                            <thead className="bg-slate-50 text-xs  font-bold tracking-normal  border-b">
                               <tr>
                                 <th className="p-2.5">Chapter</th>
                                 <th className="p-2.5">Status Badge</th>
@@ -583,21 +583,21 @@ export default function DashboardAdviser({
                               <tr>
                                 <td className="p-2.5">Chapter 1: Problem Definition</td>
                                 <td className="p-2.5">
-                                  <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded uppercase font-mono font-bold">Approved</span>
+                                  <span className="text-xs bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded   font-bold">Approved</span>
                                 </td>
                                 <td className="p-2.5 text-slate-450 italic">Excellent literature support and introduction definitions.</td>
                               </tr>
                               <tr>
                                 <td className="p-2.5">Chapter 2: Literature Review</td>
                                 <td className="p-2.5">
-                                  <span className="text-[9px] bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded uppercase font-mono font-bold">Approved</span>
+                                  <span className="text-xs bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded   font-bold">Approved</span>
                                 </td>
                                 <td className="p-2.5 text-slate-450 italic">References verified and compiled appropriately.</td>
                               </tr>
                               <tr>
                                 <td className="p-2.5">Chapter 3: System Methodology</td>
                                 <td className="p-2.5">
-                                  <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-mono font-bold ${selectedGroup.status === 'Revision Required' ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded   font-bold ${selectedGroup.status === 'Revision Required' ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>
                                     {selectedGroup.status === 'Revision Required' ? 'Revision Required' : 'Approved'}
                                   </span>
                                 </td>
@@ -610,7 +610,7 @@ export default function DashboardAdviser({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-slate-400 text-xs">
+                      <div className="text-center py-12 text-slate-500 text-xs">
                         No draft manuscripts have been uploaded for review yet.
                       </div>
                     )}
@@ -623,23 +623,23 @@ export default function DashboardAdviser({
                     {selectedGroupSchedule ? (
                       <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                         <div className="flex justify-between items-center border-b border-slate-200 pb-2.5">
-                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1.5">
                             <Clock className="h-4.5 w-4.5 text-blue-700" />
                             Official Defense Booking Details
                           </h4>
-                          <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
+                          <span className="text-xs  font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
                             {selectedGroupSchedule.type.toUpperCase()} DEFENSE
                           </span>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-650">
                           <div className="space-y-0.5">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 font-mono">Assigned Venue Room</span>
+                            <span className="text-xs  font-bold text-slate-500 ">Assigned Venue Room</span>
                             <p className="text-slate-850 font-bold">{selectedGroupSchedule.roomId}</p>
                           </div>
                           
                           <div className="space-y-0.5">
-                            <span className="text-[9px] uppercase font-bold text-slate-400 font-mono">Date and Coordinates</span>
+                            <span className="text-xs  font-bold text-slate-500 ">Date and Coordinates</span>
                             <p className="text-slate-850 font-bold">
                               {selectedGroupSchedule.date} ({selectedGroupSchedule.startTime} - {selectedGroupSchedule.endTime})
                             </p>
@@ -647,17 +647,17 @@ export default function DashboardAdviser({
                         </div>
 
                         <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
-                          <span className="text-[9px] uppercase font-bold text-slate-400 font-mono block">Jury panel committee</span>
+                          <span className="text-xs  font-bold text-slate-500  block">Jury panel committee</span>
                           <div className="flex flex-col gap-1.5">
                             {selectedGroupSchedule.panelistIds.map((pid, idx) => {
                               const panObj = users.find(u => u.id === pid);
                               return (
                                 <div key={pid} className="flex items-center gap-2 text-xs">
-                                  <span className="font-bold bg-slate-200 text-slate-600 w-5 h-5 rounded-full flex items-center justify-center font-mono text-[9px]">
+                                  <span className="font-bold bg-slate-200 text-slate-600 w-5 h-5 rounded-full flex items-center justify-center  text-xs">
                                     P{idx + 1}
                                   </span>
                                   <span className="text-slate-800 font-bold">{panObj ? panObj.name : 'Vetting Committee Member'}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono uppercase">Panelist</span>
+                                  <span className="text-xs text-slate-500  ">Panelist</span>
                                 </div>
                               );
                             })}
@@ -665,7 +665,7 @@ export default function DashboardAdviser({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 bg-slate-50 border border-slate-150 rounded-xl text-slate-400 text-xs">
+                      <div className="text-center py-12 bg-slate-50 border border-slate-150 rounded-xl text-slate-500 text-xs">
                         No active panel defense slot is currently booked or approved for this capstone group.
                       </div>
                     )}
@@ -676,7 +676,7 @@ export default function DashboardAdviser({
                 {detailTab === 'timeline' && (
                   <div className="space-y-6 animate-in fade-in duration-100">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                      <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1">
                         <Award className="h-4.5 w-4.5 text-blue-700 animate-pulse" />
                         Visual Research Journey Milestone Chart
                       </h4>
@@ -704,18 +704,18 @@ export default function DashboardAdviser({
 
                             <div className="space-y-0.5 text-xs">
                               <div className="flex items-center gap-1.5">
-                                <span className={`font-bold uppercase tracking-wider text-[11px] ${
-                                  isCompleted ? 'text-emerald-800' : isActive ? 'text-amber-800' : 'text-slate-400'
+                                <span className={`font-bold  tracking-normal text-xs ${
+                                  isCompleted ? 'text-emerald-800' : isActive ? 'text-amber-800' : 'text-slate-500'
                                 }`}>
                                   Stage {stage.id}: {stage.label}
                                 </span>
                                 {isActive && (
-                                  <span className="text-[8px] bg-amber-50 text-amber-700 font-mono font-extrabold border border-amber-200 px-1.5 rounded uppercase">
+                                  <span className="text-xs bg-amber-50 text-amber-700  font-extrabold border border-amber-200 px-1.5 rounded ">
                                     Current Active Target
                                   </span>
                                 )}
                               </div>
-                              <p className="text-slate-500 text-[11px]">{stage.desc}</p>
+                              <p className="text-slate-500 text-xs">{stage.desc}</p>
                             </div>
 
                           </div>
@@ -729,7 +729,7 @@ export default function DashboardAdviser({
 
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-150 p-12 text-center text-slate-400 text-xs shadow-sm">
+            <div className="bg-white rounded-xl border border-slate-150 p-12 text-center text-slate-500 text-xs shadow-sm">
               Please select a research group from your advising portfolio portfolio on the left sidebar to inspect details.
             </div>
           )}
@@ -760,7 +760,7 @@ export default function DashboardAdviser({
 
             <div className="space-y-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Target Student Group</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Target Student Group</label>
                 <select
                   required
                   value={studentId}
@@ -775,7 +775,7 @@ export default function DashboardAdviser({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Topic Coordinates</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Topic Coordinates</label>
                 <input
                   type="text"
                   required
@@ -787,7 +787,7 @@ export default function DashboardAdviser({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Date & Hour Slots</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Date & Hour Slots</label>
                 <input
                   type="datetime-local"
                   required

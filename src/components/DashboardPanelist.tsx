@@ -96,7 +96,7 @@ export default function DashboardPanelist({
             <ClipboardList className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Upcoming Panels Assigned</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Upcoming Panels Assigned</span>
             <span className="text-sm font-extrabold text-slate-800">{pendingEvaluationCount} pending defenses</span>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function DashboardPanelist({
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-wider">Completed evaluations</span>
+            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Completed evaluations</span>
             <span className="text-sm font-extrabold text-slate-800">{completedEvaluationCount} scores logged</span>
           </div>
         </div>
@@ -119,13 +119,13 @@ export default function DashboardPanelist({
         <section className="lg:col-span-8 space-y-4">
           <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-150 px-5 py-3 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Assigned Defense Calendar Slots</h3>
-              <span className="text-[10px] text-slate-400 font-mono">Count: {assignedDefenses.length}</span>
+              <h3 className="text-xs font-bold text-slate-700  tracking-normal">Assigned Defense Calendar Slots</h3>
+              <span className="text-xs text-slate-500 ">Count: {assignedDefenses.length}</span>
             </div>
 
             <div className="divide-y divide-slate-100">
               {assignedDefenses.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 text-xs">
+                <div className="p-12 text-center text-slate-500 text-xs">
                   No defenses currently assigned to your panel committee.
                 </div>
               ) : (
@@ -135,7 +135,7 @@ export default function DashboardPanelist({
                     <div key={sched.id} className="p-5 hover:bg-slate-50/20 transition-colors space-y-3">
                       <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
                         <div className="space-y-0.5">
-                          <span className="text-[9px] bg-indigo-50 text-indigo-700 font-mono font-bold px-2 py-0.25 rounded">
+                          <span className="text-xs bg-indigo-50 text-indigo-700  font-bold px-2 py-0.25 rounded">
                             {sched.startTime} - {sched.endTime}
                           </span>
                           <h4 className="text-xs font-bold text-slate-850 leading-snug">{getResearchTitle(sched.researchId)}</h4>
@@ -144,19 +144,19 @@ export default function DashboardPanelist({
                         <div className="flex flex-wrap gap-2 items-center">
                           <button
                             onClick={() => onSelectResearch(sched.researchId)}
-                            className="px-2.5 py-1 text-[10px] font-bold rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+                            className="px-2.5 py-1 text-xs font-bold rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
                           >
                             <FileText className="h-3 w-3" /> View Manuscript
                           </button>
 
                           {isEvaluated ? (
-                            <span className="text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                            <span className="text-xs font-bold  text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
                               <CheckCircle2 className="h-3 w-3" /> Scores Logged
                             </span>
                           ) : (
                             <button
                               onClick={() => handleOpenEvaluation(sched.id)}
-                              className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-1 px-3 text-[10px] rounded flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
+                              className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-1 px-3 text-xs rounded flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
                             >
                               <Play className="h-3 w-3 shrink-0" /> Grade Defense
                             </button>
@@ -168,7 +168,7 @@ export default function DashboardPanelist({
                         <div className="text-slate-500 font-medium">
                           Authors: <strong className="text-slate-700 font-semibold">{getStudentNames(sched.researchId)}</strong>
                         </div>
-                        <div className="text-slate-400 font-mono text-right text-[10px]">
+                        <div className="text-slate-500  text-right text-xs">
                           Defense Date: {sched.date}
                         </div>
                       </div>
@@ -183,12 +183,12 @@ export default function DashboardPanelist({
         {/* Right Col: Evaluated list logs */}
         <section className="lg:col-span-4 space-y-4">
           <div className="bg-white rounded-xl border border-slate-150 p-4 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2">
               My Historical Grading Logs
             </h3>
 
             {evaluations.filter(e => e.panelistId === user.id).length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs">
+              <div className="p-6 text-center text-slate-500 text-xs">
                 No scores logged yet. Open an assigned defense to record evaluation grades.
               </div>
             ) : (
@@ -196,8 +196,8 @@ export default function DashboardPanelist({
                 {evaluations.filter(e => e.panelistId === user.id).map(e => (
                   <div key={e.id} className="p-3 bg-slate-50 rounded-lg border border-slate-150 text-xs space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="font-mono text-[9px] font-bold text-slate-500">ID #{e.id.substring(5, 10).toUpperCase()}</span>
-                      <span className={`px-1.5 py-0.25 rounded font-mono font-bold text-[9px] uppercase ${e.recommendation === 'Passed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                      <span className=" text-xs font-bold text-slate-500">ID #{e.id.substring(5, 10).toUpperCase()}</span>
+                      <span className={`px-1.5 py-0.25 rounded  font-bold text-xs  ${e.recommendation === 'Passed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                         {e.recommendation}
                       </span>
                     </div>
@@ -205,7 +205,7 @@ export default function DashboardPanelist({
                     <p className="font-semibold text-slate-800 truncate" title={e.comment}>
                       Score: <strong className="text-blue-900">{e.totalScore} / 100</strong>
                     </p>
-                    <p className="text-[11px] text-slate-500 italic line-clamp-2">"{e.comment}"</p>
+                    <p className="text-xs text-slate-500 italic line-clamp-2">"{e.comment}"</p>
                   </div>
                 ))}
               </div>
@@ -229,20 +229,20 @@ export default function DashboardPanelist({
               <button 
                 type="button" 
                 onClick={() => setShowEvaluationForm(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="h-4.5 w-4.5" />
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
+            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
               Input scores based on the capstone presentations. Max aggregate points is 100. Relational parameters will instantly update student records upon locking.
             </p>
 
             <div className="space-y-3 pt-2">
               {/* Score 1 */}
               <div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
+                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
                   <label>1. Problem Statement & Situation analysis (Max 20)</label>
                   <span>Max 20 pts</span>
                 </div>
@@ -259,7 +259,7 @@ export default function DashboardPanelist({
 
               {/* Score 2 */}
               <div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
+                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
                   <label>2. Literature review & Methodology (Max 30)</label>
                   <span>Max 30 pts</span>
                 </div>
@@ -276,7 +276,7 @@ export default function DashboardPanelist({
 
               {/* Score 3 */}
               <div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
+                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
                   <label>3. System Design & Database Relational normalization (Max 30)</label>
                   <span>Max 30 pts</span>
                 </div>
@@ -293,7 +293,7 @@ export default function DashboardPanelist({
 
               {/* Score 4 */}
               <div>
-                <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1">
+                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
                   <label>4. Q&A and presentation skills (Max 20)</label>
                   <span>Max 20 pts</span>
                 </div>
@@ -309,13 +309,13 @@ export default function DashboardPanelist({
               </div>
 
               {/* Total Score display */}
-              <div className="p-2.5 bg-blue-50 text-blue-900 border border-blue-100 rounded-lg text-center font-mono font-bold text-xs">
+              <div className="p-2.5 bg-blue-50 text-blue-900 border border-blue-100 rounded-lg text-center  font-bold text-xs">
                 CALCULATED WEIGHTED TOTAL SCORE: {Number(score1) + Number(score2) + Number(score3) + Number(score4)} / 100
               </div>
 
               {/* Recommendation */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Committee recommendation</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Committee recommendation</label>
                 <select
                   required
                   value={recommendation}
@@ -331,7 +331,7 @@ export default function DashboardPanelist({
 
               {/* Comments */}
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Descriptive Jury comments</label>
+                <label className="text-xs font-bold text-slate-500  block mb-1">Descriptive Jury comments</label>
                 <textarea
                   rows={3}
                   required
