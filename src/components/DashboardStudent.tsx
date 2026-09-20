@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  FileText, Calendar, MessageSquare, TrendingUp, AlertCircle, CheckCircle2, 
-  HelpCircle, Clock, ArrowRight, Download, FileSignature, Landmark, UploadCloud, 
-  CheckCircle, ChevronRight, RefreshCw, X, Check, Lock, ChevronDown, ChevronUp, AlertTriangle,
-  Info, Eye, Trash2, Plus, Edit3, Sparkles, Compass, GraduationCap, History
+import {
+  FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
+  Landmark, Plus, Compass, Wrench,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
+import {
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
+  chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime,
+} from '../ui';
 
 interface DashboardStudentProps {
   user: User;
@@ -90,7 +92,7 @@ export default function DashboardStudent({
     if (!research || !onUpdateProposalFiles) return;
     const isPdfOrDocx = name.endsWith('.pdf') || name.endsWith('.docx');
     if (!isPdfOrDocx) {
-      setDashboardError("Only PDF and DOCX documents are accepted for manuscript vetting.");
+      setDashboardError("Please choose a PDF or Word (DOCX) file.");
       return;
     }
 
@@ -209,12 +211,12 @@ export default function DashboardStudent({
     const extension = file.name.split('.').pop()?.toLowerCase();
     const isDoc = extension === 'pdf' || extension === 'docx' || extension === 'doc';
     if (!isDoc) {
-      setUploadErrorMsg('File upload restricted to PDF and DOCX formats only.');
+      setUploadErrorMsg('Please choose a PDF or Word (DOCX) file.');
       return;
     }
     // Limit to 15MB
     if (file.size > 15 * 1024 * 1024) {
-      setUploadErrorMsg('File size exceeds the 15MB threshold.');
+      setUploadErrorMsg('That file is too big. Please choose a file smaller than 15 MB.');
       return;
     }
     setSelectedFile(file);
@@ -255,7 +257,7 @@ export default function DashboardStudent({
       setSelectedFile(null);
       setTimeout(() => setUploadSuccess(false), 4000);
     } catch (err) {
-      setUploadErrorMsg(err instanceof ApiError ? err.message : 'Upload failed. Please try again.');
+      setUploadErrorMsg(err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.');
     } finally {
       setIsUploading(false);
     }
@@ -297,72 +299,58 @@ export default function DashboardStudent({
     setShowFormulationModal(false);
   };
 
-  // Define 7-stage research journey
+  // The 7 steps of a research paper's journey, in plain words.
   const getJourneyPhases = () => {
     const phases = [
       {
         idx: 0,
-        title: 'Title Proposal',
-        subtitle: 'Initial Abstract',
-        description: 'Formulate your capstone title, assign designated Adviser, and register abstract parameters.',
-        statusKey: 'Submitted',
-        icon: '📝',
-        guide: 'Awaiting initial chapters checking. Submit drafts to your supervisor.'
+        title: 'Send your idea',
+        subtitle: 'Title and summary',
+        description: 'Write your research title and a short summary, and choose your adviser.',
+        guide: 'Send in your paper drafts so your adviser can start reading them.',
       },
       {
         idx: 1,
-        title: 'Adviser Assignment',
-        subtitle: 'Supervisor Matched',
-        description: 'The department matches your capstone team with a qualified supervisor faculty.',
-        statusKey: 'Submitted',
-        icon: '🤝',
-        guide: 'A assigned adviser is designated for regular consultations.'
+        title: 'Adviser assigned',
+        subtitle: 'Your adviser is chosen',
+        description: 'The department matches your group with an adviser who will guide you.',
+        guide: 'Your adviser is set. You can ask for meetings to talk about your paper.',
       },
       {
         idx: 2,
-        title: 'Proposal Defense',
-        subtitle: 'Chapter 1-3 Vetted',
-        description: 'Complete draft vetting with Adviser. Your Adviser logs chapter revisions and trace commentary.',
-        statusKey: 'Under Review',
-        icon: '🔍',
-        guide: 'Correct review items indicated in the Adviser Actions box and re-upload drafts.'
+        title: 'Adviser checks your chapters',
+        subtitle: 'Feedback on Chapters 1 to 3',
+        description: 'Your adviser reads Chapters 1 to 3 and writes feedback. You fix the problems and upload the paper again.',
+        guide: 'Read each comment, fix your paper, and upload a new version.',
       },
       {
         idx: 3,
-        title: 'Manuscript Dev',
-        subtitle: 'Pipeline Clearance',
-        description: 'Once chapters meet benchmarks, Adviser endorses the paper to the pipeline for scheduling.',
-        statusKey: 'Approved by Adviser',
-        icon: '💻',
-        guide: 'Adviser has signed off! Coordinator is reviewing pipeline clearance.'
+        title: 'Approval',
+        subtitle: 'Ready for your defense',
+        description: 'When your chapters are good enough, your adviser approves your paper. The coordinator then checks it.',
+        guide: 'Your adviser approved your paper. The coordinator will now prepare your defense.',
       },
       {
         idx: 4,
-        title: 'Final Oral Defense',
-        subtitle: 'Jury Presentation',
-        description: 'Research Coordinator designates your 3-member panel committee, room reservation, and slot.',
-        statusKey: 'Scheduled',
-        icon: '📅',
-        guide: 'Be ready for presentation. Download your schedule slot coordinates.'
+        title: 'Defense',
+        subtitle: 'Present to the panel',
+        description: 'The coordinator picks a date, a room and 3 panel members for your defense.',
+        guide: 'Prepare your slides and arrive on time. Your defense details are shown on this page.',
       },
       {
         idx: 5,
-        title: 'Revision Approval',
-        subtitle: 'Post-Defense Check',
-        description: 'Present your slides and live normalization models. Panelist jury inputs scores out of 100.',
-        statusKey: 'Completed',
-        icon: '🎓',
-        guide: 'Defense successfully completed. Addressing minor/major panel adjustments.'
+        title: 'Fix and finalize',
+        subtitle: 'After your defense',
+        description: 'The panel scores your defense and may ask for changes. Fix them and upload your final paper.',
+        guide: 'Your defense is done. Make the changes the panel asked for.',
       },
       {
         idx: 6,
-        title: 'Completed & Archived',
-        subtitle: 'Repository Indexed',
-        description: 'Finalized publications are indexed and searchable inside the College Institutional Archives.',
-        statusKey: 'Archived',
-        icon: '🏛️',
-        guide: 'Congratulations! Your team\'s research journey is complete.'
-      }
+        title: 'Saved in the Repository',
+        subtitle: 'All done',
+        description: 'Your final paper is saved in the Research Repository.',
+        guide: 'Congratulations! Your research journey is complete.',
+      },
     ];
 
     const currentStatus = research?.status || 'Submitted';
@@ -379,719 +367,521 @@ export default function DashboardStudent({
         ...p,
         isCompleted: idx < activeIdx,
         isActive: idx === activeIdx,
-        isUpcoming: idx > activeIdx
+        isUpcoming: idx > activeIdx,
       })),
-      activeIdx
+      activeIdx,
     };
   };
 
   const { phases, activeIdx } = getJourneyPhases();
 
-  // Dynamic status evaluation of checklist requirements per stage
+  // What has been done at each step (a checklist shown when a step is opened)
   const getStageChecklist = (stageIndex: number) => {
     if (!research) return [];
 
     switch (stageIndex) {
-      case 0: // Title Proposal
+      case 0:
         return [
-          { label: 'Register thesis proposal title', met: !!research.title },
-          { label: 'Define project abstract parameters', met: !!research.abstract },
-          { label: 'Identify primary capstone keywords', met: research.keywords.length > 0 }
+          { label: 'Write your research title', met: !!research.title },
+          { label: 'Write a short summary (abstract)', met: !!research.abstract },
+          { label: 'Add at least one keyword', met: research.keywords.length > 0 },
         ];
-      case 1: // Adviser Assignment
+      case 1:
         return [
-          { label: 'Submit initial proposal form', met: true },
-          { label: 'Department adviser matching sequence', met: !!research.adviserId }
+          { label: 'Send in your research form', met: true },
+          { label: 'An adviser is assigned to you', met: !!research.adviserId },
         ];
-      case 2: // Proposal Defense
+      case 2:
         return [
-          { label: 'Chapter 1 (Introduction) checked', met: currentVersion?.chapters?.chapter1?.status === 'Approved' },
-          { label: 'Chapter 2 (Literature Review) checked', met: currentVersion?.chapters?.chapter2?.status === 'Approved' },
-          { label: 'Chapter 3 (Methodology) checked', met: currentVersion?.chapters?.chapter3?.status === 'Approved' }
+          { label: 'Chapter 1 (Introduction) approved', met: currentVersion?.chapters?.chapter1?.status === 'Approved' },
+          { label: 'Chapter 2 (Review of Related Literature) approved', met: currentVersion?.chapters?.chapter2?.status === 'Approved' },
+          { label: 'Chapter 3 (Methodology) approved', met: currentVersion?.chapters?.chapter3?.status === 'Approved' },
         ];
-      case 3: // Manuscript Dev
+      case 3:
         return [
-          { label: 'Resolve outstanding adviser check items', met: activeComments.length === 0 },
-          { label: 'Obtain formal signed endorsement', met: ['Approved by Adviser', 'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'].includes(research.status) }
+          { label: 'Fix all comments from your adviser', met: activeComments.length === 0 },
+          { label: 'Get your adviser’s approval', met: ['Approved by Adviser', 'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'].includes(research.status) },
         ];
-      case 4: // Final Oral Defense
+      case 4:
         return [
-          { label: 'Receive confirmed date & time coordinates', met: !!mySchedule },
-          { label: 'Allocate 3 Faculty Panel Committee', met: !!mySchedule && mySchedule.panelistIds.length === 3 },
-          { label: 'Lock classroom presentation venue', met: !!mySchedule && !!mySchedule.roomId }
+          { label: 'You have a defense date and time', met: !!mySchedule },
+          { label: 'You have 3 panel members', met: !!mySchedule && mySchedule.panelistIds.length === 3 },
+          { label: 'You have a room', met: !!mySchedule && !!mySchedule.roomId },
         ];
-      case 5: // Revision Approval
+      case 5:
         return [
-          { label: 'Upload finalized defense manuscript', met: myVersions.some(v => v.type === 'defense_manuscript') },
-          { label: 'Complete oral presentation slides delivery', met: ['Completed', 'Archived'].includes(research.status) }
+          { label: 'Upload your final paper', met: myVersions.some(v => v.type === 'defense_manuscript') },
+          { label: 'Finish your defense', met: ['Completed', 'Archived'].includes(research.status) },
         ];
-      case 6: // Completed & Archived
+      case 6:
         return [
-          { label: 'Integrate final Panel manuscript corrections', met: research.status === 'Archived' },
-          { label: 'Acquire official plagiarism clearance index', met: research.status === 'Archived' }
+          { label: 'Fix the panel’s corrections', met: research.status === 'Archived' },
+          { label: 'Get final clearance from the school', met: research.status === 'Archived' },
         ];
       default:
         return [];
     }
   };
 
-  // If student has no research project assigned/created
+  // ---------- Screen for a student who has no research paper yet ----------
   if (!research) {
     return (
       <div className="space-y-6">
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-950 text-white rounded-2xl p-6.5 shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="space-y-1.5">
-            <span className="text-xs   font-bold text-blue-200 tracking-normal bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">
-              A.Y. 2025-2026 Normal Enrollment
-            </span>
-            <h2 className="text-xl font-bold font-serif leading-tight">Welcome to NMSC Capstone Portal, {user.name}</h2>
-            <p className="text-xs text-slate-350 max-w-xl">
-              You do not have an active research project or approved proposal registered in the database catalog. Formulate your title proposal below to launch your capstone cycle.
-            </p>
-          </div>
+        <PageHeader
+          title={`Welcome, ${user.name}`}
+          subtitle="You have not sent in a research paper yet. Start by telling us your research title."
+          action={<Button icon={Plus} onClick={() => setShowFormulationModal(true)}>Start My Research Paper</Button>}
+        />
 
-          <button
-            onClick={() => setShowFormulationModal(true)}
-            className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-900/10 transition-colors shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            Formulate Title Proposal
-          </button>
-        </div>
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            ['1', 'Send your title', 'Write your research title, a short summary and a few keywords, then choose your adviser.'],
+            ['2', 'Meet your adviser', 'Upload your chapters. Your adviser will read them and write feedback for you to fix.'],
+            ['3', 'Defend your paper', 'After your adviser approves, the coordinator sets your defense date, room and panel.'],
+          ].map(([num, title, text]) => (
+            <li key={num}>
+              <Card className="h-full space-y-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-800 text-base font-bold text-white" aria-hidden="true">{num}</span>
+                <h2 className="text-base font-bold text-slate-900">Step {num}: {title}</h2>
+                <p className="text-sm text-slate-600">{text}</p>
+              </Card>
+            </li>
+          ))}
+        </ol>
 
-        {/* Informative Dashboard Guide */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-800 flex items-center justify-center font-bold ">
-              01
+        <Modal
+          open={showFormulationModal}
+          onClose={() => setShowFormulationModal(false)}
+          title="Start your research paper"
+          description="Fill in the details below. Fields marked with * are required."
+          size="lg"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowFormulationModal(false)}>Cancel</Button>
+              <Button type="submit" form="formulation-form">Send My Research Title</Button>
+            </>
+          }
+        >
+          <form id="formulation-form" onSubmit={handleCreateProposalSubmit} className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Input
+                label="Research title"
+                required
+                value={propTitle}
+                onChange={e => setPropTitle(e.target.value)}
+                hint="The name of your research paper."
+                placeholder="e.g. Web-Based Research Management System"
+              />
             </div>
-            <h4 className="font-bold text-slate-850 text-sm">Formulate & Register Title</h4>
-            <p className="text-xs text-slate-450 leading-relaxed ">
-              Define your capstone title, abstract problem details, core keywords, and select your preferred thesis advisor faculty member.
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center font-bold ">
-              02
+            <div className="md:col-span-2">
+              <Textarea
+                label="Short summary (abstract)"
+                required
+                rows={4}
+                value={propAbstract}
+                onChange={e => setPropAbstract(e.target.value)}
+                hint="Explain the problem you want to solve and how."
+              />
             </div>
-            <h4 className="font-bold text-slate-850 text-sm">Mentorship Consultations</h4>
-            <p className="text-xs text-slate-450 leading-relaxed ">
-              Upload draft revisions of Chapters 1 to 3 regularly. Review supervisor feedback markup boxes and make corrections reactively.
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-sm space-y-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold ">
-              03
-            </div>
-            <h4 className="font-bold text-slate-850 text-sm">Oral Presentation Defense</h4>
-            <p className="text-xs text-slate-450 leading-relaxed ">
-              Once adviser clearance is obtained, the system automatically schedules your presentation room slot, jury panel, and publishes scores.
-            </p>
-          </div>
-        </div>
-
-        {/* INITIAL TITLE FORMULATION MODAL */}
-        {showFormulationModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <form 
-              onSubmit={handleCreateProposalSubmit}
-              className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
+            <Input
+              label="Keywords"
+              required
+              value={propKeywords}
+              onChange={e => setPropKeywords(e.target.value)}
+              hint="Separate each keyword with a comma."
+              placeholder="React, Database, Normalization"
+            />
+            <Select
+              label="Preferred adviser"
+              required
+              value={propAdviser}
+              onChange={e => setPropAdviser(e.target.value)}
+              hint="The teacher who will guide your group."
             >
-              <div className="flex justify-between items-center border-b pb-2.5">
-                <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 font-serif">
-                  <Sparkles className="h-4.5 w-4.5 text-blue-700" />
-                  Formulate New Title Proposal
-                </h3>
-                <button 
-                  type="button" 
-                  onClick={() => setShowFormulationModal(false)}
-                  className="text-slate-450 hover:text-slate-650 p-1 rounded-lg cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto pr-1">
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Proposed Research Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={propTitle}
-                    onChange={(e) => setPropTitle(e.target.value)}
-                    placeholder="e.g. Web-Based Research Management with Normalization Checkers"
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="md:col-span-2 space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Research Abstract / Problem Statement</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={propAbstract}
-                    onChange={(e) => setPropAbstract(e.target.value)}
-                    placeholder="Provide a detailed explanation of the problem, software methodology, and target college users..."
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Keywords (comma separated)</label>
-                  <input
-                    type="text"
-                    required
-                    value={propKeywords}
-                    onChange={(e) => setPropKeywords(e.target.value)}
-                    placeholder="React, Database, Normalization"
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Preferred Faculty Adviser</label>
-                  <select
-                    required
-                    value={propAdviser}
-                    onChange={(e) => setPropAdviser(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="">Select Faculty Adviser...</option>
-                    {users.filter(u => u.role === 'adviser').map(adv => (
-                      <option key={adv.id} value={adv.id}>{adv.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Team Members (comma separated names)</label>
-                  <input
-                    type="text"
-                    required
-                    value={propMembers}
-                    onChange={(e) => setPropMembers(e.target.value)}
-                    placeholder="John Doe, Mary Ann Smith"
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500  block">Initial Manuscript Filename</label>
-                  <input
-                    type="text"
-                    required
-                    value={propFilename}
-                    onChange={(e) => setPropFilename(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end border-t pt-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowFormulationModal(false)}
-                  className="px-3.5 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold rounded-lg shadow-md cursor-pointer"
-                >
-                  Create & Register Title
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              <option value="">Choose an adviser…</option>
+              {users.filter(u => u.role === 'adviser').map(adv => (
+                <option key={adv.id} value={adv.id}>{adv.name}</option>
+              ))}
+            </Select>
+            <Input
+              label="Group members"
+              required
+              value={propMembers}
+              onChange={e => setPropMembers(e.target.value)}
+              hint="Type the names of your teammates, separated by commas."
+              placeholder="John Doe, Mary Ann Smith"
+            />
+            <Input
+              label="Name of your first file"
+              required
+              value={propFilename}
+              onChange={e => setPropFilename(e.target.value)}
+              hint="The file name of your first draft."
+            />
+          </form>
+        </Modal>
       </div>
     );
   }
 
+  // ---------- Main home page for a student ----------
+  const progress = getProgressPercentage();
+  const roomName = mySchedule ? rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online meeting room' : '';
+
+  // "What should I do next?" — one clear step for every stage.
+  const nextStep: { title: string; text: string; showAction: boolean } = (() => {
+    switch (research.status) {
+      case 'Revision Required':
+        return {
+          title: 'Fix your paper and upload the new version',
+          text: `Your adviser asked for changes${activeComments.length ? ` (${activeComments.length} comment${activeComments.length === 1 ? '' : 's'} to fix)` : ''}. Read the feedback, fix your paper, then upload it again.`,
+          showAction: true,
+        };
+      case 'Submitted':
+      case 'Under Review':
+        return {
+          title: 'Wait for your adviser’s feedback',
+          text: 'Your adviser is reading your paper. You will get a notification when there is feedback. You can upload a new version any time.',
+          showAction: true,
+        };
+      case 'Approved by Adviser':
+      case 'Pending Coordinator':
+        return {
+          title: 'Wait for your defense date',
+          text: 'Your adviser approved your paper. The coordinator is now choosing a date, room and panel. You will be told here and by notification.',
+          showAction: false,
+        };
+      case 'Scheduled':
+        return {
+          title: mySchedule
+            ? `Get ready for your defense on ${formatDateAndTime(mySchedule.date, mySchedule.startTime)}`
+            : 'Get ready for your defense',
+          text: 'Prepare your slides and arrive on time. The date, room and panel members are shown on this page.',
+          showAction: false,
+        };
+      case 'Completed':
+        return {
+          title: 'Upload your final paper',
+          text: 'Your defense is finished. Fix what the panel asked for, then upload your final paper.',
+          showAction: true,
+        };
+      case 'Archived':
+        return {
+          title: 'You are all done',
+          text: 'Your final paper is saved in the Research Repository. Congratulations!',
+          showAction: false,
+        };
+      default:
+        return { title: 'Open your research page', text: 'See your paper’s progress and upload changes.', showAction: true };
+    }
+  })();
+
   return (
     <div className="space-y-6">
-      
-      {/* Top Welcome Banner */}
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-xs   font-bold text-blue-200 tracking-normal bg-blue-950/50 px-2 py-0.5 rounded border border-blue-800">
-              A.Y. 2025-2026 Active
-            </span>
-            <span className="text-xs   font-bold text-indigo-200 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">
-              {research.id.toUpperCase()}
-            </span>
+      <PageHeader
+        title={`Welcome back, ${user.name}`}
+        subtitle="Here is where your research paper stands and what to do next."
+      />
+
+      {/* What should I do next? */}
+      <section aria-labelledby="next-step-title">
+        <Card className="border-blue-200 bg-blue-50">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 space-y-3">
+              <p id="next-step-title" className="flex items-center gap-2 text-sm font-bold text-blue-900">
+                <Compass className="h-5 w-5" aria-hidden="true" />
+                What should I do next?
+              </p>
+              <h2 className="text-xl font-bold text-slate-900">{nextStep.title}</h2>
+              <p className="max-w-2xl text-base text-slate-700">{nextStep.text}</p>
+            </div>
+            {nextStep.showAction && (
+              <Button icon={ArrowRight} onClick={onNavigateToTimeline} className="shrink-0">
+                Open My Research
+              </Button>
+            )}
           </div>
-          <h2 className="text-xl font-bold font-serif leading-tight">Welcome Back, {user.name}!</h2>
-          <p className="text-xs text-slate-350 leading-relaxed font-sans line-clamp-1" title={research.title}>
-            Current Capstone: <strong className="text-white font-semibold">{research.title}</strong>
+        </Card>
+      </section>
+
+      {/* Your research paper */}
+      <Card>
+        <CardHeader
+          title="Your research paper"
+          icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+        />
+        <div className="space-y-4">
+          <p className="text-lg font-semibold text-slate-900">{research.title}</p>
+          <p className="text-sm text-slate-700">
+            Adviser: <strong className="text-slate-900">{getAdviserName()}</strong>
           </p>
-        </div>
+          <ResearchStatusBadge status={research.status} explain />
 
-        <div className="flex items-center gap-3.5 shrink-0 bg-white/5 border border-white/10 px-4 py-2.5 rounded-xl">
-          <div className="text-right">
-            <span className="text-xs text-slate-500 font-bold block  tracking-normal">Designated Research Adviser</span>
-            <span className="text-xs font-extrabold text-white">{getAdviserName()}</span>
-          </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-        </div>
-      </div>
-
-      {/* Metrics Row Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Circular Progress Card */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-4">
-          <div className="relative h-12 w-12 shrink-0 flex items-center justify-center">
-            <svg className="absolute inset-0 w-full h-full -rotate-90">
-              <circle cx="24" cy="24" r="20" stroke="#f1f5f9" strokeWidth="3.5" fill="transparent" />
-              <circle cx="24" cy="24" r="20" stroke="#1e40af" strokeWidth="3.5" strokeDasharray={125} strokeDashoffset={125 - (125 * getProgressPercentage()) / 100} strokeLinecap="round" fill="transparent" />
-            </svg>
-            <span className="text-xs font-extrabold text-blue-900 ">{getProgressPercentage()}%</span>
-          </div>
           <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Journey Stage</span>
-            <span className="text-xs font-extrabold text-slate-800  tracking-wide leading-tight block">{research.status}</span>
+            <div className="mb-1.5 flex justify-between text-sm font-semibold text-slate-800">
+              <span>Your progress</span>
+              <span>{progress}% done</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              aria-label="Progress of your research paper"
+              className="h-3 w-full overflow-hidden rounded-full bg-slate-200"
+            >
+              <div className="h-full rounded-full bg-blue-800" style={{ width: `${progress}%` }} />
+            </div>
           </div>
         </div>
+      </Card>
 
-        {/* Latest Version */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-blue-50 text-blue-800 rounded-lg shrink-0">
-            <FileText className="h-5 w-5" />
-          </div>
+      {/* Quick facts */}
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="flex items-start gap-3">
+          <FileText className="mt-0.5 h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
           <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Latest Submission</span>
-            <span className="text-xs font-extrabold text-slate-800 block">
-              {currentVersion ? `v${currentVersion.versionNumber} File Draft` : 'No Uploads yet'}
-            </span>
+            <dt className="text-sm text-slate-600">Latest file you sent</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {currentVersion ? `Version ${currentVersion.versionNumber}` : 'Nothing uploaded yet'}
+            </dd>
           </div>
-        </div>
-
-        {/* Comments Counter */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-amber-50 text-amber-800 rounded-lg shrink-0">
-            <MessageSquare className="h-5 w-5" />
-          </div>
+        </Card>
+        <Card className="flex items-start gap-3">
+          <MessageSquare className="mt-0.5 h-6 w-6 shrink-0 text-amber-700" aria-hidden="true" />
           <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Active Comments</span>
-            <span className="text-xs font-extrabold text-slate-800 block">
-              {activeComments.length} unresolved
-            </span>
+            <dt className="text-sm text-slate-600">Comments to fix</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {activeComments.length === 0 ? 'None right now' : activeComments.length}
+            </dd>
           </div>
-        </div>
-
-        {/* Next Defense Calendar slot */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-rose-50 text-rose-800 rounded-lg shrink-0">
-            <Calendar className="h-5 w-5" />
-          </div>
+        </Card>
+        <Card className="flex items-start gap-3">
+          <Calendar className="mt-0.5 h-6 w-6 shrink-0 text-rose-700" aria-hidden="true" />
           <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Defense Booking</span>
-            <span className="text-xs font-extrabold text-slate-800 block">
-              {mySchedule ? `${mySchedule.date} (${mySchedule.startTime})` : 'Not Booked'}
-            </span>
+            <dt className="text-sm text-slate-600">Your defense</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {mySchedule ? formatDateAndTime(mySchedule.date, mySchedule.startTime) : 'Not set yet'}
+            </dd>
           </div>
-        </div>
-      </div>
+        </Card>
+      </dl>
 
-      {/* Redesigned Section 1: 7-Stage Interactive Research Journey Stepper Timeline */}
-      <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-4">
-          <div className="space-y-0.5">
-            <h3 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-2">
-              <TrendingUp className="h-4.5 w-4.5 text-blue-800" />
-              Academic Research Journey Stepper
-            </h3>
-            <p className="text-xs text-slate-450">Track the 7 critical stages of the capstone life-cycle. Click any milestone card to view requirements audit.</p>
-          </div>
-          <button 
-            type="button"
-            onClick={onNavigateToTimeline}
-            className="text-xs text-blue-800 hover:underline font-bold flex items-center gap-0.5 cursor-pointer shrink-0"
-          >
-            Detailed Interactive Roadmap
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+      {/* The journey */}
+      <Card>
+        <CardHeader
+          title="Your research journey"
+          description="There are 7 steps from your first idea to the Repository. Select a step to see what it needs."
+          icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
+        />
 
-        {/* Horizontal 7-Stage Stepper View */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-2.5 pt-2">
+        <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
           {phases.map((phase, idx) => {
             const isSelected = selectedJourneyStage === idx;
             return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSelectedJourneyStage(idx)}
-                className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer ${
-                  isSelected 
-                    ? 'border-blue-700 bg-blue-50/20 ring-1 ring-blue-100' 
-                    : phase.isActive
-                      ? 'border-amber-300 bg-slate-50/50 hover:bg-slate-50'
-                      : phase.isCompleted
-                        ? 'border-emerald-250 bg-emerald-50/5 hover:bg-emerald-50/10'
-                        : 'border-slate-150 bg-white hover:bg-slate-50'
-                }`}
-              >
-                {/* Visual indicator for current active stage */}
-                {phase.isActive && (
-                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                )}
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-base">{phase.icon}</span>
+              <li key={idx}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedJourneyStage(idx)}
+                  aria-pressed={isSelected}
+                  className={`flex h-full w-full flex-col gap-2 rounded-xl border-2 p-3 text-left transition-colors cursor-pointer ${
+                    isSelected ? 'border-blue-800 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-slate-700">Step {idx + 1}</span>
                     {phase.isCompleted ? (
-                      <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <Badge tone="success" icon={CheckCircle2}>Done</Badge>
                     ) : phase.isActive ? (
-                      <span className="text-[7px] bg-amber-500 text-slate-850 font-extrabold px-1.5 py-0.25 rounded   leading-none">
-                        Active
-                      </span>
+                      <Badge tone="warning" icon={Clock}>You are here</Badge>
                     ) : (
-                      <Lock className="h-3 w-3 text-slate-350 shrink-0" />
+                      <Badge tone="neutral">Later</Badge>
                     )}
-                  </div>
-
-                  <div>
-                    <h4 className={`text-xs font-extrabold tracking-tight leading-tight line-clamp-1 ${
-                      isSelected ? 'text-blue-900' : 'text-slate-700'
-                    }`}>
-                      {phase.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 font-bold mt-0.5 truncate">{phase.subtitle}</p>
-                  </div>
-                </div>
-
-                <div className={`h-1 w-full rounded-full mt-3.5 ${
-                  phase.isCompleted 
-                    ? 'bg-emerald-500' 
-                    : phase.isActive 
-                      ? 'bg-amber-400' 
-                      : 'bg-slate-150'
-                }`} />
-              </button>
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">{phase.title}</span>
+                  <span className="text-xs text-slate-600">{phase.subtitle}</span>
+                </button>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
-        {/* Selected Stepper Info Panel */}
         {selectedJourneyStage !== null && (
-          <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/60 grid grid-cols-1 md:grid-cols-12 gap-6 animate-in fade-in slide-in-from-top-1">
-            <div className="md:col-span-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{phases[selectedJourneyStage].icon}</span>
-                <div>
-                  <h4 className="text-xs font-extrabold text-slate-800  tracking-normal">
-                    Stage {selectedJourneyStage + 1}: {phases[selectedJourneyStage].title}
-                  </h4>
-                  <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.25 rounded font-bold ">
-                    {phases[selectedJourneyStage].subtitle}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-600 leading-relaxed ">
-                {phases[selectedJourneyStage].description}
-              </p>
-
-              <div className="border-t border-slate-200/60 pt-3">
-                <span className="text-xs   font-bold text-slate-500 block tracking-normal">COORDINATOR INSTRUCTION:</span>
-                <p className="text-xs text-blue-900 font-semibold mt-1 flex items-start gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5"></span>
-                  {phases[selectedJourneyStage].guide}
-                </p>
+          <div className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-slate-900">
+                Step {selectedJourneyStage + 1}: {phases[selectedJourneyStage].title}
+              </h3>
+              <p className="text-sm text-slate-700">{phases[selectedJourneyStage].description}</p>
+              <div className="rounded-lg border border-blue-200 bg-white p-3">
+                <p className="text-xs font-bold text-blue-900">What to do</p>
+                <p className="mt-1 text-sm text-slate-800">{phases[selectedJourneyStage].guide}</p>
               </div>
             </div>
 
-            {/* Stage Checklist requirements */}
-            <div className="md:col-span-6 bg-white p-4.5 rounded-xl border border-slate-150 space-y-3">
-              <h5 className="text-xs font-bold  tracking-normal text-slate-500 flex justify-between items-center">
-                <span>STAGE CHECKLIST AUDIT</span>
-                <span className=" text-xs font-bold bg-slate-100 text-slate-600 px-1.5 py-0.25 rounded">
-                  {getStageChecklist(selectedJourneyStage).filter(x => x.met).length} of {getStageChecklist(selectedJourneyStage).length} complete
-                </span>
-              </h5>
-
-              <div className="space-y-2.5">
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
+                <span>Checklist for this step</span>
+                <Badge tone="neutral">
+                  {getStageChecklist(selectedJourneyStage).filter(x => x.met).length} of {getStageChecklist(selectedJourneyStage).length} done
+                </Badge>
+              </h3>
+              <ul className="mt-3 space-y-2.5">
                 {getStageChecklist(selectedJourneyStage).map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs">
+                  <li key={idx} className="flex items-start gap-2.5 text-sm">
                     {item.met ? (
-                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
                     ) : (
-                      <div className="h-4 w-4 rounded-full border border-slate-300 bg-slate-50 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                      </div>
+                      <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-400" aria-hidden="true" />
                     )}
-                    <span className={item.met ? 'text-slate-500 font-medium line-through' : 'text-slate-700 font-semibold'}>
+                    <span className={item.met ? 'text-slate-700' : 'font-semibold text-slate-900'}>
                       {item.label}
+                      <span className="sr-only">{item.met ? ' (done)' : ' (not done yet)'}</span>
                     </span>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Main Grid content: Rearranged Action Items, Revisions, & Booking Slot */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Outstanding Revisions & Adviser Feed */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2.5 flex items-center gap-1.5">
-              <MessageSquare className="h-4.5 w-4.5 text-amber-500" />
-              Unresolved Adviser Revisions ({activeComments.length})
-            </h3>
-
-            {activeComments.length === 0 ? (
-              <div className="p-12 text-center text-slate-450 text-xs bg-slate-50/30 rounded-xl border border-dashed border-slate-200">
-                No outstanding revision requests registered. Keep up the high standard!
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activeComments.map(comm => (
-                  <div key={comm.id} className="p-4 rounded-xl border border-slate-150 bg-slate-50/50 flex gap-4 hover:border-slate-300 transition-colors">
-                    <span className="bg-amber-100 text-amber-850 text-xs  font-bold px-2.5 py-1 rounded h-fit shrink-0  tracking-normal">
-                      {comm.chapter}
-                    </span>
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex justify-between items-center gap-2">
-                        <strong className="text-xs font-bold text-slate-800 block">{comm.authorName}</strong>
-                        <span className="text-xs text-slate-500 ">
-                          {new Date(comm.commentAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-650 leading-relaxed ">{comm.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Confirmed Presentation Slot details */}
-        <div className="lg:col-span-4 space-y-6">
-          {mySchedule ? (
-            <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-xl p-5 shadow-md relative overflow-hidden">
-              <div className="absolute top-3 right-3 bg-white/15 px-2 py-0.5 rounded text-xs  font-bold text-blue-200 tracking-normal">
-                CONFIRMED SLOT
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <span className="text-xs  font-bold text-blue-300 block tracking-normal ">DEFENSE DESIGNATION</span>
-                  <h4 className="font-serif font-bold text-sm">
-                    {mySchedule.type === 'proposal' ? 'Proposal Defense Presentation' : 'Final Capstone Defense'}
-                  </h4>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2.5 text-slate-200 ">
-                    <Calendar className="h-4 w-4 text-blue-300" />
-                    <span>{mySchedule.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-slate-200 ">
-                    <Clock className="h-4 w-4 text-blue-300" />
-                    <span>{mySchedule.startTime} - {mySchedule.endTime}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-slate-200">
-                    <Landmark className="h-4 w-4 text-blue-300 shrink-0" />
-                    <span className="truncate">{rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online Video Room'}</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-3">
-                  <span className="text-xs  font-bold text-blue-300 block tracking-normal mb-1">Defense Committee</span>
-                  <div className="space-y-1 text-xs text-slate-200">
-                    {mySchedule.panelistIds.map((pid, idx) => {
-                      const u = users.find(x => x.id === pid);
-                      return <span key={idx} className="block">• {u ? u.name : 'Panelist Faculty'}</span>;
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Comments and defense */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <Card className="lg:col-span-8">
+          <CardHeader
+            title={`Comments from your adviser${activeComments.length ? ` (${activeComments.length})` : ''}`}
+            description="Fix each comment, then upload a new version on the My Research page."
+            icon={<MessageSquare className="h-5 w-5" aria-hidden="true" />}
+          />
+          {activeComments.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="Nothing to fix right now"
+              description="Your adviser has no open comments. When they write one, it will show here."
+            />
           ) : (
-            <div className="bg-white rounded-xl border border-slate-150 p-5 shadow-sm text-center py-8 space-y-3">
-              <Calendar className="h-8 w-8 text-slate-300 mx-auto animate-pulse" />
-              <p className="text-xs font-semibold text-slate-700">Presentation Booking Pending</p>
-              <p className="text-xs text-slate-450 leading-relaxed ">
-                Once Chapters 1 to 3 drafts are approved by your designated adviser, the Research Coordinator will assign panelists and publish your defense calendar slot here.
-              </p>
-            </div>
+            <ul className="space-y-3">
+              {activeComments.map(comm => (
+                <li key={comm.id} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Badge tone="warning" icon={Wrench}>{chapterNames[comm.chapter] ?? comm.chapter}</Badge>
+                    <span className="text-xs text-slate-600">{formatDateLong(comm.commentAt)}</span>
+                  </div>
+                  <p className="text-sm text-slate-900">{comm.text}</p>
+                  <p className="text-xs text-slate-600">From {comm.authorName}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <div className="lg:col-span-4">
+          {mySchedule ? (
+            <Card className="border-blue-200">
+              <CardHeader
+                title="Your defense"
+                icon={<Calendar className="h-5 w-5" aria-hidden="true" />}
+                action={<Badge tone="success" icon={CheckCircle2}>Confirmed</Badge>}
+              />
+              <p className="text-base font-bold text-slate-900">{defenseTypeLabels[mySchedule.type]}</p>
+              <dl className="mt-3 space-y-3 text-sm">
+                <div className="flex items-start gap-2.5">
+                  <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
+                  <div>
+                    <dt className="sr-only">Date</dt>
+                    <dd className="text-slate-900">{formatDateLong(mySchedule.date)}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
+                  <div>
+                    <dt className="sr-only">Time</dt>
+                    <dd className="text-slate-900">{formatTime(mySchedule.startTime)} to {formatTime(mySchedule.endTime)}</dd>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
+                  <div>
+                    <dt className="sr-only">Room</dt>
+                    <dd className="text-slate-900">{roomName}</dd>
+                  </div>
+                </div>
+              </dl>
+              <div className="mt-4 border-t border-slate-200 pt-3">
+                <p className="text-sm font-bold text-slate-900">Your panel members</p>
+                <ul className="mt-1.5 space-y-1 text-sm text-slate-800">
+                  {mySchedule.panelistIds.map((pid, idx) => {
+                    const u = users.find(x => x.id === pid);
+                    return <li key={idx}>{u ? u.name : 'Panel Member'}</li>;
+                  })}
+                </ul>
+              </div>
+            </Card>
+          ) : (
+            <Card padded={false}>
+              <EmptyState
+                icon={Calendar}
+                title="Your defense date is not set yet"
+                description="After your adviser approves your paper, the coordinator will choose a date, a room and a panel. It will show here."
+              />
+            </Card>
           )}
         </div>
-
       </div>
 
-      {/* QUICK DETAILS MODIFICATION MODAL */}
-      {showEditDetailsModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleSaveDetails} 
-            className="bg-white rounded-2xl border border-slate-200 w-full max-w-lg p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
-          >
-            <div className="flex justify-between items-center border-b pb-2.5">
-              <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 font-serif">
-                <Edit3 className="h-4 w-4.5 text-blue-700" />
-                Update Research Information
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowEditDetailsModal(false)}
-                className="text-slate-450 hover:text-slate-650 p-1 rounded-lg cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Edit details pop-up */}
+      <Modal
+        open={showEditDetailsModal}
+        onClose={() => setShowEditDetailsModal(false)}
+        title="Change your research details"
+        description="Fields marked with * are required."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEditDetailsModal(false)}>Cancel</Button>
+            <Button type="submit" form="edit-details-form">Save My Changes</Button>
+          </>
+        }
+      >
+        <form id="edit-details-form" onSubmit={handleSaveDetails} className="space-y-5">
+          <Input label="Research title" required value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+          <Textarea label="Short summary (abstract)" required rows={5} value={editAbstract} onChange={e => setEditAbstract(e.target.value)} />
+          <Input
+            label="Keywords"
+            required
+            value={editKeywords}
+            onChange={e => setEditKeywords(e.target.value)}
+            hint="Separate each keyword with a comma."
+          />
+          <Input
+            label="Group members"
+            disabled
+            value={editMembers || 'No other group members yet.'}
+            readOnly
+            hint="Group members are set when you first send your paper, or by the coordinator."
+          />
+        </form>
+      </Modal>
 
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Research Title</label>
-                <input
-                  type="text"
-                  required
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Project Abstract</label>
-                <textarea
-                  required
-                  rows={5}
-                  value={editAbstract}
-                  onChange={(e) => setEditAbstract(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-sans "
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Keywords (Comma Separated)</label>
-                <input
-                  type="text"
-                  required
-                  value={editKeywords}
-                  onChange={(e) => setEditKeywords(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Registered Co-Authors</label>
-                <input
-                  type="text"
-                  disabled
-                  value={editMembers || "No other co-authors matching studentIds."}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-450 focus:outline-none cursor-not-allowed"
-                />
-                <span className="text-xs text-slate-500 mt-1 block">Co-authors can be registered at initial Title Formulation or adjusted by the Academic Coordinator.</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowEditDetailsModal(false)}
-                className="px-3.5 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold rounded-lg shadow-md cursor-pointer"
-              >
-                Save Parameter Updates
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* DOCUMENT PREVIEW MODAL */}
-      {dashboardPreviewFile && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full flex flex-col h-[500px] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-800">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-slate-800  tracking-normal truncate max-w-[350px]">
-                    {dashboardPreviewFile.name}
-                  </h4>
-                  <span className="text-xs font-semibold text-slate-500 ">
-                    Category: {dashboardPreviewFile.category.toUpperCase().replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => setDashboardPreviewFile(null)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-450 hover:text-slate-650 cursor-pointer transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Simulated PDF Canvas Content */}
-            <div className="p-6 overflow-y-auto flex-1 bg-slate-100 space-y-6 font-sans">
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-150 space-y-8 min-h-full">
-                {/* Academic Letterhead mock */}
-                <div className="text-center space-y-1">
-                  <h5 className="text-xs font-serif font-bold text-slate-800  tracking-normal">Northern Mindanao State College</h5>
-                  <span className="text-xs  font-semibold text-slate-500  tracking-normal block">COLLEGE OF INFORMATION TECHNOLOGY</span>
-                  <div className="w-16 h-0.5 bg-blue-800 mx-auto mt-2" />
-                </div>
-
-                {/* Document Title */}
-                <div className="space-y-3 pt-4">
-                  <h3 className="text-sm font-bold text-slate-850 text-center  tracking-wide leading-snug">
-                    {research.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium text-center ">
-                    Registered Research Code: <span className="font-bold text-blue-800">{research.id.toUpperCase()}</span>
-                  </p>
-                </div>
-
-                {/* Abstract Text block */}
-                <div className="space-y-2 pt-4">
-                  <span className="text-xs  font-bold text-slate-450 block  tracking-normal">Document Segment Preview:</span>
-                  <p className="text-xs text-slate-600  leading-relaxed italic">
-                    {research.abstract || "No abstract content registered for this proposal document."}
-                  </p>
-                </div>
-
-                {/* Footer mock metadata */}
-                <div className="border-t border-slate-100 pt-6 flex justify-between items-center text-xs  text-slate-500">
-                  <span>File size: {dashboardPreviewFile.size ? `${Math.round(dashboardPreviewFile.size / 102.4) / 10} KB` : "150 KB"}</span>
-                  <span>Uploaded: {new Date(dashboardPreviewFile.uploadedAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer actions */}
-            <div className="bg-slate-50 p-3 border-t border-slate-150 flex justify-end gap-2 shrink-0">
-              <button
-                onClick={() => setDashboardPreviewFile(null)}
-                className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-4 py-2 text-xs rounded-xl transition-colors cursor-pointer"
-              >
-                Close Viewer
-              </button>
-            </div>
+      {/* File preview pop-up */}
+      <Modal
+        open={!!dashboardPreviewFile}
+        onClose={() => setDashboardPreviewFile(null)}
+        title={dashboardPreviewFile?.name ?? 'File preview'}
+        footer={<Button variant="secondary" onClick={() => setDashboardPreviewFile(null)}>Close Preview</Button>}
+      >
+        {dashboardPreviewFile && (
+          <div className="space-y-4">
+            <h3 className="text-base font-bold text-slate-900">{research.title}</h3>
+            <p className="text-sm italic text-slate-700">
+              {research.abstract || 'No summary was written for this research paper.'}
+            </p>
+            <p className="text-xs text-slate-600">
+              Sent on {formatDateLong(dashboardPreviewFile.uploadedAt)}
+            </p>
           </div>
-        </div>
-      )}
-
+        )}
+      </Modal>
     </div>
   );
 }
