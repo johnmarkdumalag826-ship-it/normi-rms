@@ -8,20 +8,22 @@ interface FieldShellProps {
   hint?: string;
   error?: string;
   required?: boolean;
+  /** Show a small "(optional)" note. Use it on forms that mix required and optional fields. */
+  optional?: boolean;
   children: React.ReactNode;
 }
 
 /** Label above the field, short helper text under it, and an inline error that says how to fix it. */
-function FieldShell({ label, id, hint, error, required, children }: FieldShellProps) {
+function FieldShell({ label, id, hint, error, required, optional, children }: FieldShellProps) {
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="block text-sm font-semibold text-slate-800">
         {label}
         {required ? (
           <span className="text-rose-700 ml-1" aria-hidden="true">*</span>
-        ) : (
-          <span className="ml-1.5 text-xs font-normal text-slate-500">(optional)</span>
-        )}
+        ) : optional ? (
+          <span className="ml-1.5 text-xs font-normal text-slate-600">(optional)</span>
+        ) : null}
         {required && <span className="sr-only"> (required)</span>}
       </label>
       {hint && <p id={`${id}-hint`} className="text-xs text-slate-600">{hint}</p>}
@@ -48,6 +50,7 @@ const describedBy = (id: string, hint?: string, error?: string) =>
 
 interface CommonProps {
   label: string;
+  optional?: boolean;
   hint?: string;
   error?: string;
 }
@@ -55,11 +58,11 @@ interface CommonProps {
 export const Input = React.forwardRef<
   HTMLInputElement,
   CommonProps & { adornment?: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>
->(function Input({ label, hint, error, required, className, id, adornment, ...rest }, ref) {
+>(function Input({ label, hint, error, required, optional, className, id, adornment, ...rest }, ref) {
   const auto = useId();
   const fieldId = id ?? auto;
   return (
-    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required}>
+    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required} optional={optional}>
       <div className="relative">
         <input
           ref={ref}
@@ -80,11 +83,11 @@ export const Input = React.forwardRef<
 export const Select = React.forwardRef<
   HTMLSelectElement,
   CommonProps & React.SelectHTMLAttributes<HTMLSelectElement>
->(function Select({ label, hint, error, required, className, id, children, ...rest }, ref) {
+>(function Select({ label, hint, error, required, optional, className, id, children, ...rest }, ref) {
   const auto = useId();
   const fieldId = id ?? auto;
   return (
-    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required}>
+    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required} optional={optional}>
       <select
         ref={ref}
         id={fieldId}
@@ -103,11 +106,11 @@ export const Select = React.forwardRef<
 export const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   CommonProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>
->(function Textarea({ label, hint, error, required, className, id, rows = 4, ...rest }, ref) {
+>(function Textarea({ label, hint, error, required, optional, className, id, rows = 4, ...rest }, ref) {
   const auto = useId();
   const fieldId = id ?? auto;
   return (
-    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required}>
+    <FieldShell label={label} id={fieldId} hint={hint} error={error} required={required} optional={optional}>
       <textarea
         ref={ref}
         id={fieldId}

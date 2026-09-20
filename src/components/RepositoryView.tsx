@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, Search, Filter, Download, Eye, Tag, FileText, Landmark, X, FileCheck, HelpCircle, Plus, Trash, Edit, Save } from 'lucide-react';
+import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Research, Department, Course, SchoolYear, User } from '../types';
+import {
+  Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
+} from '../ui';
 
 interface RepositoryViewProps {
   user: User;
@@ -23,14 +26,15 @@ export default function RepositoryView({
   const [selectedCourse, setSelectedCourse] = useState('all');
   const [selectedSY, setSelectedSY] = useState('all');
   const [selectedKeyword, setSelectedKeyword] = useState('all');
-  
-  // PDF Preview simulation
+
+  // Paper details pop-up
   const [previewingResearch, setPreviewingResearch] = useState<Research | null>(null);
 
-  // Administrative Repository Management
+  // Admin: add, edit and delete papers
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPaper, setEditingPaper] = useState<Research | null>(null);
+  const [paperToDelete, setPaperToDelete] = useState<Research | null>(null);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -42,7 +46,7 @@ export default function RepositoryView({
   const [keywordsString, setKeywordsString] = useState('');
   const [authorNamesString, setAuthorNamesString] = useState('');
 
-  // Filter completed or archived papers for public repo
+  // Everyone sees finished papers. Admins also see papers that are still in progress.
   const repoPapers = useMemo(() => {
     if (user.role === 'admin') {
       return researchList;
@@ -126,7 +130,7 @@ export default function RepositoryView({
     setShowEditModal(true);
   };
 
-  // Aggregate keywords
+  // All keywords used in the papers, for the keyword filter
   const allKeywords = useMemo(() => {
     const keys = new Set<string>();
     repoPapers.forEach(p => {
@@ -135,10 +139,9 @@ export default function RepositoryView({
     return Array.from(keys);
   }, [repoPapers]);
 
-  // Handle filtrations
   const filteredPapers = useMemo(() => {
     return repoPapers.filter(paper => {
-      const matchSearch = searchTerm === '' || 
+      const matchSearch = searchTerm === '' ||
         paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         paper.abstract.toLowerCase().includes(searchTerm.toLowerCase()) ||
         paper.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -152,25 +155,24 @@ export default function RepositoryView({
     });
   }, [repoPapers, searchTerm, selectedDept, selectedCourse, selectedSY, selectedKeyword]);
 
-  const getAdviserName = (adviserId: string) => {
-    const u = users.find(x => x.id === adviserId);
-    return u ? u.name : 'Unknown Adviser';
+  const hasActiveFilters =
+    searchTerm !== '' || selectedDept !== 'all' || selectedCourse !== 'all' || selectedSY !== 'all' || selectedKeyword !== 'all';
+
+  const clearFilters = () => {
+    setSelectedDept('all');
+    setSelectedCourse('all');
+    setSelectedSY('all');
+    setSelectedKeyword('all');
+    setSearchTerm('');
   };
 
-  const getCourseCode = (courseId: string) => {
-    const c = courses.find(x => x.id === courseId);
-    return c ? c.code : 'BSIT';
-  };
+  const getAdviserName = (id: string) => users.find(x => x.id === id)?.name ?? 'Unknown adviser';
+  const getCourseCode = (id: string) => courses.find(x => x.id === id)?.code ?? '—';
+  const getCourseName = (id: string) => courses.find(x => x.id === id)?.name ?? '—';
+  const getDepartmentName = (id: string) => departments.find(x => x.id === id)?.name ?? '—';
+  const getSchoolYearName = (id: string) => schoolYears.find(x => x.id === id)?.name ?? '—';
 
-  const getDepartmentName = (deptId: string) => {
-    const d = departments.find(x => x.id === deptId);
-    return d ? d.name : 'College of IT';
-  };
-
-  const getSchoolYearName = (syId: string) => {
-    const s = schoolYears.find(x => x.id === syId);
-    return s ? s.name : 'A.Y. 2025';
-  };
+  const getMainFile = (paper: Research) => paper.proposalFiles?.find(f => f.category === 'proposal_document');
 
   const handlePreview = (paper: Research) => {
     onIncrementCounts(paper.id, 'view');
@@ -178,669 +180,362 @@ export default function RepositoryView({
   };
 
   const handleDownload = (paper: Research) => {
-    const mainDoc = paper.proposalFiles?.find(f => f.category === 'proposal_document');
+    const mainDoc = getMainFile(paper);
     if (!mainDoc) return;
     onIncrementCounts(paper.id, 'download');
     window.open(mainDoc.url, '_blank');
   };
 
+  const closeEdit = () => { setShowEditModal(false); setEditingPaper(null); };
+
+  // The same fields are used to add a paper and to edit one.
+  const paperFormFields = (
+    <div className="space-y-5">
+      <Input
+        label="Research title"
+        required
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="e.g. Development of an Automated Enrollment System"
+      />
+      <Textarea
+        label="Short summary (abstract)"
+        required
+        rows={4}
+        value={abstract}
+        onChange={e => setAbstract(e.target.value)}
+        hint="Explain the problem, the method and the result in a few sentences."
+      />
+      <Select
+        label="Department"
+        required
+        value={departmentId}
+        onChange={e => {
+          const newDeptId = e.target.value;
+          setDepartmentId(newDeptId);
+          const firstMatch = courses.find(c => c.departmentId === newDeptId);
+          if (firstMatch) setCourseId(firstMatch.id);
+        }}
+      >
+        {departments.map(d => (
+          <option key={d.id} value={d.id}>{d.name}</option>
+        ))}
+      </Select>
+      <Select label="Course" required value={courseId} onChange={e => setCourseId(e.target.value)}>
+        {courses.filter(c => c.departmentId === departmentId).map(c => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </Select>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Select label="School year" required value={schoolYearId} onChange={e => setSchoolYearId(e.target.value)}>
+          {schoolYears.map(s => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </Select>
+        <Select label="Adviser" required value={adviserId} onChange={e => setAdviserId(e.target.value)}>
+          {users.filter(u => u.role === 'adviser').map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </Select>
+      </div>
+      <Input
+        label="Keywords"
+        required
+        value={keywordsString}
+        onChange={e => setKeywordsString(e.target.value)}
+        hint="Separate each keyword with a comma."
+        placeholder="e.g. Automation, Enrollment, Database"
+      />
+    </div>
+  );
+
+  const previewFile = previewingResearch ? getMainFile(previewingResearch) : undefined;
+
   return (
     <div className="space-y-6">
-      {/* Top section: Heading */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-blue-600" />
-            Digital Research Repository
-          </h2>
-          <p className="text-xs text-slate-500">
-            Archive of all approved capstone manuscripts and research theses of Northern Mindanao Colleges, Inc.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {user.role === 'admin' && (
-            <button
+      <PageHeader
+        title="Research Repository"
+        subtitle={
+          user.role === 'admin'
+            ? 'Every research paper in the system, including papers still in progress. Other people only see finished papers.'
+            : 'Search finished research papers from Northern Mindanao Colleges, Inc.'
+        }
+        action={
+          user.role === 'admin' ? (
+            <Button
+              icon={Plus}
               onClick={() => {
                 resetForm();
-                // Set default adviser
                 const advisers = users.filter(u => u.role === 'adviser');
                 if (advisers.length > 0) {
                   setAdviserId(advisers[0].id);
                 }
                 setShowAddModal(true);
               }}
-              className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-sm shadow-blue-850/10 transition-colors"
             >
-              <Plus className="h-4 w-4" />
-              Archive New Manuscript
-            </button>
-          )}
-          <div className="flex items-center gap-2 text-xs text-slate-500 ">
-            <Landmark className="h-4 w-4 text-slate-500" />
-            <span>NORMI Library Digitization</span>
-          </div>
+              Add Paper to Repository
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {/* Search and filters, always visible at the top */}
+      <Card as="section" aria-label="Search and filters" className="space-y-4">
+        <div className="relative">
+          <label htmlFor="repo-search" className="sr-only">Search research papers</label>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <input
+            id="repo-search"
+            type="search"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search by title, keyword or summary"
+            className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+          />
         </div>
-      </div>
 
-      {/* Grid: Search, Filters, and Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Filters Panel */}
-        <aside className="lg:col-span-3 space-y-4 bg-white p-4 rounded-xl border border-slate-150 shadow-sm h-fit">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700  tracking-normal border-b border-slate-100 pb-2">
-            <Filter className="h-3.5 w-3.5 text-blue-600" />
-            <span>Search Filters</span>
-          </div>
-
-          <div className="space-y-3">
-            {/* Department */}
-            <div>
-              <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
-              <select
-                value={selectedDept}
-                onChange={(e) => { setSelectedDept(e.target.value); setSelectedCourse('all'); }}
-                className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">All Departments</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Course */}
-            <div>
-              <label className="text-xs font-bold text-slate-500  block mb-1">Degree Course</label>
-              <select
-                value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
-                className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">All Courses</option>
-                {courses
-                  .filter(c => selectedDept === 'all' || c.departmentId === selectedDept)
-                  .map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))
-                }
-              </select>
-            </div>
-
-            {/* School Year */}
-            <div>
-              <label className="text-xs font-bold text-slate-500  block mb-1">Academic Year</label>
-              <select
-                value={selectedSY}
-                onChange={(e) => setSelectedSY(e.target.value)}
-                className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">All School Years</option>
-                {schoolYears.map(sy => (
-                  <option key={sy.id} value={sy.id}>{sy.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Keyword tag filter */}
-            <div>
-              <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords</label>
-              <select
-                value={selectedKeyword}
-                onChange={(e) => setSelectedKeyword(e.target.value)}
-                className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="all">All Keywords</option>
-                {allKeywords.map(k => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Reset Filters button */}
-            <button
-              onClick={() => {
-                setSelectedDept('all');
-                setSelectedCourse('all');
-                setSelectedSY('all');
-                setSelectedKeyword('all');
-                setSearchTerm('');
-              }}
-              className="w-full py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          </div>
-        </aside>
-
-        {/* Right Column: Search Bar & Grid */}
-        <section className="lg:col-span-9 space-y-4">
-          
-          {/* Search bar inputs */}
-          <div className="relative">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by research keywords, manuscript title, authors, or abstracts..."
-              className="w-full pl-10 pr-4 py-2.5 text-xs bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          {/* Results count label */}
-          <div className="flex justify-between items-center text-xs text-slate-500 pl-1">
-            <span>Found <span className="font-bold text-slate-800">{filteredPapers.length}</span> published academic manuscripts</span>
-          </div>
-
-          {/* Document list Grid */}
-          {filteredPapers.length === 0 ? (
-            <div className="bg-white rounded-xl border border-dashed border-slate-300 p-12 text-center space-y-3">
-              <BookOpen className="h-8 w-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-semibold text-slate-600">No matching manuscripts archived.</p>
-              <p className="text-xs text-slate-500">Try modifying search tags, courses, or school years.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredPapers.map(paper => (
-                <article 
-                  key={paper.id} 
-                  className="bg-white border border-slate-150 rounded-xl p-5 shadow-sm space-y-4 hover:border-blue-200 hover:shadow-md transition-all"
-                >
-                  {/* Top line departments & details */}
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className=" bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold ">
-                      {getCourseCode(paper.courseId)}
-                    </span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-slate-500 font-semibold">{getDepartmentName(paper.departmentId)}</span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-slate-500">{getSchoolYearName(paper.schoolYearId)}</span>
-                  </div>
-
-                  {/* Title & Abstract */}
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-slate-800 leading-snug">
-                      {paper.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">
-                      {paper.abstract}
-                    </p>
-                  </div>
-
-                  {/* Keywords Tagging */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {paper.keywords?.map(k => (
-                      <span 
-                        key={k} 
-                        onClick={() => setSelectedKeyword(k)}
-                        className={`text-xs px-1.5 py-0.5 rounded-full border cursor-pointer  font-medium transition-colors ${selectedKeyword === k ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-slate-300'}`}
-                      >
-                        <Tag className="h-2 w-2 inline shrink-0 mr-0.5" />
-                        {k}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Card bottom bar: Adviser and interactions */}
-                  <div className="border-t border-slate-100 pt-3.5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="text-xs text-slate-500">
-                      <span>Adviser: <strong className="text-slate-700">{getAdviserName(paper.adviserId)}</strong></span>
-                    </div>
-
-                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className="flex items-center gap-3 text-xs text-slate-500 ">
-                        <span title="Views count">
-                          <Eye className="h-3 w-3 inline shrink-0 mr-0.5 text-slate-450" /> {paper.viewCount} views
-                        </span>
-                        <span title="Downloads count">
-                          <Download className="h-3 w-3 inline shrink-0 mr-0.5 text-slate-450" /> {paper.downloadCount} dl
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handlePreview(paper)}
-                          className="px-2.5 py-1 text-xs font-bold rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center gap-1 cursor-pointer"
-                        >
-                          <Eye className="h-3 w-3" /> Preview
-                        </button>
-                        <button
-                          onClick={() => handleDownload(paper)}
-                          className="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-800 hover:bg-blue-900 text-white flex items-center gap-1 cursor-pointer"
-                        >
-                          <Download className="h-3 w-3" /> Download
-                        </button>
-                        {user.role === 'admin' && (
-                          <>
-                            <button
-                              onClick={() => openEditModal(paper)}
-                              className="px-2.5 py-1 text-xs font-bold rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Edit className="h-3 w-3" /> Edit
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (confirm("Are you sure you want to delete this manuscript from the institutional repository?")) {
-                                  onDeletePaper(paper.id);
-                                }
-                              }}
-                              className="px-2.5 py-1 text-xs font-bold rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Trash className="h-3 w-3" /> Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </article>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Select
+            label="Department"
+            value={selectedDept}
+            onChange={e => { setSelectedDept(e.target.value); setSelectedCourse('all'); }}
+          >
+            <option value="all">All departments</option>
+            {departments.map(d => (
+              <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+            ))}
+          </Select>
+          <Select label="Course" value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
+            <option value="all">All courses</option>
+            {courses
+              .filter(c => selectedDept === 'all' || c.departmentId === selectedDept)
+              .map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </div>
+          </Select>
+          <Select label="School year" value={selectedSY} onChange={e => setSelectedSY(e.target.value)}>
+            <option value="all">All school years</option>
+            {schoolYears.map(sy => (
+              <option key={sy.id} value={sy.id}>{sy.name}</option>
+            ))}
+          </Select>
+          <Select label="Keyword" value={selectedKeyword} onChange={e => setSelectedKeyword(e.target.value)}>
+            <option value="all">All keywords</option>
+            {allKeywords.map(k => (
+              <option key={k} value={k}>{k}</option>
+            ))}
+          </Select>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-700" role="status" aria-live="polite">
+            Showing <strong className="text-slate-900">{filteredPapers.length}</strong>{' '}
+            {filteredPapers.length === 1 ? 'research paper' : 'research papers'}
+          </p>
+          {hasActiveFilters && (
+            <Button variant="secondary" size="sm" onClick={clearFilters}>Clear Search and Filters</Button>
           )}
-        </section>
-      </div>
+        </div>
+      </Card>
 
-      {/* PDF DOCUMENT PREVIEW MODAL */}
-      {previewingResearch && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl border border-slate-150 w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="bg-slate-900 text-slate-100 px-5 py-3 border-b border-slate-850 flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2.5">
-                <FileText className="h-5 w-5 text-blue-400" />
-                <div>
-                  <span className="text-xs  font-bold  text-blue-300">NORMI SECURE DIGITAL PDF VIEW</span>
-                  <h3 className="text-xs font-bold truncate max-w-xl text-white">{previewingResearch.title}</h3>
-                </div>
-              </div>
-              <button 
-                onClick={() => setPreviewingResearch(null)}
-                className="text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            {/* Document body columns */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-100 flex gap-6">
-              {/* Simulated PDF Canvas */}
-              <div className="flex-1 bg-white border border-slate-200 p-8 shadow-md rounded-lg max-w-2xl mx-auto space-y-6 select-none relative overflow-hidden">
-                <div className="absolute inset-0 border-4 border-double border-slate-100 pointer-events-none m-2"></div>
-                <div className="absolute inset-x-0 top-1/2 opacity-[0.03] text-center font-bold text-3xl font-serif text-slate-800 -rotate-45">
-                  NORMI REPOSITORY SECURITIES
-                </div>
-
-                {/* Cover Header */}
-                <div className="text-center space-y-2 pb-6 border-b border-dashed border-slate-200">
-                  <span className="text-xs  font-bold text-blue-800 tracking-normal">Northern Mindanao Colleges, Inc.</span>
-                  <h2 className="text-sm font-serif font-bold text-slate-800 leading-snug tracking-tight px-4">{previewingResearch.title}</h2>
-                  <p className="text-xs text-slate-500 font-medium">A Capstone Research Project Submitted to the CIT Faculty Department</p>
-                </div>
-
-                {/* Abstract Text */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1  tracking-normal">Abstract</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed  first-letter:text-xl first-letter:font-bold first-letter:text-blue-900">
-                    {previewingResearch.abstract}
-                  </p>
-                </div>
-
-                {/* Key components simulation details */}
-                <div className="space-y-3 pt-4">
-                  <h4 className="text-xs font-bold text-slate-700 font-serif border-b border-slate-100 pb-1  tracking-normal">Archived Metadata</h4>
-                  <table className="w-full text-xs text-slate-500 border-collapse">
-                    <tbody>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-1.5 font-bold text-slate-700">Course / Class</td>
-                        <td className="py-1.5">{getCourseCode(previewingResearch.courseId)} - IT Department</td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-1.5 font-bold text-slate-700">Adviser Designation</td>
-                        <td className="py-1.5">{getAdviserName(previewingResearch.adviserId)}</td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-1.5 font-bold text-slate-700">School Term</td>
-                        <td className="py-1.5">{getSchoolYearName(previewingResearch.schoolYearId)}</td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-1.5 font-bold text-slate-700">Indexing Key Tags</td>
-                        <td className="py-1.5">{previewingResearch.keywords.join(', ')}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* PDF Signatures Footer */}
-                <div className="pt-8 text-center text-xs text-slate-500  space-y-1">
-                  <div className="flex justify-center items-center gap-1.5 text-emerald-600 font-bold">
-                    <FileCheck className="h-3 w-3" />
-                    <span>AUTHENTICATED BY THE NORMI CIT BOARD FOR REPOSITORY HARDBOUND</span>
+      {/* Results */}
+      {filteredPapers.length === 0 ? (
+        <Card padded={false}>
+          {repoPapers.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="The Repository is empty for now"
+              description="Finished research papers will appear here after their defense and once they are saved by the school."
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No research papers match your search"
+              description="Try a shorter search, or clear the filters to see every paper."
+              action={<Button variant="secondary" onClick={clearFilters}>Clear Search and Filters</Button>}
+            />
+          )}
+        </Card>
+      ) : (
+        <ul className="space-y-4">
+          {filteredPapers.map(paper => {
+            const hasFile = !!getMainFile(paper);
+            return (
+              <li key={paper.id}>
+                <Card as="article" className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="info">{getCourseCode(paper.courseId)}</Badge>
+                    <span className="text-sm text-slate-700">{getDepartmentName(paper.departmentId)}</span>
+                    <span className="text-slate-500" aria-hidden="true">·</span>
+                    <span className="text-sm text-slate-700">{getSchoolYearName(paper.schoolYearId)}</span>
+                    {user.role === 'admin' && paper.status !== 'Archived' && paper.status !== 'Completed' && (
+                      <ResearchStatusBadge status={paper.status} />
+                    )}
                   </div>
-                  <p>Certificate Serial ID: RMMS-{previewingResearch.id}-SECURE-CERT</p>
-                </div>
-              </div>
 
-              {/* Sidebar helper of Document Viewer */}
-              <div className="w-64 bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col justify-between shadow-sm hidden md:flex shrink-0">
-                <div className="space-y-4 text-xs">
-                  <div className="flex items-center gap-1.5 text-blue-800 font-bold  tracking-normal text-xs border-b pb-1.5">
-                    <FileText className="h-4 w-4" />
-                    <span>Securities Verified</span>
+                  <div className="space-y-1.5">
+                    <h2 className="text-lg font-bold leading-snug text-slate-900">{paper.title}</h2>
+                    <p className="text-sm text-slate-700 line-clamp-3">{paper.abstract}</p>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    This document has been fully checked, revisions addressed, panelists evaluated, and is archived under lock-and-key on the NORMI system.
-                  </p>
 
-                  <div className="space-y-1 bg-white p-2.5 border rounded-lg text-xs">
-                    <span className="block text-slate-500 font-semibold ">Document Statistics</span>
-                    <span className="block text-slate-700 ">Views: {previewingResearch.viewCount} reads</span>
-                    <span className="block text-slate-700 ">Downloads: {previewingResearch.downloadCount} prints</span>
+                  {paper.keywords?.length > 0 && (
+                    <ul className="flex flex-wrap gap-2" aria-label="Keywords. Select one to filter.">
+                      {paper.keywords.map(k => (
+                        <li key={k}>
+                          <button
+                            type="button"
+                            aria-pressed={selectedKeyword === k}
+                            onClick={() => setSelectedKeyword(selectedKeyword === k ? 'all' : k)}
+                            className={cx(
+                              'tap-auto inline-flex min-h-8 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold cursor-pointer',
+                              selectedKeyword === k
+                                ? 'border-blue-800 bg-blue-800 text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:border-blue-700',
+                            )}
+                          >
+                            <Tag className="h-3 w-3" aria-hidden="true" />
+                            {k}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex flex-col gap-4 border-t border-slate-200 pt-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="space-y-1 text-sm text-slate-700">
+                      <p>Adviser: <strong className="text-slate-900">{getAdviserName(paper.adviserId)}</strong></p>
+                      <p className="flex items-center gap-4 text-slate-600">
+                        <span className="inline-flex items-center gap-1"><Eye className="h-4 w-4" aria-hidden="true" /> {paper.viewCount} views</span>
+                        <span className="inline-flex items-center gap-1"><Download className="h-4 w-4" aria-hidden="true" /> {paper.downloadCount} downloads</span>
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="secondary" size="sm" icon={Eye} onClick={() => handlePreview(paper)}>View Details</Button>
+                      <Button
+                        size="sm"
+                        icon={Download}
+                        onClick={() => handleDownload(paper)}
+                        disabled={!hasFile}
+                        title={hasFile ? undefined : 'No file has been uploaded for this paper yet.'}
+                      >
+                        Download Paper
+                      </Button>
+                      {user.role === 'admin' && (
+                        <>
+                          <Button variant="secondary" size="sm" icon={Pencil} onClick={() => openEditModal(paper)}>Edit Details</Button>
+                          <Button variant="danger" size="sm" icon={Trash2} onClick={() => setPaperToDelete(paper)}>Delete Paper</Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
+                  {!hasFile && (
+                    <p className="text-xs text-slate-600">No file has been uploaded for this paper yet, so it cannot be downloaded.</p>
+                  )}
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleDownload(previewingResearch)}
-                    className="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Download className="h-4 w-4" /> Download Full PDF
-                  </button>
-                  <button
-                    onClick={() => setPreviewingResearch(null)}
-                    className="w-full bg-white hover:bg-slate-50 border border-slate-250 text-slate-700 font-medium py-1.5 px-3 rounded-lg cursor-pointer"
-                  >
-                    Close Preview
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* Paper details */}
+      <Modal
+        open={!!previewingResearch}
+        onClose={() => setPreviewingResearch(null)}
+        title={previewingResearch?.title ?? 'Paper details'}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPreviewingResearch(null)}>Close</Button>
+            {previewingResearch && (
+              <Button icon={Download} disabled={!previewFile} onClick={() => handleDownload(previewingResearch)}>
+                Download Paper
+              </Button>
+            )}
+          </>
+        }
+      >
+        {previewingResearch && (
+          <div className="space-y-6">
+            <section>
+              <h3 className="mb-2 text-base font-bold text-slate-900">Summary</h3>
+              <p className="text-base leading-relaxed text-slate-800">{previewingResearch.abstract}</p>
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-base font-bold text-slate-900">Details</h3>
+              <dl className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
+                {[
+                  ['Course', getCourseName(previewingResearch.courseId)],
+                  ['Department', getDepartmentName(previewingResearch.departmentId)],
+                  ['Adviser', getAdviserName(previewingResearch.adviserId)],
+                  ['School year', getSchoolYearName(previewingResearch.schoolYearId)],
+                  ['Keywords', previewingResearch.keywords.join(', ') || '—'],
+                  ['Times viewed', String(previewingResearch.viewCount)],
+                  ['Times downloaded', String(previewingResearch.downloadCount)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex flex-col gap-0.5 p-3 sm:flex-row sm:gap-4">
+                    <dt className="w-40 shrink-0 text-slate-600">{label}</dt>
+                    <dd className="font-medium text-slate-900">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            {!previewFile && (
+              <p className="text-sm text-slate-600">No file has been uploaded for this paper yet, so it cannot be downloaded.</p>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
-      {/* ADD MANUSCRIPT MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleAddSubmit}
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-lg p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Plus className="h-4.5 w-4.5 text-blue-700" />
-                Archive Completed Manuscript
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowAddModal(false)}
-                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
+      {/* Add a paper */}
+      <Modal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add a finished paper to the Repository"
+        description="The paper will be saved as finished and everyone will be able to find it. Fields marked with * are required."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
+            <Button type="submit" form="paper-add-form">Add Paper to Repository</Button>
+          </>
+        }
+      >
+        <form id="paper-add-form" onSubmit={handleAddSubmit}>{paperFormFields}</form>
+      </Modal>
 
-            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
-              Add a fully vetted research paper directly to the institution's public digital search indexes.
-            </p>
+      {/* Edit a paper */}
+      <Modal
+        open={showEditModal && !!editingPaper}
+        onClose={closeEdit}
+        title="Edit paper details"
+        description="Change the details people see in the Repository. Fields marked with * are required."
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
+            <Button type="submit" form="paper-edit-form">Save Changes</Button>
+          </>
+        }
+      >
+        <form id="paper-edit-form" onSubmit={handleEditSubmit}>{paperFormFields}</form>
+      </Modal>
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Research Thesis Title</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  placeholder="e.g., Development of an Advanced Automated Enrollment System"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Thesis Abstract</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={abstract}
-                  onChange={(e) => setAbstract(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  placeholder="Summarize the core research scope, methodologies, findings, and systems built..."
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
-                <select
-                  value={departmentId}
-                  onChange={(e) => {
-                    const newDeptId = e.target.value;
-                    setDepartmentId(newDeptId);
-                    const firstMatch = courses.find(c => c.departmentId === newDeptId);
-                    if (firstMatch) setCourseId(firstMatch.id);
-                  }}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Course Program</label>
-                <select
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  {courses
-                    .filter(c => c.departmentId === departmentId)
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500  block mb-1">School Year</label>
-                  <select
-                    value={schoolYearId}
-                    onChange={(e) => setSchoolYearId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {schoolYears.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500  block mb-1">Adviser</label>
-                  <select
-                    value={adviserId}
-                    onChange={(e) => setAdviserId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {users.filter(u => u.role === 'adviser').map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords (comma separated)</label>
-                <input
-                  type="text"
-                  required
-                  value={keywordsString}
-                  onChange={(e) => setKeywordsString(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  placeholder="e.g., Automation, Enrollment, Database, React"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Archive Paper
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* EDIT MANUSCRIPT MODAL */}
-      {showEditModal && editingPaper && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleEditSubmit}
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-lg p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Edit className="h-4.5 w-4.5 text-blue-700" />
-                Edit Manuscript Metadata
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => { setShowEditModal(false); setEditingPaper(null); }}
-                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
-              Modify index descriptors, title coordinates, or advising details for manuscript archive ID: <span className=" font-bold text-blue-900">{editingPaper.id}</span>
-            </p>
-
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Research Thesis Title</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Thesis Abstract</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={abstract}
-                  onChange={(e) => setAbstract(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Department</label>
-                <select
-                  value={departmentId}
-                  onChange={(e) => {
-                    const newDeptId = e.target.value;
-                    setDepartmentId(newDeptId);
-                    const firstMatch = courses.find(c => c.departmentId === newDeptId);
-                    if (firstMatch) setCourseId(firstMatch.id);
-                  }}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Course Program</label>
-                <select
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  {courses
-                    .filter(c => c.departmentId === departmentId)
-                    .map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500  block mb-1">School Year</label>
-                  <select
-                    value={schoolYearId}
-                    onChange={(e) => setSchoolYearId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {schoolYears.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500  block mb-1">Adviser</label>
-                  <select
-                    value={adviserId}
-                    onChange={(e) => setAdviserId(e.target.value)}
-                    className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                  >
-                    {users.filter(u => u.role === 'adviser').map(u => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Index Keywords (comma separated)</label>
-                <input
-                  type="text"
-                  required
-                  value={keywordsString}
-                  onChange={(e) => setKeywordsString(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => { setShowEditModal(false); setEditingPaper(null); }}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Confirm before deleting */}
+      <ConfirmDialog
+        open={!!paperToDelete}
+        onCancel={() => setPaperToDelete(null)}
+        onConfirm={() => {
+          if (paperToDelete) onDeletePaper(paperToDelete.id);
+          setPaperToDelete(null);
+        }}
+        title="Delete this paper?"
+        message={`“${paperToDelete?.title ?? 'This paper'}” will be removed from the Repository. This cannot be undone.`}
+        confirmLabel="Yes, Delete Paper"
+        cancelLabel="No, Keep Paper"
+        destructive
+      />
     </div>
   );
 }
