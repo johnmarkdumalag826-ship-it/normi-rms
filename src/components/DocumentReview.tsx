@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  FileText, Download, CheckCircle, AlertCircle, XCircle, Highlighter, MessageSquare, 
-  Layers, Plus, Save, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileCheck, ClipboardList,
-  User, Calendar, Clock, Check, Trash
+import {
+  FileText, Download, CheckCircle2, AlertCircle, XCircle, Highlighter, MessageSquare, ExternalLink,
+  Plus, Save, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileCheck, Trash2, Clock,
 } from 'lucide-react';
 import { User as UserType, Research, ResearchVersion, ResearchComment } from '../types';
 import { resolveFileUrl } from '../api/client';
+import {
+  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Modal, PageHeader, Select, Textarea,
+  chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
+} from '../ui';
 
 interface DocumentReviewProps {
   user: UserType;
@@ -25,10 +28,30 @@ interface StickyNote {
   color: string;
 }
 
+type Decision = 'Approve' | 'Revision' | 'Reject';
+
+const decisionOptions: { value: Decision; label: string; help: string; icon: typeof CheckCircle2; active: string }[] = [
+  {
+    value: 'Approve', label: 'Approve', icon: CheckCircle2,
+    help: 'The paper is ready. The coordinator can set its defense.',
+    active: 'border-emerald-700 bg-emerald-50 text-emerald-900',
+  },
+  {
+    value: 'Revision', label: 'Ask for changes', icon: AlertCircle,
+    help: 'The students must fix things and send a new version.',
+    active: 'border-amber-600 bg-amber-50 text-amber-900',
+  },
+  {
+    value: 'Reject', label: 'Reject', icon: XCircle,
+    help: 'Send the paper back. It is marked “Revision needed”, like asking for changes.',
+    active: 'border-rose-700 bg-rose-50 text-rose-900',
+  },
+];
+
 export default function DocumentReview({
   user, researchList, versions, comments, onAddComment, onApproveManuscript
 }: DocumentReviewProps) {
-  // Filter only papers assigned to this Adviser or all if Coordinator/Admin (Adviser is the primary target)
+  // Papers where this adviser is the adviser
   const myAssignedResearches = useMemo(() => {
     return researchList.filter(r => r.adviserId === user.id);
   }, [researchList, user.id]);
@@ -41,7 +64,6 @@ export default function DocumentReview({
     return researchList.find(r => r.id === selectedResearchId);
   }, [researchList, selectedResearchId]);
 
-  // Versions for selected research
   const selectedVersions = useMemo(() => {
     if (!selectedResearchId) return [];
     return versions
@@ -59,29 +81,26 @@ export default function DocumentReview({
     return selectedVersions[0];
   }, [selectedVersions, selectedVersionId]);
 
-  // UI state variables
+  // Sample page viewer state
   const [zoom, setZoom] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [highlightMode, setHighlightMode] = useState<boolean>(false);
   const [commentMode, setCommentMode] = useState<boolean>(false);
-  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([
-    { id: '1', page: 1, x: 25, y: 35, text: 'The citation for Section 1.2 needs to follow the APA 7th style guidelines precisely.', color: 'yellow' },
-    { id: '2', page: 2, x: 60, y: 15, text: 'Explain the technical constraints of the data modeling layer in more depth.', color: 'pink' }
-  ]);
+  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
+  const [pendingSticky, setPendingSticky] = useState<{ x: number; y: number } | null>(null);
+  const [pendingStickyText, setPendingStickyText] = useState('');
   const [newStickyText, setNewStickyText] = useState<string>('');
+  const [commentText, setCommentText] = useState<string>('');
   const [stickyColor, setStickyColor] = useState<string>('yellow');
   const [feedbackNote, setFeedbackNote] = useState<string>('');
-  const [decision, setDecision] = useState<'Approve' | 'Revision' | 'Reject' | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'comments' | 'history'>('content');
+  const [decision, setDecision] = useState<Decision | null>(null);
+  const [confirmingDecision, setConfirmingDecision] = useState(false);
+  const [activeTab, setActiveTab] = useState<'content' | 'comments' | 'history'>('comments');
 
-  // Text Selection Highlight simulation
-  const [simulatedHighlights, setSimulatedHighlights] = useState<Record<number, number[]>>({
-    1: [2, 5],
-    2: [0]
-  });
+  const [simulatedHighlights, setSimulatedHighlights] = useState<Record<number, number[]>>({});
 
-  // Page contents simulation
+  // Sample pages (these are NOT the student's paper)
   const mockPagesContent = [
     {
       page: 1,
@@ -120,26 +139,16 @@ export default function DocumentReview({
     const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
 
     if (commentMode) {
-      const text = prompt("Enter text for a sticky note annotation at this point:");
-      if (text) {
-        const newNote: StickyNote = {
-          id: `sticky-${Date.now()}`,
-          page: currentPage,
-          x,
-          y,
-          text,
-          color: stickyColor
-        };
-        setStickyNotes([...stickyNotes, newNote]);
-      }
+      // Ask for the note's text in a pop-up instead of the browser's own prompt box
+      setPendingSticky({ x, y });
+      setPendingStickyText('');
       setCommentMode(false);
     } else if (highlightMode) {
-      // Simulate highlighting a paragraph index (0-2)
       const clickedP = Math.floor((y / 100) * 3);
       setSimulatedHighlights(prev => {
         const currentList = prev[currentPage] || [];
-        const updated = currentList.includes(clickedP) 
-          ? currentList.filter(p => p !== clickedP) 
+        const updated = currentList.includes(clickedP)
+          ? currentList.filter(p => p !== clickedP)
           : [...currentList, clickedP];
         return { ...prev, [currentPage]: updated };
       });
@@ -147,9 +156,22 @@ export default function DocumentReview({
     }
   };
 
+  const savePendingSticky = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingSticky || !pendingStickyText.trim()) return;
+    setStickyNotes([
+      ...stickyNotes,
+      { id: `sticky-${Date.now()}`, page: currentPage, x: pendingSticky.x, y: pendingSticky.y, text: pendingStickyText, color: stickyColor },
+    ]);
+    setPendingSticky(null);
+    setPendingStickyText('');
+  };
+
+  // A comment saved in the system so the students can read it.
+  // The server only accepts chapter1-5 or "general" (it used to be sent as "Page N", which it refused).
   const handleAddGeneralComment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStickyText.trim() || !selectedResearch) return;
+    if (!commentText.trim() || !selectedResearch) return;
 
     const newComment: ResearchComment = {
       id: `comm-${Date.now()}`,
@@ -158,14 +180,14 @@ export default function DocumentReview({
       authorId: user.id,
       authorName: user.name,
       authorRole: user.role,
-      text: newStickyText,
-      chapter: `Page ${currentPage}` as any,
+      text: commentText,
+      chapter: 'general',
       commentAt: new Date().toISOString(),
       resolved: false
     };
 
     onAddComment(newComment);
-    setNewStickyText('');
+    setCommentText('');
   };
 
   const handleAddStickyManual = () => {
@@ -191,6 +213,7 @@ export default function DocumentReview({
     onApproveManuscript(selectedResearchId, decision, feedbackNote);
     setDecision(null);
     setFeedbackNote('');
+    setConfirmingDecision(false);
   };
 
   const currentComments = useMemo(() => {
@@ -198,530 +221,480 @@ export default function DocumentReview({
     return comments.filter(c => c.researchId === selectedResearchId);
   }, [comments, selectedResearchId]);
 
+  const realFileUrl = currentVersion?.fileUrl ? resolveFileUrl(currentVersion.fileUrl) : undefined;
+  const decisionInfo = decisionOptions.find(d => d.value === decision);
+
+  const tabs: { id: typeof activeTab; label: string }[] = [
+    { id: 'comments', label: `Comments (${currentComments.length})` },
+    { id: 'history', label: `Versions (${selectedVersions.length})` },
+    { id: 'content', label: 'Sample notes' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Top Banner and Paper Selector */}
-      <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="space-y-1.5">
-          <span className="text-xs  font-bold text-blue-800 tracking-normal">Faculty Portal</span>
-          <h2 className="text-xl font-bold text-slate-800 font-serif">Dedicated Document Review Suite</h2>
-          <p className="text-xs text-slate-500 max-w-xl">
-            Audit manuscript drafts, leave sticky notes and overlays, explore version histories, and issue formal vetting decisions.
-          </p>
-        </div>
+      <PageHeader
+        title="Review Papers"
+        subtitle="Read a group’s paper, leave feedback, and decide whether it is ready for defense."
+      />
 
-        <div className="w-full md:w-80 space-y-1.5">
-          <label className="text-xs font-bold text-slate-500  tracking-normal block">Select Manuscript to Review</label>
-          <select
+      {/* Choose a paper */}
+      <Card>
+        <div className="max-w-xl">
+          <Select
+            label="Which paper do you want to review?"
             value={selectedResearchId}
-            onChange={(e) => {
+            onChange={e => {
               setSelectedResearchId(e.target.value);
               setSelectedVersionId('');
               setCurrentPage(1);
             }}
-            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-800"
           >
-            <option value="" disabled>-- Choose a Research Group --</option>
+            <option value="" disabled>Choose a research paper…</option>
             {myAssignedResearches.map(res => (
               <option key={res.id} value={res.id}>
-                [{res.status}] {res.title.substring(0, 45)}...
+                [{getResearchStatus(res.status).label}] {res.title.substring(0, 60)}{res.title.length > 60 ? '…' : ''}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
-      </div>
+      </Card>
 
       {!selectedResearch ? (
-        <div className="bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center max-w-2xl mx-auto space-y-4">
-          <div className="p-4 bg-slate-100 text-slate-500 rounded-full w-fit mx-auto">
-            <FileText className="h-8 w-8" />
-          </div>
-          <h3 className="text-sm font-bold text-slate-700  tracking-normal">No Manuscripts Found</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            You are not currently registered as the adviser of any active research groups, or no groups have submitted draft documents yet.
-          </p>
-        </div>
+        <Card padded={false}>
+          <EmptyState
+            icon={FileText}
+            title="No papers to review yet"
+            description="You are not the adviser of any group yet, or no group has sent a paper. When they do, you can choose it above."
+          />
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Panel: High Fidelity PDF Visual Simulator */}
-          <div className="lg:col-span-8 bg-slate-100 rounded-2xl border border-slate-200 p-4 flex flex-col space-y-4">
-            {/* PDF Toolbar Controls */}
-            <div className="bg-white rounded-xl border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-              <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                <span className="font-bold text-slate-800 ">v{currentVersion?.versionNumber || 1.0}</span>
-                <span className="text-slate-350">|</span>
-                <span className="truncate max-w-[180px] font-medium" title={currentVersion?.fileName}>
-                  {currentVersion?.fileName || `${selectedResearch.title.substring(0, 20)}.pdf`}
-                </span>
-              </div>
-
-              {/* PDF Actions */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setHighlightMode(!highlightMode)}
-                  className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    highlightMode 
-                      ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                      : 'hover:bg-slate-50 text-slate-600 hover:text-slate-850'
-                  }`}
-                  title="Toggle highlight overlay tool (Click paragraphs to highlight)"
-                >
-                  <Highlighter className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Highlight</span>
-                </button>
-
-                <button
-                  onClick={() => setCommentMode(!commentMode)}
-                  className={`p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                    commentMode 
-                      ? 'bg-blue-100 text-blue-850 border border-blue-200' 
-                      : 'hover:bg-slate-50 text-slate-600 hover:text-slate-850'
-                  }`}
-                  title="Place a location-bound sticky note annotation"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Sticky Note</span>
-                </button>
-
-                <span className="text-slate-200 mx-1">|</span>
-
-                <button 
-                  onClick={() => setZoom(Math.max(50, zoom - 10))}
-                  className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                  title="Zoom Out"
-                >
-                  <ZoomOut className="h-3.5 w-3.5" />
-                </button>
-                <span className="text-xs  font-bold text-slate-600 min-w-[32px] text-center">{zoom}%</span>
-                <button 
-                  onClick={() => setZoom(Math.min(150, zoom + 10))}
-                  className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                  title="Zoom In"
-                >
-                  <ZoomIn className="h-3.5 w-3.5" />
-                </button>
-
-                <span className="text-slate-200 mx-1">|</span>
-
-                <button 
-                  onClick={() => setRotation((rotation + 90) % 360)}
-                  className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                  title="Rotate Right"
-                >
-                  <RotateCw className="h-3.5 w-3.5" />
-                </button>
-
-                <a
-                  href={currentVersion?.fileUrl ? resolveFileUrl(currentVersion.fileUrl) : undefined}
-                  download={currentVersion?.fileName}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`p-1.5 rounded-lg text-slate-600 transition-colors ${
-                    currentVersion?.fileUrl ? 'hover:bg-slate-50 hover:text-slate-800' : 'opacity-40 pointer-events-none'
-                  }`}
-                  title="Download File"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </a>
-              </div>
-            </div>
-
-            {/* Simulated Canvas viewport */}
-            <div className="bg-slate-200/50 rounded-2xl border border-slate-300/60 p-8 overflow-auto max-h-[600px] flex justify-center items-start min-h-[450px]">
-              <div 
-                onClick={handlePageClick}
-                style={{ 
-                  transform: `scale(${zoom / 100}) rotate(${rotation}deg)`, 
-                  transformOrigin: 'top center',
-                  transition: 'transform 0.2s ease-in-out'
-                }}
-                className={`w-[520px] bg-white rounded-xl shadow-lg border border-slate-350 p-10 relative select-none cursor-crosshair relative ${
-                  highlightMode ? 'ring-2 ring-amber-400' : commentMode ? 'ring-2 ring-blue-500' : ''
-                }`}
-              >
-                {/* Visual grid watermark representing page background */}
-                <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
-
-                {/* PDF simulated Page content */}
-                <div className="space-y-6 relative z-10">
-                  <div className="border-b border-slate-100 pb-3 flex justify-between items-center text-xs text-slate-500 ">
-                    <span>NORMI CAPSTONE VETTING ENGINE</span>
-                    <span>PAGE {currentPage} OF 3</span>
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          {/* Left: the file, and the sample viewer */}
+          <div className="space-y-6 lg:col-span-8">
+            <Card>
+              <CardHeader
+                title="The students’ file"
+                description={selectedResearch.title}
+                icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+              />
+              {currentVersion ? (
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <Badge tone="info">Version {currentVersion.versionNumber}</Badge>
+                    <p className="break-words text-base font-semibold text-slate-900">{currentVersion.fileName}</p>
+                    <p className="text-sm text-slate-600">Sent {formatDateLong(currentVersion.submittedAt)}</p>
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={realFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-disabled={!realFileUrl}
+                      className={cx(
+                        'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-800 bg-blue-800 px-4 text-sm font-semibold text-white hover:bg-blue-900',
+                        !realFileUrl && 'pointer-events-none opacity-50',
+                      )}
+                    >
+                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      Open the Paper
+                      <span className="sr-only">(opens in a new tab)</span>
+                    </a>
+                    <a
+                      href={realFileUrl}
+                      download={currentVersion.fileName}
+                      aria-disabled={!realFileUrl}
+                      className={cx(
+                        'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50',
+                        !realFileUrl && 'pointer-events-none opacity-50',
+                      )}
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      Download File
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-600">This group has not uploaded a file yet.</p>
+              )}
+            </Card>
 
-                  <h4 className="text-sm font-serif font-bold text-center text-slate-800 tracking-wide">
-                    {mockPagesContent[currentPage - 1].title}
-                  </h4>
+            <Card padded={false} className="overflow-hidden">
+              <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                <h2 className="text-base font-bold text-slate-900">Sample page preview</h2>
+                <Alert tone="warning" title="This is sample text, not your students’ paper" className="mt-3">
+                  These pages only let you try the highlight and sticky-note tools. Notes made here are not saved.
+                  To read the real paper, use “Open the Paper” above. To send feedback, use Comments.
+                </Alert>
+              </div>
 
-                  <div className="space-y-4">
-                    {mockPagesContent[currentPage - 1].paragraphs.map((p, pIdx) => {
-                      const isHighlighted = simulatedHighlights[currentPage]?.includes(pIdx);
+              <div className="space-y-4 bg-slate-100 p-4">
+                {/* Tools */}
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+                  <Button
+                    variant={highlightMode ? 'primary' : 'secondary'}
+                    size="sm"
+                    icon={Highlighter}
+                    aria-pressed={highlightMode}
+                    onClick={() => { setHighlightMode(!highlightMode); setCommentMode(false); }}
+                  >
+                    Highlight
+                  </Button>
+                  <Button
+                    variant={commentMode ? 'primary' : 'secondary'}
+                    size="sm"
+                    icon={MessageSquare}
+                    aria-pressed={commentMode}
+                    onClick={() => { setCommentMode(!commentMode); setHighlightMode(false); }}
+                  >
+                    Sticky Note
+                  </Button>
+                  <span className="mx-1 hidden h-6 w-px bg-slate-300 sm:block" aria-hidden="true" />
+                  <IconButton icon={ZoomOut} variant="secondary" label="Make the page smaller" onClick={() => setZoom(Math.max(50, zoom - 10))} />
+                  <span className="min-w-12 text-center text-sm font-semibold text-slate-800" aria-live="polite">{zoom}%</span>
+                  <IconButton icon={ZoomIn} variant="secondary" label="Make the page bigger" onClick={() => setZoom(Math.min(150, zoom + 10))} />
+                  <IconButton icon={RotateCw} variant="secondary" label="Turn the page" onClick={() => setRotation((rotation + 90) % 360)} />
+                </div>
+                {(highlightMode || commentMode) && (
+                  <p className="text-sm font-semibold text-blue-900" role="status">
+                    {highlightMode ? 'Now select a paragraph on the page to highlight it.' : 'Now select a spot on the page to place your note.'}
+                  </p>
+                )}
+
+                {/* Page */}
+                <div className="flex max-h-[600px] min-h-[420px] items-start justify-center overflow-auto rounded-xl border border-slate-300 bg-slate-200/60 p-6">
+                  <div
+                    onClick={handlePageClick}
+                    style={{
+                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                      transformOrigin: 'top center',
+                    }}
+                    className={cx(
+                      'relative w-[520px] shrink-0 select-none rounded-lg border border-slate-300 bg-white p-10 shadow-lg',
+                      (highlightMode || commentMode) && 'cursor-crosshair',
+                      highlightMode ? 'ring-2 ring-amber-400' : commentMode ? 'ring-2 ring-blue-500' : '',
+                    )}
+                  >
+                    <div className="relative z-10 space-y-6">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs text-slate-600">
+                        <span>SAMPLE PAGE</span>
+                        <span>Page {currentPage} of 3</span>
+                      </div>
+
+                      <h3 className="text-center font-serif text-base font-bold text-slate-900">
+                        {mockPagesContent[currentPage - 1].title}
+                      </h3>
+
+                      <div className="space-y-4">
+                        {mockPagesContent[currentPage - 1].paragraphs.map((p, pIdx) => {
+                          const isHighlighted = simulatedHighlights[currentPage]?.includes(pIdx);
+                          return (
+                            <p
+                              key={pIdx}
+                              className={cx(
+                                'rounded p-1.5 text-sm leading-relaxed text-slate-800',
+                                isHighlighted && 'border-l-4 border-amber-500 bg-amber-100 font-medium text-amber-950',
+                              )}
+                            >
+                              {p}
+                            </p>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {stickyNotes.filter(n => n.page === currentPage).map(note => {
+                      const colorClass = note.color === 'pink' ? 'bg-rose-100 text-rose-900 border-rose-300'
+                        : note.color === 'blue' ? 'bg-blue-100 text-blue-900 border-blue-300'
+                        : 'bg-yellow-100 text-amber-950 border-amber-400';
                       return (
-                        <p 
-                          key={pIdx} 
-                          className={`text-xs text-slate-650 leading-relaxed  transition-all duration-150 p-1.5 rounded ${
-                            isHighlighted ? 'bg-amber-100 text-amber-900 font-medium border-l-2 border-amber-500 shadow-sm' : ''
-                          }`}
+                        <div
+                          key={note.id}
+                          style={{ left: `${note.x}%`, top: `${note.y}%` }}
+                          className={cx('absolute z-30 w-40 rounded-lg border p-2 text-xs font-medium shadow-md', colorClass)}
                         >
-                          {p}
-                        </p>
+                          <button
+                            type="button"
+                            aria-label="Remove this sticky note"
+                            onClick={e => { e.stopPropagation(); handleDeleteSticky(note.id); }}
+                            className="tap-auto absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 bg-white text-rose-700 hover:bg-slate-100 cursor-pointer"
+                          >
+                            <XCircle className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <p className="line-clamp-4">{note.text}</p>
+                        </div>
                       );
                     })}
                   </div>
-
-                  <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-350 ">
-                    PROPOSAL ID: {selectedResearch.id} | VER: {currentVersion?.versionNumber || 1.0}
-                  </div>
                 </div>
 
-                {/* Interactive Dragged Sticky Notes Layer */}
-                {stickyNotes.filter(n => n.page === currentPage).map(note => {
-                  const colorClass = note.color === 'pink' ? 'bg-rose-100 text-rose-800 border-rose-300' 
-                    : note.color === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-300'
-                    : 'bg-yellow-50 text-amber-900 border-amber-300';
+                {/* Page buttons */}
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <Button variant="secondary" size="sm" icon={ChevronLeft} disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>
+                    Previous Page
+                  </Button>
+                  <span className="text-sm text-slate-700">Page <strong>{currentPage}</strong> of 3</span>
+                  <Button variant="secondary" size="sm" disabled={currentPage === 3} onClick={() => setCurrentPage(currentPage + 1)}>
+                    Next Page
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right: decision and tabs */}
+          <div className="space-y-6 lg:col-span-4">
+            <Card as="section" aria-labelledby="decision-title" className="border-blue-200 bg-blue-50">
+              <h2 id="decision-title" className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <FileCheck className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                Your decision
+              </h2>
+              <p className="mt-1 text-sm text-slate-700">
+                Choose one when you have finished reading. The students will be told, and their progress will change.
+              </p>
+
+              <div className="mt-4 grid grid-cols-1 gap-2" role="group" aria-label="Choose your decision">
+                {decisionOptions.map(opt => {
+                  const Icon = opt.icon;
+                  const selected = decision === opt.value;
                   return (
-                    <div
-                      key={note.id}
-                      style={{ left: `${note.x}%`, top: `${note.y}%` }}
-                      className={`absolute w-36 p-2 rounded-lg border shadow-md text-xs font-medium leading-relaxed z-30 transition-all ${colorClass}`}
+                    <button
+                      key={opt.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setDecision(opt.value)}
+                      className={cx(
+                        'flex w-full items-start gap-3 rounded-xl border-2 p-3 text-left cursor-pointer',
+                        selected ? opt.active : 'border-slate-300 bg-white text-slate-800 hover:border-blue-700',
+                      )}
                     >
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteSticky(note.id); }}
-                        className="absolute -top-1.5 -right-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-500 rounded-full p-0.5"
-                      >
-                        <XCircle className="h-2.5 w-2.5 text-rose-600" />
-                      </button>
-                      <span className="block  text-[7px] text-slate-500 font-bold mb-1  tracking-normal">Adviser Sticky</span>
-                      <p className="line-clamp-4">{note.text}</p>
-                    </div>
+                      <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                      <span>
+                        <span className="block text-sm font-bold">{opt.label}</span>
+                        <span className="block text-xs">{opt.help}</span>
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            </div>
-
-            {/* PDF View Footer Stepper */}
-            <div className="bg-white rounded-xl border border-slate-200 p-2.5 flex items-center justify-between text-xs font-bold text-slate-700 shadow-sm">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(currentPage - 1)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-lg cursor-pointer flex items-center gap-1 transition-all"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous Page
-              </button>
-
-              <span className=" text-xs text-slate-500">
-                Page <span className="text-slate-850 font-bold">{currentPage}</span> of <span className="font-semibold">3</span>
-              </span>
-
-              <button
-                disabled={currentPage === 3}
-                onClick={() => setCurrentPage(currentPage + 1)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-slate-50 text-slate-600 hover:text-slate-800 rounded-lg cursor-pointer flex items-center gap-1 transition-all"
-              >
-                Next Page
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Right Panel: Side Panel with Details, Sticky notes creation, and Decision actions */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Vetting Decision Card */}
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 border-b border-white/10 pb-3">
-                <FileCheck className="h-5 w-5 text-emerald-400" />
-                <h3 className="text-xs font-bold  tracking-normal text-white">Issue Vetting Decision</h3>
-              </div>
-
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Render a binding assessment on this manuscript draft. Decisions update student progress states.
-              </p>
-
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDecision('Approve')}
-                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                    decision === 'Approve'
-                      ? 'bg-emerald-600/30 border-emerald-500 text-emerald-400 font-extrabold ring-1 ring-emerald-500'
-                      : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  Approve
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDecision('Revision')}
-                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                    decision === 'Revision'
-                      ? 'bg-amber-600/30 border-amber-500 text-amber-400 font-extrabold ring-1 ring-amber-500'
-                      : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  <AlertCircle className="h-4 w-4" />
-                  Revision
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDecision('Reject')}
-                  className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                    decision === 'Reject'
-                      ? 'bg-rose-600/30 border-rose-500 text-rose-400 font-extrabold ring-1 ring-rose-500'
-                      : 'bg-white/5 border-white/10 text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  <XCircle className="h-4 w-4" />
-                  Reject
-                </button>
-              </div>
 
               {decision && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-1">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold  text-slate-500 block tracking-normal">
-                      Provide Vetting Comments / Feedback
-                    </label>
-                    <textarea
-                      value={feedbackNote}
-                      onChange={(e) => setFeedbackNote(e.target.value)}
-                      placeholder="Input instructions, chapter review notes, or required adjustments here..."
-                      className="w-full text-xs p-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 h-20"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleDecisionSubmit}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Save className="h-3.5 w-3.5" />
-                    Publish Vetting Decision
-                  </button>
+                <div className="mt-4 space-y-4">
+                  <Textarea
+                    label="Your message to the students"
+                    optional
+                    rows={4}
+                    value={feedbackNote}
+                    onChange={e => setFeedbackNote(e.target.value)}
+                    hint="Explain your decision and what to fix, if anything."
+                  />
+                  <Button icon={Save} fullWidth onClick={() => setConfirmingDecision(true)}>
+                    Send My Decision
+                  </Button>
                 </div>
               )}
-            </div>
+            </Card>
 
-            {/* Main Tabs Segment */}
-            <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden flex flex-col">
-              {/* Tab selector bar */}
-              <div className="flex border-b border-slate-100 bg-slate-50/50">
-                <button
-                  onClick={() => setActiveTab('content')}
-                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
-                    activeTab === 'content' 
-                      ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-500 hover:text-slate-600'
-                  }`}
-                >
-                  Document Notes
-                </button>
-                <button
-                  onClick={() => setActiveTab('comments')}
-                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
-                    activeTab === 'comments' 
-                      ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-500 hover:text-slate-600'
-                  }`}
-                >
-                  System Comments ({currentComments.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('history')}
-                  className={`flex-1 py-3 text-center text-xs font-bold  tracking-normal transition-all border-b-2 cursor-pointer ${
-                    activeTab === 'history' 
-                      ? 'border-blue-800 text-blue-800 bg-white' 
-                      : 'border-transparent text-slate-500 hover:text-slate-600'
-                  }`}
-                >
-                  Versions ({selectedVersions.length})
-                </button>
+            <Card padded={false} className="overflow-hidden">
+              <div role="tablist" aria-label="Paper details" className="flex overflow-x-auto border-b border-slate-200 bg-slate-50 px-2">
+                {tabs.map(t => (
+                  <button
+                    key={t.id}
+                    id={`rtab-${t.id}`}
+                    role="tab"
+                    type="button"
+                    aria-selected={activeTab === t.id}
+                    aria-controls={`rpanel-${t.id}`}
+                    onClick={() => setActiveTab(t.id)}
+                    className={cx(
+                      'whitespace-nowrap border-b-4 px-3 py-3 text-sm font-semibold cursor-pointer',
+                      activeTab === t.id ? 'border-blue-800 text-blue-900' : 'border-transparent text-slate-600 hover:text-slate-900',
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
-              {/* Tab Panels */}
-              <div className="p-4 min-h-[300px]">
-                
-                {/* 1. DOCUMENT NOTES / ANNOTATIONS */}
-                {activeTab === 'content' && (
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Quick Sticky Annotations</h4>
-                      <p className="text-xs text-slate-500 leading-snug">
-                        Add temporary visual sticky tags overlayed onto the PDF. Drag-and-drop simulated color tags.
-                      </p>
-                    </div>
-
-                    <div className="flex gap-2 items-center">
-                      <button
-                        type="button"
-                        onClick={() => setStickyColor('yellow')}
-                        className={`w-6 h-6 rounded-full bg-yellow-300 border-2 transition-all ${stickyColor === 'yellow' ? 'border-slate-800 scale-110' : 'border-transparent'}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setStickyColor('pink')}
-                        className={`w-6 h-6 rounded-full bg-rose-300 border-2 transition-all ${stickyColor === 'pink' ? 'border-slate-800 scale-110' : 'border-transparent'}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setStickyColor('blue')}
-                        className={`w-6 h-6 rounded-full bg-blue-300 border-2 transition-all ${stickyColor === 'blue' ? 'border-slate-800 scale-110' : 'border-transparent'}`}
-                      />
-                      <span className="text-xs text-slate-450 font-medium  ml-auto">Selected: {stickyColor}</span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <textarea
-                        value={newStickyText}
-                        onChange={(e) => setNewStickyText(e.target.value)}
-                        placeholder="Type annotations text here..."
-                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-800 h-16"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddStickyManual}
-                        className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Place Sticky Tag on Page {currentPage}
-                      </button>
-                    </div>
-
-                    <div className="border-t border-slate-100 pt-3 space-y-2">
-                      <span className="text-xs font-bold  text-slate-500 tracking-normal block">Active Sticky Notes ({stickyNotes.length})</span>
-                      <div className="space-y-2 max-h-[160px] overflow-auto">
-                        {stickyNotes.map(n => (
-                          <div key={n.id} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex justify-between gap-3 text-xs">
-                            <div className="space-y-1">
-                              <span className="font-bold text-slate-600 block">Page {n.page} (X:{n.x}, Y:{n.y})</span>
-                              <p className="text-slate-700 font-medium">{n.text}</p>
-                            </div>
-                            <button
-                              onClick={() => handleDeleteSticky(n.id)}
-                              className="text-slate-500 hover:text-rose-600 shrink-0 self-start p-0.5"
-                            >
-                              <Trash className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. SYSTEM REVISION COMMENTS */}
+              <div role="tabpanel" id={`rpanel-${activeTab}`} aria-labelledby={`rtab-${activeTab}`} className="min-h-[300px] p-4">
+                {/* Comments saved in the system */}
                 {activeTab === 'comments' && (
                   <div className="space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Formal Chapter Commentary</h4>
-                      <p className="text-xs text-slate-500">
-                        Formal feedback stored in system records. Visible to student groups on their timeline reports.
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleAddGeneralComment} className="space-y-2">
-                      <textarea
-                        value={newStickyText}
-                        onChange={(e) => setNewStickyText(e.target.value)}
-                        placeholder="Log review feedback or chapter revision instructions..."
-                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-850 h-20"
+                    <p className="text-sm text-slate-700">Comments are saved and the students can read them.</p>
+                    <form onSubmit={handleAddGeneralComment} className="space-y-3">
+                      <Textarea
+                        label="Write a comment"
+                        required
+                        rows={3}
+                        value={commentText}
+                        onChange={e => setCommentText(e.target.value)}
+                        placeholder="e.g. Please add sources to Chapter 2"
                       />
-                      <button
-                        type="submit"
-                        className="w-full py-2 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Log Official Commentary
-                      </button>
+                      <Button type="submit" icon={MessageSquare} fullWidth>Post Comment</Button>
                     </form>
 
-                    <div className="border-t border-slate-150 pt-3 space-y-2.5 max-h-[180px] overflow-auto">
+                    <ul className="max-h-72 space-y-3 overflow-y-auto border-t border-slate-200 pt-3">
                       {currentComments.length === 0 ? (
-                        <div className="text-center py-6 text-slate-500 text-xs">
-                          No logged feedback logs for this capstone yet.
-                        </div>
+                        <li className="py-4 text-center text-sm text-slate-600">No comments for this paper yet.</li>
                       ) : (
                         currentComments.map(c => (
-                          <div key={c.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                            <div className="flex justify-between items-center text-xs text-slate-500 font-medium">
-                              <span className="font-bold text-slate-700">{c.authorName}</span>
-                              <span>{new Date(c.commentAt).toLocaleDateString()}</span>
+                          <li key={c.id} className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
+                              <span className="font-bold text-slate-900">{c.authorName}</span>
+                              <span className="text-xs text-slate-600">{formatDate(c.commentAt)}</span>
                             </div>
-                            <span className="inline-block px-1.5 py-0.25 bg-blue-50 text-blue-800 rounded font-bold  tracking-normal text-xs ">
-                              {c.chapter}
-                            </span>
-                            <p className="text-slate-600 font-medium leading-relaxed">{c.text}</p>
-                          </div>
+                            <Badge tone="info">{chapterNames[c.chapter] ?? c.chapter}</Badge>
+                            <p className="text-sm text-slate-800">{c.text}</p>
+                          </li>
                         ))
                       )}
-                    </div>
+                    </ul>
                   </div>
                 )}
 
-                {/* 3. VERSION HISTORY */}
+                {/* Versions */}
                 {activeTab === 'history' && (
                   <div className="space-y-3">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal font-sans">Version Submission History</h4>
-                      <p className="text-xs text-slate-500">
-                        Tracks draft progression over time. Choose sub-versions to inspect overlay notes.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 max-h-[300px] overflow-auto">
-                      {selectedVersions.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500 text-xs">
-                          No version logs found.
-                        </div>
-                      ) : (
-                        selectedVersions.map(ver => {
+                    <p className="text-sm text-slate-700">Select a version to make it the one shown on this page.</p>
+                    {selectedVersions.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-slate-600">No versions have been sent yet.</p>
+                    ) : (
+                      <ul className="max-h-80 space-y-2 overflow-y-auto">
+                        {selectedVersions.map(ver => {
                           const isActive = (selectedVersionId === ver.id) || (!selectedVersionId && ver.id === selectedVersions[0]?.id);
                           return (
-                            <button
-                              key={ver.id}
-                              onClick={() => setSelectedVersionId(ver.id)}
-                              className={`w-full p-3 text-left rounded-xl border text-xs flex items-center justify-between gap-3 transition-all cursor-pointer ${
-                                isActive 
-                                  ? 'border-blue-700 bg-blue-50/20 shadow-sm font-semibold' 
-                                  : 'border-slate-150 hover:bg-slate-50 text-slate-700'
-                              }`}
-                            >
-                              <div className="space-y-1 min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`px-1.5 py-0.25 text-xs font-bold rounded  ${
-                                    ver.type === 'defense_manuscript' ? 'bg-amber-100 text-amber-850' : 'bg-blue-100 text-blue-800'
-                                  }`}>
-                                    {ver.type === 'defense_manuscript' ? 'Defense Copy' : 'Chapter Checking'}
+                            <li key={ver.id}>
+                              <button
+                                type="button"
+                                aria-pressed={isActive}
+                                onClick={() => setSelectedVersionId(ver.id)}
+                                className={cx(
+                                  'flex w-full items-center justify-between gap-3 rounded-xl border-2 p-3 text-left cursor-pointer',
+                                  isActive ? 'border-blue-800 bg-blue-50' : 'border-slate-200 hover:bg-slate-50',
+                                )}
+                              >
+                                <span className="min-w-0 space-y-1">
+                                  <span className="flex flex-wrap items-center gap-2">
+                                    <Badge tone="info">Version {ver.versionNumber}</Badge>
+                                    <Badge tone={ver.type === 'defense_manuscript' ? 'warning' : 'neutral'}>
+                                      {ver.type === 'defense_manuscript' ? 'Defense copy' : 'Draft for checking'}
+                                    </Badge>
                                   </span>
-                                  <span className="text-slate-900 font-bold ">v{ver.versionNumber}</span>
-                                </div>
-                                <span className="text-xs text-slate-500 truncate block">{ver.fileName}</span>
-                                <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                  <span className="flex items-center gap-0.5">
-                                    <Clock className="h-2.5 w-2.5" />
-                                    {new Date(ver.submittedAt).toLocaleDateString()}
+                                  <span className="block truncate text-sm text-slate-800">{ver.fileName}</span>
+                                  <span className="flex items-center gap-1 text-xs text-slate-600">
+                                    <Clock className="h-3 w-3" aria-hidden="true" />
+                                    {formatDate(ver.submittedAt)}
                                   </span>
-                                </div>
-                              </div>
-                              <CheckCircle className={`h-4 w-4 shrink-0 transition-opacity ${isActive ? 'text-blue-800 opacity-100' : 'opacity-0'}`} />
-                            </button>
+                                </span>
+                                {isActive && <CheckCircle2 className="h-5 w-5 shrink-0 text-blue-800" aria-label="Shown now" />}
+                              </button>
+                            </li>
                           );
-                        })
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {/* Sample notes */}
+                {activeTab === 'content' && (
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-700">
+                      Try out sticky notes on the sample pages. They are <strong>not saved</strong>.
+                    </p>
+
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-semibold text-slate-800">Note colour</legend>
+                      <div className="flex gap-3">
+                        {[['yellow', 'Yellow', 'bg-yellow-300'], ['pink', 'Pink', 'bg-rose-300'], ['blue', 'Blue', 'bg-blue-300']].map(([val, label, cls]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            aria-label={`${label} note`}
+                            aria-pressed={stickyColor === val}
+                            onClick={() => setStickyColor(val)}
+                            className={cx(
+                              'tap-auto h-9 w-9 rounded-full border-4 cursor-pointer',
+                              cls,
+                              stickyColor === val ? 'border-slate-900' : 'border-white ring-1 ring-slate-300',
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <Textarea
+                      label="Note text"
+                      rows={2}
+                      value={newStickyText}
+                      onChange={e => setNewStickyText(e.target.value)}
+                      placeholder="Type a note"
+                    />
+                    <Button variant="secondary" icon={Plus} fullWidth onClick={handleAddStickyManual}>
+                      Add Note to Page {currentPage}
+                    </Button>
+
+                    <div className="space-y-2 border-t border-slate-200 pt-3">
+                      <p className="text-sm font-bold text-slate-900">Your sample notes ({stickyNotes.length})</p>
+                      {stickyNotes.length === 0 ? (
+                        <p className="text-sm text-slate-600">You have not added any notes yet.</p>
+                      ) : (
+                        <ul className="max-h-48 space-y-2 overflow-y-auto">
+                          {stickyNotes.map(n => (
+                            <li key={n.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                              <div>
+                                <p className="font-semibold text-slate-900">Page {n.page}</p>
+                                <p className="text-slate-800">{n.text}</p>
+                              </div>
+                              <IconButton icon={Trash2} variant="danger" label={`Delete the note on page ${n.page}`} onClick={() => handleDeleteSticky(n.id)} />
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   </div>
                 )}
-
               </div>
-            </div>
-
+            </Card>
           </div>
         </div>
       )}
+
+      {/* Where to put a new sticky note */}
+      <Modal
+        open={!!pendingSticky}
+        onClose={() => setPendingSticky(null)}
+        title="Write your sticky note"
+        description="This note will be placed on the sample page where you selected."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPendingSticky(null)}>Cancel</Button>
+            <Button type="submit" form="sticky-form">Place Sticky Note</Button>
+          </>
+        }
+      >
+        <form id="sticky-form" onSubmit={savePendingSticky}>
+          <Textarea
+            label="Note text"
+            required
+            rows={3}
+            value={pendingStickyText}
+            onChange={e => setPendingStickyText(e.target.value)}
+          />
+        </form>
+      </Modal>
+
+      {/* Are you sure? */}
+      <ConfirmDialog
+        open={confirmingDecision}
+        onCancel={() => setConfirmingDecision(false)}
+        onConfirm={handleDecisionSubmit}
+        title={`Send your decision: ${decisionInfo?.label ?? ''}?`}
+        message={`“${selectedResearch?.title ?? 'This paper'}” will be updated and the students will be told. ${decisionInfo?.help ?? ''}`}
+        confirmLabel="Yes, Send My Decision"
+        cancelLabel="No, Go Back"
+      />
     </div>
   );
 }
