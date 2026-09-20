@@ -19,7 +19,10 @@ const roles = [
   { role: 'admin', label: 'Admin' },
   { role: 'coordinator', label: 'Coordinator' },
   { role: 'adviser', label: 'Adviser' },
+  // A defense needs 3 panel members, so there are 3 test panel members.
   { role: 'panelist', label: 'Panel Member', emailName: 'panel' },
+  { role: 'panelist', label: 'Panel Member 2', emailName: 'panel2' },
+  { role: 'panelist', label: 'Panel Member 3', emailName: 'panel3' },
   { role: 'student', label: 'Student' },
 ];
 
