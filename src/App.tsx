@@ -700,6 +700,7 @@ export default function App() {
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
+              onGoToSchedule={() => setActiveTab('calendar')}
             />
           );
         } else if (currentUser?.role === 'panelist') {
@@ -847,6 +848,7 @@ export default function App() {
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
+              onGoToSchedule={() => setActiveTab('calendar')}
             />
           );
         }
@@ -877,6 +879,7 @@ export default function App() {
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
+              onGoToSchedule={() => setActiveTab('calendar')}
             />
           );
         }

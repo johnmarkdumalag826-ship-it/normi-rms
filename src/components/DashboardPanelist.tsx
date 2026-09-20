@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  ClipboardList, CheckCircle2, Award, ShieldAlert, FileText, Send, 
-  HelpCircle, ChevronRight, X, AlertTriangle, Play 
-} from 'lucide-react';
+import { ClipboardList, CheckCircle2, FileText, Award, Calendar, Compass, Clock, Play } from 'lucide-react';
 import { User, Schedule, Research, Evaluation } from '../types';
+import {
+  Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Textarea,
+  cx, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, recommendationLabels, scheduleStatus,
+} from '../ui';
 
 interface DashboardPanelistProps {
   user: User;
@@ -19,37 +20,32 @@ export default function DashboardPanelist({
   user, schedules, researchList, evaluations, users, onAddEvaluation, onSelectResearch
 }: DashboardPanelistProps) {
   const [selectedSchedId, setSelectedSchedId] = useState('');
-  const [score1, setScore1] = useState(18); // default values out of max
+  const [score1, setScore1] = useState(18); // starting values
   const [score2, setScore2] = useState(25);
   const [score3, setScore3] = useState(25);
   const [score4, setScore4] = useState(18);
   const [comments, setComments] = useState('');
   const [recommendation, setRecommendation] = useState<'Passed' | 'Minor Revision' | 'Major Revision' | 'Failed'>('Passed');
   const [showEvaluationForm, setShowEvaluationForm] = useState(false);
+  // Saving scores is final, so we ask "are you sure?" first.
+  const [confirmingScores, setConfirmingScores] = useState(false);
 
-  // Filters defenses assigned to this panelist
-  const assignedDefenses = schedules.filter(s => s.panelistIds.includes(user.id));
-  
-  // Stats
-  const pendingEvaluationCount = assignedDefenses.filter(s => 
-    s.status === 'scheduled' && 
-    !evaluations.some(e => e.scheduleId === s.id && e.panelistId === user.id)
-  ).length;
+  // Defenses this panel member is part of, soonest first
+  const assignedDefenses = schedules
+    .filter(s => s.panelistIds.includes(user.id))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
-  const completedEvaluationCount = evaluations.filter(e => e.panelistId === user.id).length;
+  const isEvaluated = (schedId: string) => evaluations.some(e => e.scheduleId === schedId && e.panelistId === user.id);
 
-  const getResearchTitle = (researchId: string) => {
-    const r = researchList.find(x => x.id === researchId);
-    return r ? r.title : 'Research Project';
-  };
+  const pendingDefenses = assignedDefenses.filter(s => s.status === 'scheduled' && !isEvaluated(s.id));
+  const myEvaluations = evaluations.filter(e => e.panelistId === user.id);
+
+  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
 
   const getStudentNames = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);
-    if (!res) return 'Unknown Authors';
-    return res.studentIds.map(sid => {
-      const u = users.find(x => x.id === sid);
-      return u ? u.name : 'Unknown';
-    }).join(', ');
+    if (!res) return 'Unknown students';
+    return res.studentIds.map(sid => users.find(x => x.id === sid)?.name ?? 'Student').join(', ');
   };
 
   const handleOpenEvaluation = (schedId: string) => {
@@ -62,11 +58,18 @@ export default function DashboardPanelist({
     setScore4(18);
   };
 
+  const total = Number(score1) + Number(score2) + Number(score3) + Number(score4);
+
+  // Step 1: the form is filled in and sent -> ask "are you sure?"
   const handleEvaluationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSchedId) return;
+    setConfirmingScores(true);
+  };
 
-    const total = Number(score1) + Number(score2) + Number(score3) + Number(score4);
+  // Step 2: the panel member confirms -> save
+  const saveEvaluation = () => {
+    if (!selectedSchedId) return;
 
     onAddEvaluation({
       id: `eval-${Date.now()}`,
@@ -83,284 +86,240 @@ export default function DashboardPanelist({
       evaluatedAt: new Date().toISOString()
     });
 
+    setConfirmingScores(false);
     setShowEvaluationForm(false);
     setSelectedSchedId('');
   };
 
+  const selectedSched = schedules.find(s => s.id === selectedSchedId);
+
+  // The four score boxes share one layout
+  const scoreFields: { label: string; hint: string; max: number; value: number; set: (n: number) => void }[] = [
+    { label: '1. Problem and background', hint: 'Is the problem clear and important? Up to 20 points.', max: 20, value: score1, set: setScore1 },
+    { label: '2. Related studies and method', hint: 'Are the reading and the method sound? Up to 30 points.', max: 30, value: score2, set: setScore2 },
+    { label: '3. System design and database', hint: 'Is the system well designed and built? Up to 30 points.', max: 30, value: score3, set: setScore3 },
+    { label: '4. Questions and presentation', hint: 'Did they present well and answer questions? Up to 20 points.', max: 20, value: score4, set: setScore4 },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Stats summary banner */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-amber-50 text-amber-700 rounded-lg shrink-0">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Upcoming Panels Assigned</span>
-            <span className="text-sm font-extrabold text-slate-800">{pendingEvaluationCount} pending defenses</span>
-          </div>
-        </div>
+      <PageHeader
+        title="Panel Member Home"
+        subtitle="See the defenses you will attend, read each paper, and record your scores."
+      />
 
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-emerald-50 text-emerald-700 rounded-lg shrink-0">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Completed evaluations</span>
-            <span className="text-sm font-extrabold text-slate-800">{completedEvaluationCount} scores logged</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Split layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Col: Defense calendar schedules */}
-        <section className="lg:col-span-8 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-150 px-5 py-3 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-700  tracking-normal">Assigned Defense Calendar Slots</h3>
-              <span className="text-xs text-slate-500 ">Count: {assignedDefenses.length}</span>
+      {/* What should I do next? */}
+      <section aria-labelledby="panel-next">
+        <Card className={cx(pendingDefenses.length > 0 ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50')}>
+          <p id="panel-next" className="flex items-center gap-2 text-sm font-bold text-blue-900">
+            <Compass className="h-5 w-5" aria-hidden="true" />
+            What should I do next?
+          </p>
+          {pendingDefenses.length === 0 ? (
+            <div className="mt-2">
+              <h2 className="text-xl font-bold text-slate-900">You have no scores to enter</h2>
+              <p className="mt-1 text-base text-slate-700">When a defense you are on the panel for is scheduled, it will show here.</p>
             </div>
-
-            <div className="divide-y divide-slate-100">
-              {assignedDefenses.length === 0 ? (
-                <div className="p-12 text-center text-slate-500 text-xs">
-                  No defenses currently assigned to your panel committee.
-                </div>
-              ) : (
-                assignedDefenses.map(sched => {
-                  const isEvaluated = evaluations.some(e => e.scheduleId === sched.id && e.panelistId === user.id);
-                  return (
-                    <div key={sched.id} className="p-5 hover:bg-slate-50/20 transition-colors space-y-3">
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-2">
-                        <div className="space-y-0.5">
-                          <span className="text-xs bg-indigo-50 text-indigo-700  font-bold px-2 py-0.25 rounded">
-                            {sched.startTime} - {sched.endTime}
-                          </span>
-                          <h4 className="text-xs font-bold text-slate-850 leading-snug">{getResearchTitle(sched.researchId)}</h4>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 items-center">
-                          <button
-                            onClick={() => onSelectResearch(sched.researchId)}
-                            className="px-2.5 py-1 text-xs font-bold rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
-                          >
-                            <FileText className="h-3 w-3" /> View Manuscript
-                          </button>
-
-                          {isEvaluated ? (
-                            <span className="text-xs font-bold  text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
-                              <CheckCircle2 className="h-3 w-3" /> Scores Logged
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleOpenEvaluation(sched.id)}
-                              className="bg-blue-800 hover:bg-blue-900 text-white font-bold py-1 px-3 text-xs rounded flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
-                            >
-                              <Play className="h-3 w-3 shrink-0" /> Grade Defense
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                        <div className="text-slate-500 font-medium">
-                          Authors: <strong className="text-slate-700 font-semibold">{getStudentNames(sched.researchId)}</strong>
-                        </div>
-                        <div className="text-slate-500  text-right text-xs">
-                          Defense Date: {sched.date}
-                        </div>
-                      </div>
+          ) : (
+            <div className="mt-2 space-y-3">
+              <h2 className="text-xl font-bold text-slate-900">
+                {pendingDefenses.length === 1 ? '1 defense needs your scores' : `${pendingDefenses.length} defenses need your scores`}
+              </h2>
+              <ul className="divide-y divide-blue-100 rounded-xl border border-blue-100 bg-white">
+                {pendingDefenses.map(sched => (
+                  <li key={sched.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-blue-900">{formatDateAndTime(sched.date, sched.startTime)}</p>
+                      <p className="text-base font-semibold text-slate-900">{getResearchTitle(sched.researchId)}</p>
                     </div>
-                  );
-                })
-              )}
+                    <Button size="sm" icon={Play} onClick={() => handleOpenEvaluation(sched.id)} className="shrink-0">
+                      Score This Defense
+                    </Button>
+                  </li>
+                ))}
+              </ul>
             </div>
+          )}
+        </Card>
+      </section>
+
+      {/* Numbers */}
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card className="flex items-start gap-3 !p-4">
+          <ClipboardList className="mt-0.5 h-6 w-6 shrink-0 text-amber-700" aria-hidden="true" />
+          <div>
+            <dd className="text-2xl font-bold text-slate-900">{pendingDefenses.length}</dd>
+            <dt className="text-sm text-slate-600">Defenses waiting for your scores</dt>
           </div>
-        </section>
+        </Card>
+        <Card className="flex items-start gap-3 !p-4">
+          <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" aria-hidden="true" />
+          <div>
+            <dd className="text-2xl font-bold text-slate-900">{myEvaluations.length}</dd>
+            <dt className="text-sm text-slate-600">Defenses you have scored</dt>
+          </div>
+        </Card>
+      </dl>
 
-        {/* Right Col: Evaluated list logs */}
-        <section className="lg:col-span-4 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-150 p-4 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2">
-              My Historical Grading Logs
-            </h3>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Your defenses */}
+        <Card as="section" padded={false} className="lg:col-span-8" aria-labelledby="my-defenses">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <h2 id="my-defenses" className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <Calendar className="h-5 w-5 text-blue-800" aria-hidden="true" />
+              Your defenses
+            </h2>
+            <Badge tone="neutral">{assignedDefenses.length}</Badge>
+          </div>
 
-            {evaluations.filter(e => e.panelistId === user.id).length === 0 ? (
-              <div className="p-6 text-center text-slate-500 text-xs">
-                No scores logged yet. Open an assigned defense to record evaluation grades.
-              </div>
-            ) : (
-              <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
-                {evaluations.filter(e => e.panelistId === user.id).map(e => (
-                  <div key={e.id} className="p-3 bg-slate-50 rounded-lg border border-slate-150 text-xs space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className=" text-xs font-bold text-slate-500">ID #{e.id.substring(5, 10).toUpperCase()}</span>
-                      <span className={`px-1.5 py-0.25 rounded  font-bold text-xs  ${e.recommendation === 'Passed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
-                        {e.recommendation}
+          {assignedDefenses.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="No defenses yet"
+              description="You are not on any panel right now. The coordinator will assign you, and you will get a notification."
+            />
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {assignedDefenses.map(sched => {
+                const done = isEvaluated(sched.id);
+                return (
+                  <li key={sched.id} className="space-y-3 p-5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="info">{defenseTypeLabels[sched.type] ?? sched.type}</Badge>
+                      <StatusBadge info={scheduleStatus[sched.status]} />
+                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                        <Clock className="h-4 w-4 text-blue-800" aria-hidden="true" />
+                        {formatDateLong(sched.date)}, {formatTime(sched.startTime)} to {formatTime(sched.endTime)}
                       </span>
                     </div>
 
-                    <p className="font-semibold text-slate-800 truncate" title={e.comment}>
-                      Score: <strong className="text-blue-900">{e.totalScore} / 100</strong>
+                    <div>
+                      <h3 className="text-base font-bold leading-snug text-slate-900">{getResearchTitle(sched.researchId)}</h3>
+                      <p className="mt-0.5 text-sm text-slate-700">Students: {getStudentNames(sched.researchId)}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="secondary" size="sm" icon={FileText} onClick={() => onSelectResearch(sched.researchId)}>
+                        Read Paper
+                      </Button>
+                      {done ? (
+                        <Badge tone="success" icon={CheckCircle2}>You have scored this defense</Badge>
+                      ) : (
+                        <Button size="sm" icon={Award} onClick={() => handleOpenEvaluation(sched.id)}>
+                          Score This Defense
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        {/* Past scores */}
+        <Card as="section" className="lg:col-span-4" aria-labelledby="past-scores">
+          <CardHeader title="Your past scores" icon={<Award className="h-5 w-5" aria-hidden="true" />} />
+          {myEvaluations.length === 0 ? (
+            <p className="text-sm text-slate-600">You have not scored any defense yet. Your scores will show here.</p>
+          ) : (
+            <ul className="max-h-96 space-y-3 overflow-y-auto">
+              {myEvaluations.map(e => {
+                const sched = schedules.find(s => s.id === e.scheduleId);
+                const rec = recommendationLabels[e.recommendation];
+                return (
+                  <li key={e.id} className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-semibold text-slate-900 line-clamp-2">
+                      {sched ? getResearchTitle(sched.researchId) : 'Research paper'}
                     </p>
-                    <p className="text-xs text-slate-500 italic line-clamp-2">"{e.comment}"</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone={rec?.tone ?? 'neutral'}>{rec?.label ?? e.recommendation}</Badge>
+                      <span className="text-sm font-bold text-blue-900">{e.totalScore} out of 100</span>
+                    </div>
+                    <p className="text-sm italic text-slate-700 line-clamp-2">“{e.comment}”</p>
+                    <p className="text-xs text-slate-600">Scored on {formatDateLong(e.evaluatedAt)}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
       </div>
 
-      {/* EVALUATION SCORING SHEET MODAL */}
-      {showEvaluationForm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleEvaluationSubmit} 
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-lg p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto"
+      {/* Score sheet */}
+      <Modal
+        open={showEvaluationForm}
+        onClose={() => { if (!confirmingScores) setShowEvaluationForm(false); }}
+        title="Score this defense"
+        description={selectedSched ? getResearchTitle(selectedSched.researchId) : 'Give points for each part. The total is 100 points.'}
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEvaluationForm(false)}>Cancel</Button>
+            <Button type="submit" form="score-form">Review and Save Scores</Button>
+          </>
+        }
+      >
+        <form id="score-form" onSubmit={handleEvaluationSubmit} className="space-y-5">
+          <p className="text-sm text-slate-700">
+            Give points for each part. Fields marked with * are required. You will be able to check everything before it is saved.
+          </p>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {scoreFields.map(f => (
+              <Input
+                key={f.label}
+                label={f.label}
+                hint={f.hint}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={f.max}
+                required
+                value={f.value}
+                onChange={e => f.set(Math.min(f.max, Math.max(0, Number(e.target.value))))}
+              />
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-center text-base font-bold text-blue-900" aria-live="polite">
+            Total score: {total} out of 100
+          </div>
+
+          <Select
+            label="Your recommendation"
+            required
+            value={recommendation}
+            onChange={e => setRecommendation(e.target.value as typeof recommendation)}
+            hint="What should happen to this paper next?"
           >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Award className="h-4.5 w-4.5 text-blue-700" />
-                CIT Faculty Evaluation Grade Sheet
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowEvaluationForm(false)}
-                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
+            <option value="Passed">Passed (no changes needed)</option>
+            <option value="Minor Revision">Passed with small changes</option>
+            <option value="Major Revision">Needs big changes</option>
+            <option value="Failed">Did not pass (must defend again)</option>
+          </Select>
 
-            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
-              Input scores based on the capstone presentations. Max aggregate points is 100. Relational parameters will instantly update student records upon locking.
-            </p>
+          <Textarea
+            label="Your comments for the students"
+            required
+            rows={4}
+            value={comments}
+            onChange={e => setComments(e.target.value)}
+            hint="Say what was good and what must be improved."
+          />
+        </form>
+      </Modal>
 
-            <div className="space-y-3 pt-2">
-              {/* Score 1 */}
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                  <label>1. Problem Statement & Situation analysis (Max 20)</label>
-                  <span>Max 20 pts</span>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  required
-                  value={score1}
-                  onChange={(e) => setScore1(Math.min(20, Math.max(0, Number(e.target.value))))}
-                  className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                />
-              </div>
-
-              {/* Score 2 */}
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                  <label>2. Literature review & Methodology (Max 30)</label>
-                  <span>Max 30 pts</span>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max="30"
-                  required
-                  value={score2}
-                  onChange={(e) => setScore2(Math.min(30, Math.max(0, Number(e.target.value))))}
-                  className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                />
-              </div>
-
-              {/* Score 3 */}
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                  <label>3. System Design & Database Relational normalization (Max 30)</label>
-                  <span>Max 30 pts</span>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max="30"
-                  required
-                  value={score3}
-                  onChange={(e) => setScore3(Math.min(30, Math.max(0, Number(e.target.value))))}
-                  className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                />
-              </div>
-
-              {/* Score 4 */}
-              <div>
-                <div className="flex justify-between text-xs font-bold text-slate-600 mb-1">
-                  <label>4. Q&A and presentation skills (Max 20)</label>
-                  <span>Max 20 pts</span>
-                </div>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  required
-                  value={score4}
-                  onChange={(e) => setScore4(Math.min(20, Math.max(0, Number(e.target.value))))}
-                  className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                />
-              </div>
-
-              {/* Total Score display */}
-              <div className="p-2.5 bg-blue-50 text-blue-900 border border-blue-100 rounded-lg text-center  font-bold text-xs">
-                CALCULATED WEIGHTED TOTAL SCORE: {Number(score1) + Number(score2) + Number(score3) + Number(score4)} / 100
-              </div>
-
-              {/* Recommendation */}
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Committee recommendation</label>
-                <select
-                  required
-                  value={recommendation}
-                  onChange={(e) => setRecommendation(e.target.value as any)}
-                  className="w-full text-xs p-2 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  <option value="Passed">Passed (No Revisions)</option>
-                  <option value="Minor Revision">Minor Revision Required</option>
-                  <option value="Major Revision">Major Revision Required</option>
-                  <option value="Failed">Failed (Re-defense Required)</option>
-                </select>
-              </div>
-
-              {/* Comments */}
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Descriptive Jury comments</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={comments}
-                  onChange={(e) => setComments(e.target.value)}
-                  placeholder="Detail critical updates, circuit improvements, formatting, etc."
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => setShowEvaluationForm(false)}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Lock & Log Scores
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* Are you sure? */}
+      <ConfirmDialog
+        open={confirmingScores}
+        onCancel={() => setConfirmingScores(false)}
+        onConfirm={saveEvaluation}
+        title="Save these scores?"
+        message={`Total: ${total} out of 100. Recommendation: ${recommendationLabels[recommendation].label}. You cannot change your scores after saving.`}
+        confirmLabel="Yes, Save My Scores"
+        cancelLabel="No, Go Back and Check"
+      />
     </div>
   );
 }
