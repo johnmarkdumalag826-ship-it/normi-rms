@@ -248,6 +248,9 @@ export default function RepositoryView({
 
   const getMainFile = (paper: Research) => paper.proposalFiles?.find(f => f.category === 'proposal_document');
 
+  // Students can only read a published paper. Everyone else can also download it.
+  const canDownload = user.role !== 'student';
+
   const handlePreview = (paper: Research) => {
     onIncrementCounts(paper.id, 'view');
     setPreviewingResearch(paper);
@@ -524,16 +527,25 @@ export default function RepositoryView({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button variant="secondary" size="sm" icon={Eye} onClick={() => handlePreview(paper)}>View Details</Button>
                       <Button
+                        variant={canDownload ? 'secondary' : 'primary'}
                         size="sm"
-                        icon={Download}
-                        onClick={() => handleDownload(paper)}
-                        disabled={!hasFile}
-                        title={hasFile ? undefined : 'No file has been uploaded for this paper yet.'}
+                        icon={Eye}
+                        onClick={() => handlePreview(paper)}
                       >
-                        Download Paper
+                        {canDownload ? 'View Details' : 'Read the Paper'}
                       </Button>
+                      {canDownload && (
+                        <Button
+                          size="sm"
+                          icon={Download}
+                          onClick={() => handleDownload(paper)}
+                          disabled={!hasFile}
+                          title={hasFile ? undefined : 'No file has been uploaded for this paper yet.'}
+                        >
+                          Download Paper
+                        </Button>
+                      )}
                       {user.role === 'admin' && (
                         <>
                           <Button variant="secondary" size="sm" icon={Pencil} onClick={() => openEditModal(paper)}>Edit Details</Button>
@@ -543,7 +555,11 @@ export default function RepositoryView({
                     </div>
                   </div>
                   {!hasFile && (
-                    <p className="text-xs text-slate-600">No file has been uploaded for this paper yet, so it cannot be downloaded.</p>
+                    <p className="text-xs text-slate-600">
+                      {canDownload
+                        ? 'No file has been uploaded for this paper yet, so it cannot be downloaded.'
+                        : 'The paper file is not available yet.'}
+                    </p>
                   )}
                 </Card>
               </li>
@@ -561,7 +577,7 @@ export default function RepositoryView({
         footer={
           <>
             <Button variant="secondary" onClick={() => setPreviewingResearch(null)}>Close</Button>
-            {previewingResearch && (
+            {previewingResearch && canDownload && (
               <Button icon={Download} disabled={!previewFile} onClick={() => handleDownload(previewingResearch)}>
                 Download Paper
               </Button>
@@ -580,27 +596,32 @@ export default function RepositoryView({
               <section>
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-bold text-slate-900">Read the paper</h3>
-                  <a
-                    href={previewFile.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-blue-800 underline underline-offset-2"
-                  >
-                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                    Open in a New Tab
-                    <span className="sr-only">(opens in a new tab)</span>
-                  </a>
+                  {canDownload && (
+                    <a
+                      href={previewFile.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-blue-800 underline underline-offset-2"
+                    >
+                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      Open in a New Tab
+                      <span className="sr-only">(opens in a new tab)</span>
+                    </a>
+                  )}
                 </div>
                 {previewFile.name.toLowerCase().endsWith('.pdf') ? (
                   <iframe
                     key={previewFile.url}
-                    src={previewFile.url}
+                    // For students the viewer's own toolbar (with its download and print buttons) is hidden.
+                    src={canDownload ? previewFile.url : `${previewFile.url}#toolbar=0&navpanes=0`}
                     title={`Paper: ${previewFile.name}`}
                     className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
                   />
                 ) : (
                   <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    This paper is a Word file, so it cannot be shown here. Use “Download Paper” to read it.
+                    {canDownload
+                      ? 'This paper is a Word file, so it cannot be shown here. Use “Download Paper” to read it.'
+                      : 'This paper is a Word file, so it cannot be shown on this page.'}
                   </p>
                 )}
               </section>
@@ -627,7 +648,11 @@ export default function RepositoryView({
             </section>
 
             {!previewFile && (
-              <p className="text-sm text-slate-600">No file has been uploaded for this paper yet, so it cannot be downloaded.</p>
+              <p className="text-sm text-slate-600">
+                {canDownload
+                  ? 'No file has been uploaded for this paper yet, so it cannot be downloaded.'
+                  : 'The paper file is not available yet.'}
+              </p>
             )}
           </div>
         )}
