@@ -10,4 +10,5 @@ export { EmptyState, ErrorState } from './EmptyState';
 export { Alert, Toast } from './Alert';
 export { Skeleton, SkeletonList } from './Skeleton';
 export { PageHeader } from './PageHeader';
+export { PdfReader } from './PdfReader';
 export * from './labels';

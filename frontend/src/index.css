@@ -139,3 +139,10 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-slate-400);
 }
+
+/* Read-only paper viewer: nothing of it is printed. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

@@ -3,7 +3,7 @@ import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2, FileText, E
 import { Research, Department, Course, SchoolYear, User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
+  Alert, Badge, Button, Card, ConfirmDialog, PdfReader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
 } from '../ui';
 
 interface RepositoryViewProps {
@@ -610,13 +610,17 @@ export default function RepositoryView({
                   )}
                 </div>
                 {previewFile.name.toLowerCase().endsWith('.pdf') ? (
-                  <iframe
-                    key={previewFile.url}
-                    // For students the viewer's own toolbar (with its download and print buttons) is hidden.
-                    src={canDownload ? previewFile.url : `${previewFile.url}#toolbar=0&navpanes=0`}
-                    title={`Paper: ${previewFile.name}`}
-                    className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
-                  />
+                  canDownload ? (
+                    <iframe
+                      key={previewFile.url}
+                      src={previewFile.url}
+                      title={`Paper: ${previewFile.name}`}
+                      className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
+                    />
+                  ) : (
+                    // Students get a read-only reader: no download, print, edit or summarize buttons.
+                    <PdfReader key={previewFile.url} url={previewFile.url} title={previewingResearch.title} />
+                  )
                 ) : (
                   <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                     {canDownload
