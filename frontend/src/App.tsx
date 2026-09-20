@@ -9,7 +9,7 @@ import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
-import { listDirectory, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
+import { listDirectory, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, setUserPassword } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
@@ -38,7 +38,6 @@ import InteractiveERD from './components/InteractiveERD';
 import RepositoryView from './components/RepositoryView';
 import SchedulerCalendar from './components/SchedulerCalendar';
 import DefenseSchedulesList from './components/DefenseSchedulesList';
-import AutomatedScheduler from './components/AutomatedScheduler';
 import ResearchDetailsView from './components/ResearchDetailsView';
 import DocumentReview from './components/DocumentReview';
 
@@ -186,20 +185,6 @@ export default function App() {
     setShowPortal(false);
     setActiveTab('dashboard');
     setSelectedResearchId(null);
-  };
-
-  // Client-side-only convenience for demos: switches which role's dashboard is shown
-  // without a new login. Any write action taken while emulating is still authorized
-  // under the REAL logged-in identity's JWT — the backend's RBAC is the actual gate,
-  // so an emulated role attempting something it can't do will simply get a 403.
-  const handleEmulateRole = (role: UserRole) => {
-    const u = users.find(x => x.role === role && x.status === 'active');
-    if (u) {
-      setCurrentUser(u);
-      setActiveTab('dashboard');
-      setSelectedResearchId(null);
-      triggerAlert(`You are now viewing the system as ${roleLabels[role]} (${u.name}).`);
-    }
   };
 
   // Notifications
@@ -573,6 +558,19 @@ export default function App() {
     }
   };
 
+  // Admin sets a new password for someone who forgot theirs. Returns true if it worked.
+  const handleResetUserPassword = async (id: string, password: string): Promise<boolean> => {
+    try {
+      await setUserPassword(id, password);
+      setAuditLogs(await listAuditLogs());
+      triggerAlert('The new password was saved.');
+      return true;
+    } catch (err) {
+      handleApiError(err, 'Could not save the new password.');
+      return false;
+    }
+  };
+
   const handleCreateTitleProposal = async (data: {
     title: string;
     abstract: string;
@@ -730,6 +728,7 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
+              onResetUserPassword={handleResetUserPassword}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -854,19 +853,6 @@ export default function App() {
         }
         break;
 
-      case 'automated-scheduling':
-        return (
-          <AutomatedScheduler
-            schedules={schedules}
-            rooms={rooms}
-            users={users}
-            researchList={researchList}
-            panelAvailabilities={panelAvailabilities}
-            onAddSchedule={handleAddSchedule}
-            onClearSchedules={handleClearSchedules}
-          />
-        );
-
       case 'announcements-board':
         if (currentUser?.role === 'coordinator') {
           return (
@@ -933,6 +919,7 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
+              onResetUserPassword={handleResetUserPassword}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -1062,7 +1049,6 @@ export default function App() {
         }}
         onLogout={handleLogout}
         users={users}
-        onEmulateRole={handleEmulateRole}
         isSidebarOpen={isSidebarOpen}
         onCloseSidebar={() => setIsSidebarOpen(false)}
       />

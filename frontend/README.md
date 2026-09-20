@@ -18,7 +18,7 @@ adviser feedback, defense scheduling, panel scoring, and a searchable research r
 | **Adviser** | See student groups, read papers, give chapter-by-chapter feedback, approve or ask for changes |
 | **Coordinator** | Set defense dates, rooms and panels (warns about double-booking), post announcements |
 | **Panel Member** | See assigned defenses, read the defense copy, score each defense |
-| **Admin** | Manage accounts, view all defenses, back up and restore data |
+| **Admin** | Manage accounts and passwords, view all defenses, back up and restore data |
 | **Everyone** | Search the Research Repository and see the defense schedule |
 
 ### How a research paper moves through the system
@@ -109,9 +109,10 @@ src/
 - **Safe actions.** Final or hard-to-undo actions (approving a paper, deleting an account, restoring a
   backup) ask "Are you sure?" first.
 
-## Known limits
+## Good to know
 
-- The four-digit code after login is a demo screen only; the backend does not send codes yet.
-- "Forgot password" and the admin "Reset password" do not send email yet.
-- The sample pages in **Review Papers** are for trying the note tools. Read the student's real paper with
-  the "Open the Paper" button.
+- There is no public sign-up. An Admin creates every account in **Manage Accounts**.
+- If someone forgets their password, an Admin sets a new one from **Manage Accounts → Reset Password**.
+  The website does not send emails yet.
+- **Review Papers** shows the student's uploaded PDF inside the page. Word files are downloaded instead.
+- Online (video) defenses are not supported yet: every defense needs a room.

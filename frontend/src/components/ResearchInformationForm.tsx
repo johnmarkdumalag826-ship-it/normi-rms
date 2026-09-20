@@ -145,10 +145,11 @@ export default function ResearchInformationForm({
   const titleError = attemptedNext && !title.trim() ? 'Please write your research title.' : undefined;
   const abstractError = attemptedNext && !abstract.trim() ? 'Please write a short summary of your research.' : undefined;
   const adviserError = attemptedNext && !adviserId ? 'Please choose your adviser.' : undefined;
+  const keywordsError = attemptedNext && !keywordsStr.split(',').some(k => k.trim()) ? 'Please add at least one keyword.' : undefined;
 
   const handleNextStep = () => {
     setAttemptedNext(true);
-    if (!title.trim() || !abstract.trim() || !adviserId) {
+    if (!title.trim() || !abstract.trim() || !adviserId || !keywordsStr.split(',').some(k => k.trim())) {
       setError('Some details are missing. Please fix the fields marked in red.');
       return;
     }
@@ -186,7 +187,7 @@ export default function ResearchInformationForm({
     onSubmit({
       title: title.trim(),
       abstract: abstract.trim(),
-      keywords: keywords.length > 0 ? keywords : ['Capstone', 'Systems'],
+      keywords,
       adviserId,
       members: [user.name, ...members],
       fileName: mainDoc.name,
@@ -285,11 +286,12 @@ export default function ResearchInformationForm({
 
                 <Input
                   label="Keywords"
-                  optional
+                  required
                   value={keywordsStr}
                   onChange={e => setKeywordsStr(e.target.value)}
                   hint="Separate each keyword with a comma."
                   placeholder="e.g. Web-based, Monitoring"
+                  error={keywordsError}
                 />
               </div>
 

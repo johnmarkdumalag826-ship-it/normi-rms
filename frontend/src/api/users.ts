@@ -18,4 +18,8 @@ export const updateUser = (id: string, patch: Partial<{
   departmentId: string; courseId: string; phone: string; email: string;
 }>): Promise<User> => api.patch(`/users/${id}`, patch);
 
+// Admin sets a new password for someone (at least 8 characters).
+export const setUserPassword = (id: string, password: string): Promise<User> =>
+  api.patch(`/users/${id}`, { password });
+
 export const deleteUser = (id: string): Promise<void> => api.del(`/users/${id}`);

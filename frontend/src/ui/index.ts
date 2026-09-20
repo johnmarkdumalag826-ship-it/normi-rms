@@ -2,6 +2,7 @@
 export { Button, IconButton, cx } from './Button';
 export { Input, Select, Textarea } from './Field';
 export { Badge, StatusBadge, ResearchStatusBadge } from './Badge';
+export { Avatar } from './Avatar';
 export { Card, CardHeader } from './Card';
 export { Table, type Column } from './Table';
 export { Modal, ConfirmDialog } from './Modal';

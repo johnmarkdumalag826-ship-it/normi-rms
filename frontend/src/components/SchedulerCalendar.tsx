@@ -51,7 +51,6 @@ export default function SchedulerCalendar({
   const [formStartTime, setFormStartTime] = useState('09:00');
   const [formEndTime, setFormEndTime] = useState('10:30');
   const [formRoomId, setFormRoomId] = useState('');
-  const [formMeetLink, setFormMeetLink] = useState('');
   const [formPanelistIds, setFormPanelistIds] = useState<string[]>([]);
   const [formAdviserId, setFormAdviserId] = useState('');
   const [formStatus, setFormStatus] = useState<'scheduled' | 'completed' | 'cancelled'>('scheduled');
@@ -242,8 +241,7 @@ export default function SchedulerCalendar({
     setFormDate(todayIso);
     setFormStartTime('09:00');
     setFormEndTime('10:30');
-    setFormRoomId(rooms[0]?.id || 'online');
-    setFormMeetLink('');
+    setFormRoomId(rooms[0]?.id || '');
     setFormPanelistIds(registeredPanelists.slice(0, 3).map(p => p.id));
     setFormAdviserId(researchList[0] ? getResearchAdviserId(researchList[0].id) : '');
     setFormStatus('scheduled');
@@ -260,7 +258,6 @@ export default function SchedulerCalendar({
     setFormStartTime(sched.startTime);
     setFormEndTime(sched.endTime);
     setFormRoomId(sched.roomId);
-    setFormMeetLink(sched.roomId === 'online' ? 'https://meet.google.com/cit-capstone-session' : '');
     setFormPanelistIds(sched.panelistIds);
     setFormAdviserId(getResearchAdviserId(sched.researchId));
     setFormStatus(sched.status);
@@ -414,7 +411,6 @@ export default function SchedulerCalendar({
         <div className="sm:w-72">
           <Select label="Show room" value={selectedRoom} onChange={e => setSelectedRoom(e.target.value)}>
             <option value="all">All rooms</option>
-            <option value="online">Online meeting</option>
             {rooms.map(r => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
@@ -611,8 +607,8 @@ export default function SchedulerCalendar({
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Select label="Room" value={formRoomId} onChange={e => setFormRoomId(e.target.value)}>
-              <option value="online">Online meeting</option>
+            <Select label="Room" required value={formRoomId} onChange={e => setFormRoomId(e.target.value)}>
+              <option value="" disabled>Choose a room…</option>
               {rooms.map(r => (
                 <option key={r.id} value={r.id}>{r.name} - {r.location}</option>
               ))}
@@ -629,18 +625,6 @@ export default function SchedulerCalendar({
               ))}
             </Select>
           </div>
-
-          {formRoomId === 'online' && (
-            <Input
-              label="Online meeting link"
-              optional
-              type="url"
-              placeholder="https://meet.google.com/xxx-xxxx-xxx"
-              value={formMeetLink}
-              onChange={e => setFormMeetLink(e.target.value)}
-              hint="Note: this link is not saved by the system yet."
-            />
-          )}
 
           <fieldset className="space-y-2">
             <legend className="flex w-full flex-wrap items-center justify-between gap-2 text-sm font-semibold text-slate-800">

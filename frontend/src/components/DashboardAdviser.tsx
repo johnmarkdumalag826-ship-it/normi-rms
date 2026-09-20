@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedule, Room } from '../types';
 import {
-  Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
+  Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
   StatusBadge, Table, chapterNames, chapterStatus, cx, defenseTypeLabels, formatDate, formatDateAndTime, formatDateLong,
   formatDateTime, formatTime, type Column,
 } from '../ui';
@@ -158,7 +158,6 @@ export default function DashboardAdviser({
       dateTime,
       topic,
       status: 'approved',
-      meetLink: `https://meet.google.com/normi-${Math.random().toString(36).substring(2, 7)}`,
     });
 
     setTopic('');
@@ -420,12 +419,7 @@ export default function DashboardAdviser({
                       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {getStudentObjects(selectedGroup.studentIds).map((student, idx) => (
                           <li key={student.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
-                            <img
-                              src={student.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${student.name}`}
-                              alt=""
-                              referrerPolicy="no-referrer"
-                              className="h-10 w-10 shrink-0 rounded-full border border-slate-200 bg-slate-50"
-                            />
+                            <Avatar name={student.name} src={student.avatar} size="md" />
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-slate-900">{student.name}</p>
                               <p className="text-xs text-slate-600">{idx === 0 ? 'Group leader' : 'Group member'}</p>
@@ -596,7 +590,7 @@ export default function DashboardAdviser({
         open={showConsultModal}
         onClose={() => setShowConsultModal(false)}
         title="Schedule a meeting"
-        description="Pick a student, a topic and a time. The meeting is confirmed right away."
+        description="Pick a student, a topic and a time. Tell the student where you will meet."
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowConsultModal(false)}>Cancel</Button>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, Clock, Menu, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { User, SystemNotification } from '../types';
-import { roleLabels, getPageTitle, formatDateTime, Badge, IconButton } from '../ui';
+import { roleLabels, getPageTitle, formatDateTime, Avatar, Badge, IconButton } from '../ui';
 
 interface HeaderProps {
   user: User;
@@ -134,12 +134,7 @@ export default function Header({
             <p className="max-w-44 truncate text-sm font-semibold text-slate-900">{user.name}</p>
             <Badge tone="info">{roleLabels[user.role]}</Badge>
           </div>
-          <img
-            src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-            alt={`${user.name}, ${roleLabels[user.role]}`}
-            className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover"
-            referrerPolicy="no-referrer"
-          />
+          <Avatar name={user.name} src={user.avatar} size="md" />
         </div>
       </div>
     </header>

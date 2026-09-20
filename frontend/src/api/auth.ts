@@ -6,20 +6,6 @@ export interface AuthResponse {
   token: string;
 }
 
-export async function registerAccount(input: {
-  email: string;
-  password: string;
-  name: string;
-  role: string;
-  departmentId?: string;
-  courseId?: string;
-  phone?: string;
-}): Promise<AuthResponse> {
-  const res = await api.post('/auth/register', input);
-  setToken(res.token);
-  return res;
-}
-
 export async function login(email: string, password: string): Promise<AuthResponse> {
   const res = await api.post('/auth/login', { email, password });
   setToken(res.token);

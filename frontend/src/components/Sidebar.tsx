@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import {
   Landmark, Home, FileText, CalendarDays, BookOpen, ClipboardCheck,
-  Database, LogOut, Settings2, X, FileSearch, UserCog,
+  Database, LogOut, X, FileSearch, UserCog,
   type LucideIcon,
 } from 'lucide-react';
 import { User, UserRole } from '../types';
-import { roleLabels, getPageTitle, cx } from '../ui';
+import { getPageTitle, cx } from '../ui';
 
 interface SidebarProps {
   user: User;
@@ -13,15 +13,12 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
   users: User[];
-  onEmulateRole: (role: UserRole) => void;
   isSidebarOpen: boolean;
   onCloseSidebar: () => void;
 }
 
 interface NavItem { id: string; icon: LucideIcon }
 interface NavGroup { heading: string; items: NavItem[] }
-
-const demoUsers: UserRole[] = ['student', 'adviser', 'coordinator', 'panelist', 'admin'];
 
 /**
  * The menu. Page ids (dashboard, repository, ...) are internal and unchanged; only the
@@ -59,12 +56,13 @@ function getNavGroups(role: UserRole): NavGroup[] {
         { id: 'calendar', icon: CalendarDays },
       ],
     },
-    { heading: 'For developers', items: [{ id: 'database-erd', icon: Database }] },
+    // The database diagram is documentation, so only Admins see it in the menu.
+    ...(role === 'admin' ? [{ heading: 'For developers', items: [{ id: 'database-erd', icon: Database }] }] : []),
   ];
 }
 
 export default function Sidebar({
-  user, activeTab, setActiveTab, onLogout, onEmulateRole, isSidebarOpen, onCloseSidebar,
+  user, activeTab, setActiveTab, onLogout, isSidebarOpen, onCloseSidebar,
 }: SidebarProps) {
   const groups = getNavGroups(user.role);
 
@@ -144,37 +142,8 @@ export default function Sidebar({
           ))}
         </nav>
 
-        {/* Bottom: demo tools + sign out */}
+        {/* Bottom: sign out */}
         <div className="border-t border-white/10 px-3 py-4 space-y-3">
-          <details className="group rounded-lg bg-white/5">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-blue-100 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-              <Settings2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Demo tools
-            </summary>
-            <div className="px-3 pb-3 pt-1 space-y-2">
-              <p className="text-xs text-blue-200">
-                For testing only. Pick a role to see the system as that person.
-              </p>
-              <div className="grid grid-cols-1 gap-1">
-                {demoUsers.map(role => (
-                  <button
-                    key={role}
-                    type="button"
-                    aria-pressed={user.role === role}
-                    onClick={() => onEmulateRole(role)}
-                    className={cx(
-                      'flex min-h-11 items-center justify-between rounded-md px-3 py-2 text-left text-sm cursor-pointer',
-                      user.role === role ? 'bg-white/20 font-bold text-white' : 'text-blue-50 hover:bg-white/10',
-                    )}
-                  >
-                    <span>View as {roleLabels[role]}</span>
-                    {user.role === role && <span className="text-xs">Current</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </details>
-
           <button
             type="button"
             onClick={onLogout}

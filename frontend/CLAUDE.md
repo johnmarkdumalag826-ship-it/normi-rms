@@ -1,44 +1,41 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Notes for AI coding assistants working in this folder.
 
 ## What this is
 
-NORMI RMS (Research Management & Monitoring System) — a capstone/thesis workflow platform for Northern Mindanao Colleges, Inc. It manages research proposal submission, adviser review, defense scheduling, panel evaluation, and archiving across five roles: student, adviser, coordinator, panelist, admin.
-
-This is a **frontend-only prototype**: there is no backend server. All "database" state lives in React state, is seeded from `src/db/mockData.ts`, and is persisted to the browser's `localStorage` (keys prefixed `normi_*`, synced via `useEffect` in `src/App.tsx`). Login is simulated client-side against hardcoded demo credentials in `src/components/Login.tsx` — there is no real authentication or server-side authorization.
+The **frontend** of NORMI RMS (Research Management & Monitoring System) for Northern Mindanao Colleges, Inc.
+React 19 + TypeScript + Vite + Tailwind CSS v4. It talks to the Express/MongoDB backend in `../backend`
+through `src/api/`. Roles: student, adviser, coordinator, panelist, admin. There is no public sign-up.
 
 ## Commands
 
 ```bash
-npm install       # install dependencies
-npm run dev        # start Vite dev server on port 3000
-npm run build       # production build (vite build)
-npm run preview      # preview the production build
-npm run lint        # type-check only (tsc --noEmit) — there is no separate linter (no ESLint config)
-npm run clean       # rm -rf dist server.js
+npm install
+npm run dev      # Vite on port 3000 (pass --port=3001 to change)
+npm run build
+npm run lint     # type-check only (tsc --noEmit); there is no ESLint and no test runner
 ```
-
-There is no test suite/runner configured in this repo (no test files, no test script, no Vitest/Jest config).
 
 ## Architecture
 
-**Everything is driven from `src/App.tsx`.** It is the single source of truth: it owns all top-level state (users, research records, versions, comments, announcements, notifications, consultations, schedules, evaluations, audit logs, defense types), all the `handle*` mutation functions, the `normi_*` localStorage persistence effects, and a hand-rolled router (`renderTabContent`, switched on `activeTab` string + role) with a role-based `allowedTabs` access-control map. There is no routing library and no global state library (no Redux/Zustand/Context providers for domain data) — everything is prop-drilled from `App.tsx` down into `src/components/*`.
+- `src/App.tsx` owns all state, the `handle*` functions that call the API, and a small hand-made router
+  (`renderTabContent`, switched on `activeTab` and role, with an `allowedTabs` map).
+  There is no router library and no global state library; data is passed down as props.
+- Every change typically updates state, and the backend writes the notification and audit log entry.
+- `src/components/` are the screens. `src/ui/` holds shared building blocks and `labels.ts`.
+- `src/api/` has one file per backend topic; `client.ts` holds the base URL, token and `ApiError`.
 
-**Data flow pattern**: every mutation in `App.tsx` typically does three things together — update the relevant state array, push a `SystemNotification` to affected users, and call `logTransaction(...)` to append an `AuditLog` entry. When adding a new mutation, follow this same shape rather than just updating state.
+## Rules of thumb
 
-**Domain model** (`src/types.ts`) centers on `Research`, which moves through a fixed status pipeline: `Submitted → Under Review → Revision Required → Approved by Adviser → Pending Coordinator → Scheduled → Completed → Archived`. Each `Research` has one or more `ResearchVersion`s (one per manuscript upload), and each version tracks five chapter statuses independently (`chapter1`–`chapter5`, each `Pending | Approved | Revision Required | Not Submitted`). `Schedule` (defense slot) and `Evaluation` (panelist scoring) are separate entities linked by `researchId`/`scheduleId`.
+- Stored values (status names, role names, field names) never change. Friendly words come from `src/ui/labels.ts`.
+- Use the shared components in `src/ui` (Button, Field, Modal, ConfirmDialog, Table, ...) instead of new one-off styles.
+- Plain English, one term per thing: Research paper, Adviser, Panel Member, Defense, Repository.
+- Ask "Are you sure?" (ConfirmDialog) before final or destructive actions.
+- Text is at least 14 px, tap targets at least 44 px, and every field has a label.
+- Do not add demo shortcuts, sample data or invented links to the app.
 
-**Components** (`src/components/`) are flat (no subfolders) and split into:
-- Role dashboards: `DashboardStudent`, `DashboardAdviser`, `DashboardCoordinator`, `DashboardPanelist`, `DashboardAdmin` — each is a large, self-contained view (600–1100+ lines) receiving the full relevant slice of state plus `handle*` callbacks as props.
-- Shared/cross-role views: `RepositoryView`, `SchedulerCalendar`, `DefenseSchedulesList`, `AutomatedScheduler`, `ResearchDetailsView`, `DocumentReview`, `InteractiveERD`.
-- Shell: `Sidebar`, `Header`, `LandingPage`, `Login`.
+## Environment
 
-Mock/seed data (departments, courses, school years, rooms, users, research, versions, comments, panel availability, announcements, notifications, consultations, schedules, evaluations, audit logs) all lives in `src/db/mockData.ts` and is used as the initial value whenever `localStorage` is empty.
-
-## Notable things to know before changing code
-
-- `@google/genai`, `express`, and `dotenv` are present in `package.json` (leftovers from the AI Studio scaffold this project was generated from) but are **not used anywhere in `src/`** — there is no live Gemini API integration and no Express server despite `.env.example` referencing `GEMINI_API_KEY`/`APP_URL`.
-- Styling is Tailwind CSS v4 (`@tailwindcss/vite` plugin, config-free — theme tokens and custom utilities like `glass-panel`/`glass-card` are defined directly in `src/index.css` via `@theme`/`@utility`). There's also a global CSS override in `index.css` that forces translucency/blur onto any element matching `bg-white`/`bg-slate-50`/`bg-slate-100` classes — worth knowing about since it can produce surprising visual results on new components using those Tailwind classes.
-- Path alias `@/*` maps to the project root (see `tsconfig.json` / `vite.config.ts`), not `src/`.
-- `vite.config.ts` disables HMR/file watching when `DISABLE_HMR=true` — this is intentional (used by the AI Studio agent environment to avoid flicker during automated edits), not a bug.
+- `.env.local` sets `VITE_API_URL` (see `.env.example`). It is not committed.
+- The backend's `CLIENT_URL` must equal the exact address opened in the browser, or requests are blocked (CORS).

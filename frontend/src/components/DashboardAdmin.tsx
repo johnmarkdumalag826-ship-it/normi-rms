@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   Users, UserCheck, Shield, Plus, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
-  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw, Gauge,
+  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
-  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
+  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column,
 } from '../ui';
 
@@ -25,6 +25,8 @@ interface DashboardAdminProps {
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
   onRestoreDatabase: () => void;
+  /** Sets a new password for someone. Resolves to true when it was saved. */
+  onResetUserPassword: (id: string, password: string) => Promise<boolean>;
 }
 
 type Section = 'dashboard' | 'user-management' | 'schedules';
@@ -52,7 +54,7 @@ const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
   onToggleUserStatus, onUpdateUserRole, onAddUserAccount, onUpdateUser, onDeleteUserAccount,
-  onBackupDatabase, onRestoreDatabase
+  onBackupDatabase, onRestoreDatabase, onResetUserPassword
 }: DashboardAdminProps) {
 
   const [currentSection, setCurrentSection] = useState<Section>(
@@ -68,6 +70,8 @@ export default function DashboardAdmin({
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [resetPasswordFor, setResetPasswordFor] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
   // "Are you sure?" for risky actions
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToSuspend, setUserToSuspend] = useState<User | null>(null);
@@ -145,7 +149,6 @@ export default function DashboardAdmin({
       departmentId: newUserForm.departmentId,
       courseId: newUserForm.courseId,
       status: newUserForm.status,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(newUserForm.name)}`,
       registeredAt: new Date().toISOString()
     };
 
@@ -197,6 +200,17 @@ export default function DashboardAdmin({
 
   const closeEdit = () => { setShowEditUserModal(false); setEditingUser(null); };
 
+  const closeResetPassword = () => { setResetPasswordFor(null); setNewPassword(''); };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordFor || newPassword.length < 8) return;
+    setIsSavingPassword(true);
+    const ok = await onResetUserPassword(resetPasswordFor.id, newPassword);
+    setIsSavingPassword(false);
+    if (ok) closeResetPassword();
+  };
+
   const getRoomName = (roomId: string) => rooms.find(r => r.id === roomId)?.name ?? (roomId === 'online' || !roomId ? 'Online meeting' : 'Room not found');
 
   // The Suspend / Reactivate buttons: suspending asks first, reactivating does not.
@@ -210,12 +224,7 @@ export default function DashboardAdmin({
       key: 'person', header: 'Person', primary: true,
       render: u => (
         <span className="flex items-center gap-3">
-          <img
-            src={u.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${u.id}`}
-            alt=""
-            referrerPolicy="no-referrer"
-            className="h-9 w-9 shrink-0 rounded-full border border-slate-200 bg-slate-50"
-          />
+          <Avatar name={u.name} src={u.avatar} size="sm" />
           <span className="font-semibold text-slate-900">{u.name}</span>
         </span>
       ),
@@ -297,7 +306,7 @@ export default function DashboardAdmin({
           </dl>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <Card as="section" className="lg:col-span-8">
+            <Card as="section" className="lg:col-span-12">
               <CardHeader
                 title="Keep the data safe"
                 description="Save a copy of the system’s data, or go back to the last saved copy."
@@ -330,32 +339,6 @@ export default function DashboardAdmin({
               </div>
             </Card>
 
-            <Card as="section" className="lg:col-span-4">
-              <CardHeader
-                title="System health"
-                icon={<Gauge className="h-5 w-5" aria-hidden="true" />}
-              />
-              <Alert tone="warning" title="Example figures">
-                These numbers are samples and are not measured from the real system.
-              </Alert>
-              <dl className="mt-4 space-y-4 text-sm">
-                {[
-                  ['Processor use', '12.4%', 12],
-                  ['Memory use', '145 MB of 512 MB', 28],
-                  ['Database size', '22 KB, 14 tables', 8],
-                ].map(([label, value, pct]) => (
-                  <div key={label as string} className="space-y-1.5">
-                    <div className="flex flex-wrap justify-between gap-2 font-semibold text-slate-800">
-                      <dt>{label}</dt>
-                      <dd className="text-blue-900">{value}</dd>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200" aria-hidden="true">
-                      <div className="h-full rounded-full bg-blue-700" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </dl>
-            </Card>
           </div>
         </div>
       )}
@@ -505,12 +488,7 @@ export default function DashboardAdmin({
         {selectedUserDetails && (
           <div className="space-y-5">
             <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <img
-                src={selectedUserDetails.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedUserDetails.id}`}
-                alt=""
-                referrerPolicy="no-referrer"
-                className="h-14 w-14 rounded-full border border-slate-200"
-              />
+              <Avatar name={selectedUserDetails.name} src={selectedUserDetails.avatar} size="lg" />
               <div className="min-w-0">
                 <p className="text-base font-bold text-slate-900">{selectedUserDetails.name}</p>
                 <p className="break-all text-sm text-slate-700">{selectedUserDetails.email}</p>
@@ -609,18 +587,34 @@ export default function DashboardAdmin({
         </form>
       </Modal>
 
-      {/* Reset password: not available yet, so we say so honestly */}
+      {/* Set a new password for someone */}
       <Modal
         open={!!resetPasswordFor}
-        onClose={() => setResetPasswordFor(null)}
-        title={`Reset password for ${resetPasswordFor?.name ?? ''}`}
+        onClose={() => !isSavingPassword && closeResetPassword()}
+        title={`Set a new password for ${resetPasswordFor?.name ?? ''}`}
+        description="Use this when someone forgot their password. Tell them the new password in person or by phone."
         size="sm"
-        footer={<Button onClick={() => setResetPasswordFor(null)}>Okay, I Understand</Button>}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeResetPassword} disabled={isSavingPassword}>Cancel</Button>
+            <Button type="submit" form="reset-password-form" loading={isSavingPassword} disabled={newPassword.length < 8}>
+              {isSavingPassword ? 'Saving…' : 'Save New Password'}
+            </Button>
+          </>
+        }
       >
-        <Alert tone="info" title="Nothing was changed">
-          Resetting a password by email is not available in this version. No email was sent and
-          {resetPasswordFor ? ` ${resetPasswordFor.name}’s` : ' the'} password is the same as before.
-        </Alert>
+        <form id="reset-password-form" onSubmit={handleResetPasswordSubmit} className="space-y-5">
+          <Input
+            label="New password"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            hint="At least 8 characters. The old password stops working right away."
+          />
+        </form>
       </Modal>
 
       {/* Are you sure? */}

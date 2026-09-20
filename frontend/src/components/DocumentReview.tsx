@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
-  FileText, Download, CheckCircle2, AlertCircle, XCircle, Highlighter, MessageSquare, ExternalLink,
-  Plus, Save, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, FileCheck, Trash2, Clock,
+  FileText, Download, CheckCircle2, AlertCircle, XCircle, MessageSquare, ExternalLink, Save, FileCheck, Clock,
 } from 'lucide-react';
 import { User as UserType, Research, ResearchVersion, ResearchComment } from '../types';
 import { resolveFileUrl } from '../api/client';
 import {
-  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Modal, PageHeader, Select, Textarea,
+  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea,
   chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
 } from '../ui';
 
@@ -17,15 +16,6 @@ interface DocumentReviewProps {
   comments: ResearchComment[];
   onAddComment: (comment: ResearchComment) => void;
   onApproveManuscript: (id: string, decision: 'Approve' | 'Revision' | 'Reject', feedbackNote: string) => void;
-}
-
-interface StickyNote {
-  id: string;
-  page: number;
-  x: number;
-  y: number;
-  text: string;
-  color: string;
 }
 
 type Decision = 'Approve' | 'Revision' | 'Reject';
@@ -81,94 +71,13 @@ export default function DocumentReview({
     return selectedVersions[0];
   }, [selectedVersions, selectedVersionId]);
 
-  // Sample page viewer state
-  const [zoom, setZoom] = useState<number>(100);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rotation, setRotation] = useState<number>(0);
-  const [highlightMode, setHighlightMode] = useState<boolean>(false);
-  const [commentMode, setCommentMode] = useState<boolean>(false);
-  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([]);
-  const [pendingSticky, setPendingSticky] = useState<{ x: number; y: number } | null>(null);
-  const [pendingStickyText, setPendingStickyText] = useState('');
-  const [newStickyText, setNewStickyText] = useState<string>('');
   const [commentText, setCommentText] = useState<string>('');
-  const [stickyColor, setStickyColor] = useState<string>('yellow');
   const [feedbackNote, setFeedbackNote] = useState<string>('');
   const [decision, setDecision] = useState<Decision | null>(null);
   const [confirmingDecision, setConfirmingDecision] = useState(false);
-  const [activeTab, setActiveTab] = useState<'content' | 'comments' | 'history'>('comments');
-
-  const [simulatedHighlights, setSimulatedHighlights] = useState<Record<number, number[]>>({});
-
-  // Sample pages (these are NOT the student's paper)
-  const mockPagesContent = [
-    {
-      page: 1,
-      title: "CHAPTER 1: INTRODUCTION",
-      paragraphs: [
-        "1.1 Background of the Study\nIn the era of hyper-connected software architectures, institutional research pipelines require strict systematic monitoring to verify validation, compliance, and procedural checkpoints. While many web applications serve generic file storage, they fail to bridge the semantic requirements between Adviser checking milestones and Panel defense schedules.",
-        "1.2 Objectives of the Project\nThis system aims to normalize data definitions and provide interactive schema designs for capstone vetting. The application binds the dynamic workflows of student teams, coordinator schedulers, and evaluation juries under a singular state-driven environment.",
-        "1.3 Significance of the Investigation\nBy embedding direct PDF checkouts and sticky notations, the software replaces manual tracking records, promoting a high-fidelity academic clearance rate of up to 92.4%."
-      ]
-    },
-    {
-      page: 2,
-      title: "CHAPTER 2: REVIEW OF RELATED LITERATURE",
-      paragraphs: [
-        "2.1 Contemporary Educational Repositories\nPrior research (e.g., Dumalag et al., 2024) indicates that monolithic platforms often suffer from structural opacity. Students upload drafts without visual feedback loops, resulting in redundant cycles of revision that delay completion timelines.",
-        "2.2 Collaborative Highlighting and Feedback Loops\nImplementing overlay annotations on client-side sandboxes allows advisers to drop location-specific markers. High-contrast overlays improve communication speed and reduce the cognitive overhead of asynchronous document review sessions.",
-        "2.3 Technical Synthesis\nThis review justifies the development of an integrated, client-authoritative panel where research groups and review committees share absolute alignment."
-      ]
-    },
-    {
-      page: 3,
-      title: "CHAPTER 3: SYSTEM METHODOLOGY",
-      paragraphs: [
-        "3.1 Research Design and Framework\nThe engineering team adopted an agile Scrum paradigm. The schema layout was structured with Drizzle ORM mappings, supporting instant rollbacks and secure authorization gates.",
-        "3.2 Operational Flow and Checklist Targets\nThe vetting cycle transitions through five stages of maturity: Title Formulation, Adviser Vetting, Coordinator Booking, Jury Evaluation, and Digital Indexing.",
-        "3.3 Validation Testing Matrices\nSystem performance was audited under extreme simulation scripts. Hot hot-reloads and atomic transactions guaranteed zero data loss across simulated connection drops."
-      ]
-    }
-  ];
-
-  const handlePageClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!highlightMode && !commentMode) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
-
-    if (commentMode) {
-      // Ask for the note's text in a pop-up instead of the browser's own prompt box
-      setPendingSticky({ x, y });
-      setPendingStickyText('');
-      setCommentMode(false);
-    } else if (highlightMode) {
-      const clickedP = Math.floor((y / 100) * 3);
-      setSimulatedHighlights(prev => {
-        const currentList = prev[currentPage] || [];
-        const updated = currentList.includes(clickedP)
-          ? currentList.filter(p => p !== clickedP)
-          : [...currentList, clickedP];
-        return { ...prev, [currentPage]: updated };
-      });
-      setHighlightMode(false);
-    }
-  };
-
-  const savePendingSticky = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pendingSticky || !pendingStickyText.trim()) return;
-    setStickyNotes([
-      ...stickyNotes,
-      { id: `sticky-${Date.now()}`, page: currentPage, x: pendingSticky.x, y: pendingSticky.y, text: pendingStickyText, color: stickyColor },
-    ]);
-    setPendingSticky(null);
-    setPendingStickyText('');
-  };
+  const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
 
   // A comment saved in the system so the students can read it.
-  // The server only accepts chapter1-5 or "general" (it used to be sent as "Page N", which it refused).
   const handleAddGeneralComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !selectedResearch) return;
@@ -190,24 +99,6 @@ export default function DocumentReview({
     setCommentText('');
   };
 
-  const handleAddStickyManual = () => {
-    if (!newStickyText.trim()) return;
-    const newNote: StickyNote = {
-      id: `sticky-${Date.now()}`,
-      page: currentPage,
-      x: 30 + Math.random() * 20,
-      y: 25 + Math.random() * 30,
-      text: newStickyText,
-      color: stickyColor
-    };
-    setStickyNotes([...stickyNotes, newNote]);
-    setNewStickyText('');
-  };
-
-  const handleDeleteSticky = (id: string) => {
-    setStickyNotes(prev => prev.filter(n => n.id !== id));
-  };
-
   const handleDecisionSubmit = () => {
     if (!decision || !selectedResearchId) return;
     onApproveManuscript(selectedResearchId, decision, feedbackNote);
@@ -222,12 +113,12 @@ export default function DocumentReview({
   }, [comments, selectedResearchId]);
 
   const realFileUrl = currentVersion?.fileUrl ? resolveFileUrl(currentVersion.fileUrl) : undefined;
+  const isPdf = !!currentVersion?.fileName && currentVersion.fileName.toLowerCase().endsWith('.pdf');
   const decisionInfo = decisionOptions.find(d => d.value === decision);
 
   const tabs: { id: typeof activeTab; label: string }[] = [
     { id: 'comments', label: `Comments (${currentComments.length})` },
     { id: 'history', label: `Versions (${selectedVersions.length})` },
-    { id: 'content', label: 'Sample notes' },
   ];
 
   return (
@@ -246,7 +137,6 @@ export default function DocumentReview({
             onChange={e => {
               setSelectedResearchId(e.target.value);
               setSelectedVersionId('');
-              setCurrentPage(1);
             }}
           >
             <option value="" disabled>Choose a research paper…</option>
@@ -269,7 +159,7 @@ export default function DocumentReview({
         </Card>
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-          {/* Left: the file, and the sample viewer */}
+          {/* Left: the students' real file */}
           <div className="space-y-6 lg:col-span-8">
             <Card>
               <CardHeader
@@ -296,7 +186,7 @@ export default function DocumentReview({
                       )}
                     >
                       <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                      Open the Paper
+                      Open in a New Tab
                       <span className="sr-only">(opens in a new tab)</span>
                     </a>
                     <a
@@ -318,131 +208,26 @@ export default function DocumentReview({
               )}
             </Card>
 
-            <Card padded={false} className="overflow-hidden">
-              <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-                <h2 className="text-base font-bold text-slate-900">Sample page preview</h2>
-                <Alert tone="warning" title="This is sample text, not your students’ paper" className="mt-3">
-                  These pages only let you try the highlight and sticky-note tools. Notes made here are not saved.
-                  To read the real paper, use “Open the Paper” above. To send feedback, use Comments.
+            {/* The paper itself */}
+            {currentVersion && realFileUrl && (
+              isPdf ? (
+                <Card padded={false} className="overflow-hidden">
+                  <iframe
+                    key={currentVersion.id}
+                    src={realFileUrl}
+                    title={`Paper: ${currentVersion.fileName}`}
+                    className="h-[75vh] min-h-[480px] w-full bg-slate-100"
+                  />
+                </Card>
+              ) : (
+                <Alert tone="info" title="This file is a Word document">
+                  Word files cannot be shown on this page. Use “Download File” to read it, then come back to comment and decide.
                 </Alert>
-              </div>
-
-              <div className="space-y-4 bg-slate-100 p-4">
-                {/* Tools */}
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
-                  <Button
-                    variant={highlightMode ? 'primary' : 'secondary'}
-                    size="sm"
-                    icon={Highlighter}
-                    aria-pressed={highlightMode}
-                    onClick={() => { setHighlightMode(!highlightMode); setCommentMode(false); }}
-                  >
-                    Highlight
-                  </Button>
-                  <Button
-                    variant={commentMode ? 'primary' : 'secondary'}
-                    size="sm"
-                    icon={MessageSquare}
-                    aria-pressed={commentMode}
-                    onClick={() => { setCommentMode(!commentMode); setHighlightMode(false); }}
-                  >
-                    Sticky Note
-                  </Button>
-                  <span className="mx-1 hidden h-6 w-px bg-slate-300 sm:block" aria-hidden="true" />
-                  <IconButton icon={ZoomOut} variant="secondary" label="Make the page smaller" onClick={() => setZoom(Math.max(50, zoom - 10))} />
-                  <span className="min-w-12 text-center text-sm font-semibold text-slate-800" aria-live="polite">{zoom}%</span>
-                  <IconButton icon={ZoomIn} variant="secondary" label="Make the page bigger" onClick={() => setZoom(Math.min(150, zoom + 10))} />
-                  <IconButton icon={RotateCw} variant="secondary" label="Turn the page" onClick={() => setRotation((rotation + 90) % 360)} />
-                </div>
-                {(highlightMode || commentMode) && (
-                  <p className="text-sm font-semibold text-blue-900" role="status">
-                    {highlightMode ? 'Now select a paragraph on the page to highlight it.' : 'Now select a spot on the page to place your note.'}
-                  </p>
-                )}
-
-                {/* Page */}
-                <div className="flex max-h-[600px] min-h-[420px] items-start justify-center overflow-auto rounded-xl border border-slate-300 bg-slate-200/60 p-6">
-                  <div
-                    onClick={handlePageClick}
-                    style={{
-                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-                      transformOrigin: 'top center',
-                    }}
-                    className={cx(
-                      'relative w-[520px] shrink-0 select-none rounded-lg border border-slate-300 bg-white p-10 shadow-lg',
-                      (highlightMode || commentMode) && 'cursor-crosshair',
-                      highlightMode ? 'ring-2 ring-amber-400' : commentMode ? 'ring-2 ring-blue-500' : '',
-                    )}
-                  >
-                    <div className="relative z-10 space-y-6">
-                      <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs text-slate-600">
-                        <span>SAMPLE PAGE</span>
-                        <span>Page {currentPage} of 3</span>
-                      </div>
-
-                      <h3 className="text-center font-serif text-base font-bold text-slate-900">
-                        {mockPagesContent[currentPage - 1].title}
-                      </h3>
-
-                      <div className="space-y-4">
-                        {mockPagesContent[currentPage - 1].paragraphs.map((p, pIdx) => {
-                          const isHighlighted = simulatedHighlights[currentPage]?.includes(pIdx);
-                          return (
-                            <p
-                              key={pIdx}
-                              className={cx(
-                                'rounded p-1.5 text-sm leading-relaxed text-slate-800',
-                                isHighlighted && 'border-l-4 border-amber-500 bg-amber-100 font-medium text-amber-950',
-                              )}
-                            >
-                              {p}
-                            </p>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {stickyNotes.filter(n => n.page === currentPage).map(note => {
-                      const colorClass = note.color === 'pink' ? 'bg-rose-100 text-rose-900 border-rose-300'
-                        : note.color === 'blue' ? 'bg-blue-100 text-blue-900 border-blue-300'
-                        : 'bg-yellow-100 text-amber-950 border-amber-400';
-                      return (
-                        <div
-                          key={note.id}
-                          style={{ left: `${note.x}%`, top: `${note.y}%` }}
-                          className={cx('absolute z-30 w-40 rounded-lg border p-2 text-xs font-medium shadow-md', colorClass)}
-                        >
-                          <button
-                            type="button"
-                            aria-label="Remove this sticky note"
-                            onClick={e => { e.stopPropagation(); handleDeleteSticky(note.id); }}
-                            className="tap-auto absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 bg-white text-rose-700 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <XCircle className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <p className="line-clamp-4">{note.text}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Page buttons */}
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                  <Button variant="secondary" size="sm" icon={ChevronLeft} disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>
-                    Previous Page
-                  </Button>
-                  <span className="text-sm text-slate-700">Page <strong>{currentPage}</strong> of 3</span>
-                  <Button variant="secondary" size="sm" disabled={currentPage === 3} onClick={() => setCurrentPage(currentPage + 1)}>
-                    Next Page
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
+              )
+            )}
           </div>
 
-          {/* Right: decision and tabs */}
+          {/* Right: decision, comments and versions */}
           <div className="space-y-6 lg:col-span-4">
             <Card as="section" aria-labelledby="decision-title" className="border-blue-200 bg-blue-50">
               <h2 id="decision-title" className="flex items-center gap-2 text-base font-bold text-slate-900">
@@ -595,95 +380,11 @@ export default function DocumentReview({
                     )}
                   </div>
                 )}
-
-                {/* Sample notes */}
-                {activeTab === 'content' && (
-                  <div className="space-y-4">
-                    <p className="text-sm text-slate-700">
-                      Try out sticky notes on the sample pages. They are <strong>not saved</strong>.
-                    </p>
-
-                    <fieldset>
-                      <legend className="mb-2 text-sm font-semibold text-slate-800">Note colour</legend>
-                      <div className="flex gap-3">
-                        {[['yellow', 'Yellow', 'bg-yellow-300'], ['pink', 'Pink', 'bg-rose-300'], ['blue', 'Blue', 'bg-blue-300']].map(([val, label, cls]) => (
-                          <button
-                            key={val}
-                            type="button"
-                            aria-label={`${label} note`}
-                            aria-pressed={stickyColor === val}
-                            onClick={() => setStickyColor(val)}
-                            className={cx(
-                              'tap-auto h-9 w-9 rounded-full border-4 cursor-pointer',
-                              cls,
-                              stickyColor === val ? 'border-slate-900' : 'border-white ring-1 ring-slate-300',
-                            )}
-                          />
-                        ))}
-                      </div>
-                    </fieldset>
-
-                    <Textarea
-                      label="Note text"
-                      rows={2}
-                      value={newStickyText}
-                      onChange={e => setNewStickyText(e.target.value)}
-                      placeholder="Type a note"
-                    />
-                    <Button variant="secondary" icon={Plus} fullWidth onClick={handleAddStickyManual}>
-                      Add Note to Page {currentPage}
-                    </Button>
-
-                    <div className="space-y-2 border-t border-slate-200 pt-3">
-                      <p className="text-sm font-bold text-slate-900">Your sample notes ({stickyNotes.length})</p>
-                      {stickyNotes.length === 0 ? (
-                        <p className="text-sm text-slate-600">You have not added any notes yet.</p>
-                      ) : (
-                        <ul className="max-h-48 space-y-2 overflow-y-auto">
-                          {stickyNotes.map(n => (
-                            <li key={n.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                              <div>
-                                <p className="font-semibold text-slate-900">Page {n.page}</p>
-                                <p className="text-slate-800">{n.text}</p>
-                              </div>
-                              <IconButton icon={Trash2} variant="danger" label={`Delete the note on page ${n.page}`} onClick={() => handleDeleteSticky(n.id)} />
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </Card>
           </div>
         </div>
       )}
-
-      {/* Where to put a new sticky note */}
-      <Modal
-        open={!!pendingSticky}
-        onClose={() => setPendingSticky(null)}
-        title="Write your sticky note"
-        description="This note will be placed on the sample page where you selected."
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPendingSticky(null)}>Cancel</Button>
-            <Button type="submit" form="sticky-form">Place Sticky Note</Button>
-          </>
-        }
-      >
-        <form id="sticky-form" onSubmit={savePendingSticky}>
-          <Textarea
-            label="Note text"
-            required
-            rows={3}
-            value={pendingStickyText}
-            onChange={e => setPendingStickyText(e.target.value)}
-          />
-        </form>
-      </Modal>
 
       {/* Are you sure? */}
       <ConfirmDialog

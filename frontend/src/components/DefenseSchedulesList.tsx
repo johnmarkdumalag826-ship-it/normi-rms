@@ -355,16 +355,7 @@ function ScheduleCard({
             <dt className="text-slate-600">Where</dt>
             <dd className="font-semibold text-slate-900">
               {isOnline ? (
-                <a
-                  href="https://meet.google.com/cit-capstone-session"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-blue-800 underline underline-offset-2"
-                >
-                  Join online meeting
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="sr-only">(opens in a new tab)</span>
-                </a>
+                <span>Online meeting</span>
               ) : (
                 <>
                   {getRoomName(sched.roomId)}
