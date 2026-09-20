@@ -678,6 +678,10 @@ export default function App() {
               versions={versions}
               comments={comments}
               consultations={consultations}
+              schedules={schedules}
+              rooms={rooms}
+              departments={departments}
+              courses={courses}
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}
@@ -817,6 +821,10 @@ export default function App() {
               versions={versions}
               comments={comments}
               consultations={consultations}
+              schedules={schedules}
+              rooms={rooms}
+              departments={departments}
+              courses={courses}
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}

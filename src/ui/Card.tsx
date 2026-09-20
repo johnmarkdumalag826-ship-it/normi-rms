@@ -9,7 +9,17 @@ interface CardProps extends React.HTMLAttributes<HTMLElement> {
 /** The one card style used everywhere: white, thin border, soft shadow. */
 export function Card({ as: Tag = 'div', padded = true, className, children, ...rest }: CardProps) {
   return (
-    <Tag className={cx('rounded-xl border border-slate-200 bg-white shadow-sm', padded && 'p-5 sm:p-6', className)} {...rest}>
+    <Tag
+      className={cx(
+        'rounded-xl border shadow-sm',
+        // A custom background or border colour (e.g. a tinted "next step" card) replaces the default.
+        !className?.includes('bg-') && 'bg-white',
+        !className?.includes('border-') && 'border-slate-200',
+        padded && 'p-5 sm:p-6',
+        className,
+      )}
+      {...rest}
+    >
       {children}
     </Tag>
   );

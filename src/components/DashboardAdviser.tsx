@@ -1,10 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Users, CheckSquare, MessageSquare, Calendar, ShieldCheck, AlertCircle, 
-  ChevronRight, FileText, Send, UserCheck, Play, Trash, Check, X, 
-  Video, Clock, Bell, Info, Award, Compass, Layers, ListFilter, ArrowUpRight
+import {
+  Users, MessageSquare, Calendar, ShieldCheck, AlertCircle, FileText, Clock, Bell,
+  CheckCircle2, Layers, Compass, Wrench, ArrowRight, Inbox,
 } from 'lucide-react';
-import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedule } from '../types';
+import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedule, Room } from '../types';
+import {
+  Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
+  StatusBadge, Table, chapterNames, chapterStatus, cx, defenseTypeLabels, formatDate, formatDateAndTime, formatDateLong,
+  formatDateTime, formatTime, type Column,
+} from '../ui';
 
 interface DashboardAdviserProps {
   user: User;
@@ -13,6 +17,7 @@ interface DashboardAdviserProps {
   comments: ResearchComment[];
   consultations: Consultation[];
   schedules?: Schedule[];
+  rooms?: Room[];
   users: User[];
   departments?: { id: string; name: string; code: string }[];
   courses?: { id: string; name: string; code: string }[];
@@ -22,17 +27,30 @@ interface DashboardAdviserProps {
   onApproveConsultation: (id: string) => void;
 }
 
+type DetailTab = 'info' | 'versions' | 'schedule' | 'timeline';
+
+const detailTabs: { id: DetailTab; label: string }[] = [
+  { id: 'info', label: 'Group Members' },
+  { id: 'versions', label: 'Latest Paper' },
+  { id: 'schedule', label: 'Defense' },
+  { id: 'timeline', label: 'Progress' },
+];
+
+interface ChapterRow { key: string; name: string; status: keyof typeof chapterStatus; feedback?: string }
+
 export default function DashboardAdviser({
-  user, researchList, versions, comments, consultations, schedules = [], users,
-  departments = [], courses = [], onSelectResearch, onApproveManuscript, onAddConsultation, onApproveConsultation
+  user, researchList, versions, comments, consultations, schedules = [], rooms = [], users,
+  departments = [], courses = [], onSelectResearch, onApproveManuscript, onAddConsultation, onApproveConsultation,
 }: DashboardAdviserProps) {
-  
+
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [topic, setTopic] = useState('');
   const [studentId, setStudentId] = useState('');
   const [dateTime, setDateTime] = useState('');
   const [showConsultModal, setShowConsultModal] = useState(false);
-  const [detailTab, setDetailTab] = useState<'info' | 'versions' | 'schedule' | 'timeline'>('info');
+  const [detailTab, setDetailTab] = useState<DetailTab>('info');
+  // Approving or asking for changes is final for the student, so we ask "are you sure?" first.
+  const [pendingDecision, setPendingDecision] = useState<{ id: string; approve: boolean } | null>(null);
 
   // Filter research assigned to this adviser
   const assignedResearchList = useMemo(() => {
@@ -43,7 +61,7 @@ export default function DashboardAdviser({
     return consultations.filter(c => c.adviserId === user.id);
   }, [consultations, user.id]);
 
-  // Statistics
+  // Numbers for the top of the page
   const stats = useMemo(() => {
     const totalAssigned = assignedResearchList.length;
     const pendingReview = assignedResearchList.filter(r => r.status === 'Submitted' || r.status === 'Under Review').length;
@@ -52,63 +70,56 @@ export default function DashboardAdviser({
     return { totalAssigned, pendingReview, approvedPapers, revisionRequests };
   }, [assignedResearchList]);
 
-  // Generate simulated or calculated notifications activity related to adviser's groups
+  const waitingForReview = useMemo(
+    () => assignedResearchList.filter(r => r.status === 'Submitted' || r.status === 'Under Review'),
+    [assignedResearchList],
+  );
+
+  // Recent things that happened in this adviser's groups
   const activityNotifications = useMemo(() => {
     const events: { id: string; title: string; message: string; date: string; type: 'success' | 'info' | 'warning' }[] = [];
-    
-    assignedResearchList.forEach((res, i) => {
-      // Find latest version
+
+    assignedResearchList.forEach(res => {
       const groupVersions = versions.filter(v => v.researchId === res.id);
       if (groupVersions.length > 0) {
         const sorted = [...groupVersions].sort((a, b) => b.versionNumber - a.versionNumber);
         events.push({
           id: `notif-ver-${res.id}`,
-          title: `New Manuscript Uploaded`,
-          message: `Group "${res.title.substring(0, 32)}..." submitted Version ${sorted[0].versionNumber} for review.`,
-          date: new Date(sorted[0].submittedAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-          type: 'info'
+          title: 'New paper uploaded',
+          message: `The group “${res.title.substring(0, 40)}${res.title.length > 40 ? '…' : ''}” sent Version ${sorted[0].versionNumber} for your review.`,
+          date: formatDateTime(sorted[0].submittedAt),
+          type: 'info',
         });
       }
 
-      // Check for scheduled defense
       const sched = schedules.find(s => s.researchId === res.id);
       if (sched) {
+        const roomName = rooms.find(r => r.id === sched.roomId)?.name;
         events.push({
           id: `notif-sched-${res.id}`,
-          title: `Oral Defense Scheduled`,
-          message: `Oral presentation for "${res.title.substring(0, 32)}..." is locked for ${sched.date} at ${sched.roomId}.`,
-          date: sched.date,
-          type: 'success'
+          title: 'Defense scheduled',
+          message: `The defense for “${res.title.substring(0, 40)}${res.title.length > 40 ? '…' : ''}” is on ${formatDateAndTime(sched.date, sched.startTime)}${roomName ? ` in ${roomName}` : ''}.`,
+          date: formatDate(sched.date),
+          type: 'success',
         });
       }
 
-      // Check comments
       const groupComments = comments.filter(c => c.researchId === res.id);
       if (groupComments.length > 0) {
         events.push({
           id: `notif-comm-${res.id}`,
-          title: `Activity in Comments`,
-          message: `There are ${groupComments.length} active discussion markers on chapter manuscripts.`,
-          date: `Recent`,
-          type: 'warning'
+          title: 'Comments on chapters',
+          message: `There ${groupComments.length === 1 ? 'is 1 comment' : `are ${groupComments.length} comments`} on this group’s chapters.`,
+          date: 'Recent',
+          type: 'warning',
         });
       }
     });
 
-    if (events.length === 0) {
-      events.push({
-        id: 'default-notif',
-        title: 'System Handshake Complete',
-        message: 'No new manuscript uploads or review requests in the queue.',
-        date: 'Just now',
-        type: 'success'
-      });
-    }
-
     return events.slice(0, 5);
-  }, [assignedResearchList, versions, schedules, comments]);
+  }, [assignedResearchList, versions, schedules, comments, rooms]);
 
-  // Set first group as selected by default if nothing is selected
+  // Pick the first group by default
   React.useEffect(() => {
     if (assignedResearchList.length > 0 && !selectedGroupId) {
       setSelectedGroupId(assignedResearchList[0].id);
@@ -122,7 +133,7 @@ export default function DashboardAdviser({
   const getStudentNames = (studentIds: string[]) => {
     return studentIds.map(sid => {
       const u = users.find(x => x.id === sid);
-      return u ? u.name : 'Unknown Student';
+      return u ? u.name : 'Unknown student';
     }).join(', ');
   };
 
@@ -147,7 +158,7 @@ export default function DashboardAdviser({
       dateTime,
       topic,
       status: 'approved',
-      meetLink: `https://meet.google.com/normi-${Math.random().toString(36).substring(2, 7)}`
+      meetLink: `https://meet.google.com/normi-${Math.random().toString(36).substring(2, 7)}`,
     });
 
     setTopic('');
@@ -155,48 +166,34 @@ export default function DashboardAdviser({
     setShowConsultModal(false);
   };
 
-  // Helper to resolve Timeline Stages and color indications
+  // The steps a paper goes through, with the current one marked
   const getTimelineStages = (status: string) => {
     const stages = [
-      { id: 1, label: 'Title Proposal', desc: 'Abstract submitted & approved', state: 'upcoming' },
-      { id: 2, label: 'Adviser Assigned', desc: 'Faculty mentor assigned', state: 'upcoming' },
-      { id: 3, label: 'Proposal Drafting', desc: 'Initial chapters under review', state: 'upcoming' },
-      { id: 4, label: 'Proposal Defense', desc: 'Panel evaluation & scheduling', state: 'upcoming' },
-      { id: 5, label: 'Development & Revisions', desc: 'Manuscript corrections & coding', state: 'upcoming' },
-      { id: 6, label: 'Final Adviser Vetting', desc: 'Ready for final panel clearance', state: 'upcoming' },
-      { id: 7, label: 'Oral Defense', desc: 'Final project defense presentation', state: 'upcoming' },
-      { id: 8, label: 'Vetted & Completed', desc: 'Archived in Institutional Repository', state: 'upcoming' }
+      { id: 1, label: 'Title sent', desc: 'The group sent their research title and summary.', state: 'upcoming' },
+      { id: 2, label: 'Adviser assigned', desc: 'You were chosen as the adviser.', state: 'upcoming' },
+      { id: 3, label: 'Chapters written', desc: 'The group writes and uploads their chapters.', state: 'upcoming' },
+      { id: 4, label: 'You review the chapters', desc: 'You read the chapters and give feedback.', state: 'upcoming' },
+      { id: 5, label: 'Group fixes the paper', desc: 'The group makes the changes you asked for.', state: 'upcoming' },
+      { id: 6, label: 'Your approval', desc: 'You approve the paper so it can be scheduled for defense.', state: 'upcoming' },
+      { id: 7, label: 'Defense', desc: 'The group presents to the panel.', state: 'upcoming' },
+      { id: 8, label: 'Finished', desc: 'The final paper is saved in the Repository.', state: 'upcoming' },
     ];
 
-    // Status map indexes:
     let activeStageIndex = 0;
-    if (status === 'Submitted') {
-      activeStageIndex = 2; // Proposal Drafting
-    } else if (status === 'Under Review') {
-      activeStageIndex = 3; // Proposal Defense
-    } else if (status === 'Revision Required') {
-      activeStageIndex = 4; // Dev & Revision
-    } else if (status === 'Approved by Adviser' || status === 'Pending Coordinator') {
-      activeStageIndex = 5; // Vetting
-    } else if (status === 'Scheduled') {
-      activeStageIndex = 6; // Oral Defense
-    } else if (status === 'Completed' || status === 'Archived') {
-      activeStageIndex = 7; // Completed
-    }
+    if (status === 'Submitted') activeStageIndex = 2;
+    else if (status === 'Under Review') activeStageIndex = 3;
+    else if (status === 'Revision Required') activeStageIndex = 4;
+    else if (status === 'Approved by Adviser' || status === 'Pending Coordinator') activeStageIndex = 5;
+    else if (status === 'Scheduled') activeStageIndex = 6;
+    else if (status === 'Completed' || status === 'Archived') activeStageIndex = 7;
 
     stages.forEach((stage, idx) => {
-      if (idx < activeStageIndex) {
-        stage.state = 'completed'; // Green
-      } else if (idx === activeStageIndex) {
-        stage.state = 'active';    // Yellow
-      } else {
-        stage.state = 'upcoming';  // Gray
-      }
+      if (idx < activeStageIndex) stage.state = 'completed';
+      else if (idx === activeStageIndex) stage.state = 'active';
+      else stage.state = 'upcoming';
     });
 
-    if (status === 'Completed' || status === 'Archived') {
-      stages[7].state = 'completed';
-    }
+    if (status === 'Completed' || status === 'Archived') stages[7].state = 'completed';
 
     return stages;
   };
@@ -212,611 +209,435 @@ export default function DashboardAdviser({
   }, [selectedGroup, schedules]);
 
   const selectedGroupDepartmentName = useMemo(() => {
-    if (!selectedGroup) return 'General Department';
-    const dept = departments.find(d => d.id === selectedGroup.departmentId);
-    return dept ? dept.name : 'College of Information Technology';
+    if (!selectedGroup) return '—';
+    return departments.find(d => d.id === selectedGroup.departmentId)?.name ?? '—';
   }, [selectedGroup, departments]);
 
   const selectedGroupCourseName = useMemo(() => {
-    if (!selectedGroup) return '';
-    const crs = courses.find(c => c.id === selectedGroup.courseId);
-    return crs ? crs.name : 'BSIT';
+    if (!selectedGroup) return '—';
+    return courses.find(c => c.id === selectedGroup.courseId)?.name ?? '—';
   }, [selectedGroup, courses]);
+
+  // Real chapter results from the latest version (not sample text)
+  const chapterRows: ChapterRow[] = useMemo(() => {
+    if (!selectedGroupLatestVersion?.chapters) return [];
+    return Object.entries(selectedGroupLatestVersion.chapters).map(([key, value]) => ({
+      key,
+      name: chapterNames[key] ?? key,
+      status: (value?.status ?? 'Not Submitted') as ChapterRow['status'],
+      feedback: value?.feedback,
+    }));
+  }, [selectedGroupLatestVersion]);
+
+  const chapterColumns: Column<ChapterRow>[] = [
+    { key: 'chapter', header: 'Chapter', primary: true, render: r => r.name },
+    { key: 'status', header: 'Status', render: r => <StatusBadge info={chapterStatus[r.status] ?? chapterStatus['Not Submitted']} /> },
+    { key: 'note', header: 'Your note', render: r => r.feedback || <span className="text-slate-500">No note yet</span> },
+  ];
+
+  const decisionGroup = pendingDecision ? assignedResearchList.find(r => r.id === pendingDecision.id) : null;
 
   return (
     <div className="space-y-6">
-      
-      {/* Top Welcome Panel */}
-      <div className="bg-white rounded-2xl border border-slate-150 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
-          <span className="text-xs   font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-150">
-            Assigned Adviser Hub
-          </span>
-          <h2 className="text-xl font-bold text-slate-800 font-serif leading-none mt-2">
-            Adviser Consultation & Vetting Terminal
-          </h2>
-          <p className="text-xs text-slate-500">
-            Examine thesis chapters, write digital feedback cards, track milestones, and approve capstone submissions for the current term.
+      <PageHeader
+        title="Your Student Groups"
+        subtitle="Read your students’ papers, give feedback, and approve them when they are ready."
+        action={<Button icon={Calendar} onClick={() => setShowConsultModal(true)}>Schedule a Meeting</Button>}
+      />
+
+      {/* What should I do next? */}
+      <section aria-labelledby="adviser-next">
+        <Card className={cx(waitingForReview.length > 0 ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50')}>
+          <p id="adviser-next" className="flex items-center gap-2 text-sm font-bold text-blue-900">
+            <Compass className="h-5 w-5" aria-hidden="true" />
+            What should I do next?
           </p>
-        </div>
-
-        <button
-          onClick={() => setShowConsultModal(true)}
-          className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors shrink-0"
-        >
-          <Calendar className="h-4 w-4" />
-          Schedule Consultation Slot
-        </button>
-      </div>
-
-      {/* Advising Statistics Panel */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-blue-50 text-blue-800 rounded-lg shrink-0">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Assigned Teams</span>
-            <span className="text-sm font-extrabold text-slate-800">{stats.totalAssigned} Groups</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-amber-50 text-amber-800 rounded-lg shrink-0">
-            <Layers className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Pending Reviews</span>
-            <span className="text-sm font-extrabold text-slate-800">{stats.pendingReview} Drafts</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-emerald-50 text-emerald-800 rounded-lg shrink-0">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Approved Papers</span>
-            <span className="text-sm font-extrabold text-slate-800">{stats.approvedPapers} Approved</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4.5 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3.5">
-          <div className="p-2.5 bg-rose-50 text-rose-800 rounded-lg shrink-0">
-            <AlertCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal">Revisions Required</span>
-            <span className="text-sm font-extrabold text-slate-800">{stats.revisionRequests} Pending Re-submit</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Interactive Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Assigned Research Groups List Selector */}
-        <section className="lg:col-span-4 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-150 px-4 py-3 flex justify-between items-center">
-              <h3 className="text-xs font-bold text-slate-700  tracking-normal flex items-center gap-1.5">
-                <Compass className="h-4 w-4 text-blue-700" />
-                Active Advising Portfolio
-              </h3>
-              <span className="text-xs bg-slate-200 px-1.5 rounded  font-bold">
-                {assignedResearchList.length}
-              </span>
-            </div>
-
-            <div className="divide-y divide-slate-150 max-h-[480px] overflow-y-auto">
-              {assignedResearchList.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-xs">
-                  No research groups are currently assigned under your mentorship.
-                </div>
-              ) : (
-                assignedResearchList.map(res => {
-                  const isSelected = selectedGroupId === res.id;
-                  return (
-                    <div 
-                      key={res.id} 
-                      onClick={() => setSelectedGroupId(res.id)}
-                      className={`p-4 transition-all cursor-pointer border-l-4 text-left ${
-                        isSelected 
-                          ? 'bg-blue-50/50 border-blue-800 shadow-sm' 
-                          : 'border-transparent hover:bg-slate-50/40'
-                      }`}
-                    >
-                      <span className="text-xs  font-bold text-slate-500 ">
-                        {res.id.toUpperCase()}
-                      </span>
-                      <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-snug mt-0.5">
-                        {res.title}
-                      </h4>
-                      <div className="flex justify-between items-center mt-2.5">
-                        <span className="text-xs text-slate-450 truncate max-w-[120px] font-medium">
-                          {getStudentNames(res.studentIds).split(',')[0]} (Lead)
-                        </span>
-                        <span className={`text-xs  font-bold px-2 py-0.5 rounded border  ${
-                          res.status === 'Approved by Adviser' ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
-                            : res.status === 'Revision Required' ? 'bg-rose-50 text-rose-800 border-rose-100'
-                            : 'bg-blue-50 text-blue-800 border-blue-100'
-                        }`}>
-                          {res.status}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Activity Alerts Widget */}
-          <div className="bg-white rounded-xl border border-slate-150 p-4 shadow-sm space-y-3.5">
-            <h3 className="text-xs font-bold text-slate-800  tracking-normal border-b border-slate-100 pb-2 flex items-center gap-1.5">
-              <Bell className="h-4 w-4 text-amber-600 shrink-0" />
-              Assigned Activity Logs
-            </h3>
-
-            <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
-              {activityNotifications.map((notif) => (
-                <div key={notif.id} className="p-2.5 bg-slate-50 rounded-lg border border-slate-150 flex items-start gap-2 text-xs">
-                  <div className={`p-1 rounded mt-0.5 ${
-                    notif.type === 'success' ? 'bg-emerald-100 text-emerald-700'
-                      : notif.type === 'warning' ? 'bg-amber-100 text-amber-700'
-                      : 'bg-blue-100 text-blue-700'
-                  }`}>
-                    <Info className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-slate-800 text-xs truncate">{notif.title}</span>
-                      <span className="text-xs text-slate-500  font-semibold">{notif.date}</span>
-                    </div>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
-                      {notif.message}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Right Column: Deep Inspector Tabs for Selected Group */}
-        <section className="lg:col-span-8 space-y-4">
-          {selectedGroup ? (
-            <div className="bg-white rounded-xl border border-slate-150 shadow-sm overflow-hidden flex flex-col min-h-[580px]">
-              
-              {/* Profile Card Header */}
-              <div className="p-5 border-b border-slate-200 bg-slate-50/60 space-y-3">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="space-y-1">
-                    <span className="text-xs  font-extrabold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded border border-blue-150 ">
-                      Active Mentored Capstone
-                    </span>
-                    <h3 className="text-base font-bold text-slate-850 leading-snug">
-                      {selectedGroup.title}
-                    </h3>
-                  </div>
-
-                  <span className={`text-xs  font-bold px-3 py-1 rounded border  shrink-0 ${
-                    selectedGroup.status === 'Approved by Adviser' ? 'bg-emerald-50 text-emerald-800 border-emerald-100'
-                      : selectedGroup.status === 'Revision Required' ? 'bg-rose-50 text-rose-800 border-rose-100'
-                      : 'bg-blue-50 text-blue-800 border-blue-100'
-                  }`}>
-                    {selectedGroup.status}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 font-medium pt-1">
-                  <span>Course: <strong className="text-slate-800 font-semibold">{selectedGroupCourseName}</strong></span>
-                  <span>•</span>
-                  <span>College: <strong className="text-slate-800 font-semibold">{selectedGroupDepartmentName}</strong></span>
-                  <span>•</span>
-                  <span>A.Y. 2025-2026</span>
-                </div>
-              </div>
-
-              {/* Organized Sub-tabs Navigation */}
-              <div className="bg-white border-b border-slate-150 px-4 flex gap-4 text-xs font-bold text-slate-500">
-                <button
-                  onClick={() => setDetailTab('info')}
-                  className={`py-2.5 border-b-2 cursor-pointer transition-colors ${
-                    detailTab === 'info' ? 'border-blue-800 text-slate-850' : 'border-transparent hover:text-slate-700'
-                  }`}
-                >
-                  Group Personnel
-                </button>
-                <button
-                  onClick={() => setDetailTab('versions')}
-                  className={`py-2.5 border-b-2 cursor-pointer transition-colors ${
-                    detailTab === 'versions' ? 'border-b-2 border-blue-800 text-slate-850' : 'border-transparent hover:text-slate-700'
-                  }`}
-                >
-                  Latest Version & Review
-                </button>
-                <button
-                  onClick={() => setDetailTab('schedule')}
-                  className={`py-2.5 border-b-2 cursor-pointer transition-colors ${
-                    detailTab === 'schedule' ? 'border-b-2 border-blue-800 text-slate-850' : 'border-transparent hover:text-slate-700'
-                  }`}
-                >
-                  Defense Schedule
-                </button>
-                <button
-                  onClick={() => setDetailTab('timeline')}
-                  className={`py-2.5 border-b-2 cursor-pointer transition-colors ${
-                    detailTab === 'timeline' ? 'border-b-2 border-blue-800 text-slate-850' : 'border-transparent hover:text-slate-700'
-                  }`}
-                >
-                  Research Progress Timeline
-                </button>
-              </div>
-
-              {/* Tab Content Panels */}
-              <div className="p-6 flex-1 bg-white">
-                
-                {/* A. PERSONNEL TAB */}
-                {detailTab === 'info' && (
-                  <div className="space-y-5 animate-in fade-in duration-100">
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-3">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1">
-                        <Users className="h-4 w-4 text-blue-700" />
-                        Student Researchers Team
-                      </h4>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        {getStudentObjects(selectedGroup.studentIds).map((student, idx) => (
-                          <div key={student.id} className="p-3 bg-white rounded-lg border border-slate-150 flex items-center gap-2.5">
-                            <img
-                              src={student.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${student.name}`}
-                              alt={student.name}
-                              referrerPolicy="no-referrer"
-                              className="w-9 h-9 rounded-full border bg-slate-50 shrink-0"
-                            />
-                            <div className="truncate">
-                              <span className="font-extrabold text-slate-800 text-xs block leading-snug">{student.name}</span>
-                              <span className="text-xs text-slate-500 font-medium ">{idx === 0 ? 'Team Leader' : 'Co-Researcher'}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-xs text-slate-650">
-                      <h4 className="font-bold text-slate-800  tracking-normal text-xs">Academic Context</h4>
-                      <div className="grid grid-cols-2 gap-3 text-slate-550 pt-1 font-medium">
-                        <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-150">
-                          <span className="text-xs  font-bold text-slate-500  block mb-0.5">Assigned Faculty Mentor</span>
-                          <span className="text-slate-800 font-bold">{user.name}</span>
-                        </div>
-                        <div className="p-3 bg-slate-50/50 rounded-lg border border-slate-150">
-                          <span className="text-xs  font-bold text-slate-500  block mb-0.5">School Year Term</span>
-                          <span className="text-slate-800 font-bold">2025 - 2026 Normal Enrollment</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-150 space-y-2">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal">Historical System Log</h4>
-                      <p className="text-xs text-slate-500">Recorded action sequences regarding this capstone group:</p>
-                      <div className="space-y-1.5 pt-1.5  text-xs text-slate-500">
-                        <div className="flex justify-between border-b border-dashed pb-1 border-slate-200">
-                          <span>[INFO] Title Proposal vetted</span>
-                          <span>{selectedGroup.createdAt ? new Date(selectedGroup.createdAt).toLocaleDateString() : '07/04/2026'}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-dashed pb-1 border-slate-200">
-                          <span>[INFO] Adviser assigned matching department scope</span>
-                          <span>{selectedGroup.createdAt ? new Date(selectedGroup.createdAt).toLocaleDateString() : '07/04/2026'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>[STATUS] Currently categorized: <strong className="text-blue-800 font-bold">{selectedGroup.status}</strong></span>
-                          <span>{selectedGroup.updatedAt ? new Date(selectedGroup.updatedAt).toLocaleDateString() : 'Recent'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* B. LATEST VERSION TAB */}
-                {detailTab === 'versions' && (
-                  <div className="space-y-5 animate-in fade-in duration-100">
-                    {selectedGroupLatestVersion ? (
-                      <div className="space-y-4">
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                          <div className="space-y-1">
-                            <span className="text-xs font-bold text-blue-800   bg-blue-100 border border-blue-150 px-2 py-0.25 rounded">
-                              V{selectedGroupLatestVersion.versionNumber} Manuscript
-                            </span>
-                            <h4 className="text-xs font-bold text-slate-800">{selectedGroupLatestVersion.fileName}</h4>
-                            <p className="text-xs text-slate-500 ">Uploaded: {new Date(selectedGroupLatestVersion.submittedAt).toLocaleString()}</p>
-                          </div>
-
-                          <div className="flex gap-2 shrink-0">
-                            <button
-                              onClick={() => onSelectResearch(selectedGroup.id)}
-                              className="px-3 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              Interactive Vetting Reader
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Interactive fast action buttons */}
-                        <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-150 space-y-3 text-xs">
-                          <h4 className="font-bold text-slate-800  tracking-normal">Fast Manuscript Action Vetting</h4>
-                          <p className="text-slate-450 text-xs">Directly adjust manuscript pipeline status coordinates from here or load the detailed reader panel above.</p>
-                          
-                          <div className="flex gap-2 pt-1">
-                            {selectedGroup.status !== 'Approved by Adviser' && (
-                              <button
-                                onClick={() => onApproveManuscript(selectedGroup.id, true)}
-                                className="px-3.5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-emerald-800/10 cursor-pointer"
-                              >
-                                <ShieldCheck className="h-4 w-4" /> Approve Final Draft
-                              </button>
-                            )}
-                            {selectedGroup.status !== 'Revision Required' && (
-                              <button
-                                onClick={() => onApproveManuscript(selectedGroup.id, false)}
-                                className="px-3.5 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-rose-700/10 cursor-pointer"
-                              >
-                                <AlertCircle className="h-4 w-4" /> Request Major Revisions
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Chapters Check summary */}
-                        <div className="border border-slate-150 rounded-xl overflow-hidden">
-                          <table className="w-full text-xs text-left text-slate-650 border-collapse">
-                            <thead className="bg-slate-50 text-xs  font-bold tracking-normal  border-b">
-                              <tr>
-                                <th className="p-2.5">Chapter</th>
-                                <th className="p-2.5">Status Badge</th>
-                                <th className="p-2.5">Commentary Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium">
-                              <tr>
-                                <td className="p-2.5">Chapter 1: Problem Definition</td>
-                                <td className="p-2.5">
-                                  <span className="text-xs bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded   font-bold">Approved</span>
-                                </td>
-                                <td className="p-2.5 text-slate-450 italic">Excellent literature support and introduction definitions.</td>
-                              </tr>
-                              <tr>
-                                <td className="p-2.5">Chapter 2: Literature Review</td>
-                                <td className="p-2.5">
-                                  <span className="text-xs bg-emerald-50 text-emerald-800 px-1.5 py-0.5 rounded   font-bold">Approved</span>
-                                </td>
-                                <td className="p-2.5 text-slate-450 italic">References verified and compiled appropriately.</td>
-                              </tr>
-                              <tr>
-                                <td className="p-2.5">Chapter 3: System Methodology</td>
-                                <td className="p-2.5">
-                                  <span className={`text-xs px-1.5 py-0.5 rounded   font-bold ${selectedGroup.status === 'Revision Required' ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>
-                                    {selectedGroup.status === 'Revision Required' ? 'Revision Required' : 'Approved'}
-                                  </span>
-                                </td>
-                                <td className="p-2.5 text-slate-450 italic">
-                                  {selectedGroup.status === 'Revision Required' ? 'Methodology needs database layout specifications.' : 'Database design finalized.'}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-slate-500 text-xs">
-                        No draft manuscripts have been uploaded for review yet.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* C. SCHEDULE TAB */}
-                {detailTab === 'schedule' && (
-                  <div className="space-y-4 animate-in fade-in duration-100">
-                    {selectedGroupSchedule ? (
-                      <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-                        <div className="flex justify-between items-center border-b border-slate-200 pb-2.5">
-                          <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1.5">
-                            <Clock className="h-4.5 w-4.5 text-blue-700" />
-                            Official Defense Booking Details
-                          </h4>
-                          <span className="text-xs  font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">
-                            {selectedGroupSchedule.type.toUpperCase()} DEFENSE
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 text-xs font-medium text-slate-650">
-                          <div className="space-y-0.5">
-                            <span className="text-xs  font-bold text-slate-500 ">Assigned Venue Room</span>
-                            <p className="text-slate-850 font-bold">{selectedGroupSchedule.roomId}</p>
-                          </div>
-                          
-                          <div className="space-y-0.5">
-                            <span className="text-xs  font-bold text-slate-500 ">Date and Coordinates</span>
-                            <p className="text-slate-850 font-bold">
-                              {selectedGroupSchedule.date} ({selectedGroupSchedule.startTime} - {selectedGroupSchedule.endTime})
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5 pt-2 border-t border-slate-200/60">
-                          <span className="text-xs  font-bold text-slate-500  block">Jury panel committee</span>
-                          <div className="flex flex-col gap-1.5">
-                            {selectedGroupSchedule.panelistIds.map((pid, idx) => {
-                              const panObj = users.find(u => u.id === pid);
-                              return (
-                                <div key={pid} className="flex items-center gap-2 text-xs">
-                                  <span className="font-bold bg-slate-200 text-slate-600 w-5 h-5 rounded-full flex items-center justify-center  text-xs">
-                                    P{idx + 1}
-                                  </span>
-                                  <span className="text-slate-800 font-bold">{panObj ? panObj.name : 'Vetting Committee Member'}</span>
-                                  <span className="text-xs text-slate-500  ">Panelist</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 bg-slate-50 border border-slate-150 rounded-xl text-slate-500 text-xs">
-                        No active panel defense slot is currently booked or approved for this capstone group.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* D. TIMELINE TAB */}
-                {detailTab === 'timeline' && (
-                  <div className="space-y-6 animate-in fade-in duration-100">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-800  tracking-normal flex items-center gap-1">
-                        <Award className="h-4.5 w-4.5 text-blue-700 animate-pulse" />
-                        Visual Research Journey Milestone Chart
-                      </h4>
-                      <p className="text-xs text-slate-450 leading-relaxed">Status parameters reflect actual system pipeline progress from title definition to publication archiving.</p>
-                    </div>
-
-                    <div className="relative border-l-2 border-slate-150 pl-6 ml-3 space-y-6 py-2.5">
-                      {getTimelineStages(selectedGroup.status).map(stage => {
-                        const isCompleted = stage.state === 'completed';
-                        const isActive = stage.state === 'active';
-                        return (
-                          <div key={stage.id} className="relative">
-                            
-                            {/* Dot indicator */}
-                            <span className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
-                              isCompleted 
-                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                                : isActive 
-                                  ? 'bg-amber-400 border-amber-400 text-slate-850 animate-pulse'
-                                  : 'bg-white border-slate-300'
-                            }`}>
-                              {isCompleted && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-                              {isActive && <div className="w-1.5 h-1.5 bg-slate-850 rounded-full" />}
-                            </span>
-
-                            <div className="space-y-0.5 text-xs">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`font-bold  tracking-normal text-xs ${
-                                  isCompleted ? 'text-emerald-800' : isActive ? 'text-amber-800' : 'text-slate-500'
-                                }`}>
-                                  Stage {stage.id}: {stage.label}
-                                </span>
-                                {isActive && (
-                                  <span className="text-xs bg-amber-50 text-amber-700  font-extrabold border border-amber-200 px-1.5 rounded ">
-                                    Current Active Target
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-slate-500 text-xs">{stage.desc}</p>
-                            </div>
-
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
+          {waitingForReview.length === 0 ? (
+            <div className="mt-2">
+              <h2 className="text-xl font-bold text-slate-900">You are all caught up</h2>
+              <p className="mt-1 text-base text-slate-700">No papers are waiting for your review right now. We will tell you when a group sends a new one.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-150 p-12 text-center text-slate-500 text-xs shadow-sm">
-              Please select a research group from your advising portfolio portfolio on the left sidebar to inspect details.
+            <div className="mt-2 space-y-3">
+              <h2 className="text-xl font-bold text-slate-900">
+                {waitingForReview.length === 1 ? '1 paper is waiting for your review' : `${waitingForReview.length} papers are waiting for your review`}
+              </h2>
+              <ul className="divide-y divide-blue-100 rounded-xl border border-blue-100 bg-white">
+                {waitingForReview.map(res => {
+                  const latest = getLatestVersion(res.id);
+                  return (
+                    <li key={res.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-base font-semibold text-slate-900">{res.title}</p>
+                        <p className="text-sm text-slate-600">
+                          {getStudentNames(res.studentIds)}
+                          {latest && ` · Version ${latest.versionNumber} sent ${formatDateTime(latest.submittedAt)}`}
+                        </p>
+                      </div>
+                      <Button size="sm" icon={ArrowRight} onClick={() => onSelectResearch(res.id)} className="shrink-0">
+                        Review This Paper
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
-        </section>
+        </Card>
+      </section>
 
+      {/* Numbers */}
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          { icon: Users, tone: 'text-blue-800', label: 'Student groups', value: stats.totalAssigned },
+          { icon: Layers, tone: 'text-amber-700', label: 'Waiting for your review', value: stats.pendingReview },
+          { icon: ShieldCheck, tone: 'text-emerald-700', label: 'Approved by you', value: stats.approvedPapers },
+          { icon: AlertCircle, tone: 'text-rose-700', label: 'Waiting for students to fix', value: stats.revisionRequests },
+        ].map(({ icon: Icon, tone, label, value }) => (
+          <Card key={label} className="flex items-start gap-3 !p-4">
+            <Icon className={cx('mt-0.5 h-6 w-6 shrink-0', tone)} aria-hidden="true" />
+            <div>
+              <dd className="text-2xl font-bold text-slate-900">{value}</dd>
+              <dt className="text-sm text-slate-600">{label}</dt>
+            </div>
+          </Card>
+        ))}
+      </dl>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left: the groups and recent activity */}
+        <div className="space-y-6 lg:col-span-4">
+          <Card padded={false} as="section" aria-labelledby="groups-title">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <h2 id="groups-title" className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <Compass className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                My groups
+              </h2>
+              <Badge tone="neutral">{assignedResearchList.length}</Badge>
+            </div>
+
+            {assignedResearchList.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No groups yet"
+                description="When a student group chooses you as their adviser, they will show here."
+              />
+            ) : (
+              <ul className="max-h-[480px] divide-y divide-slate-100 overflow-y-auto">
+                {assignedResearchList.map(res => {
+                  const isSelected = selectedGroupId === res.id;
+                  return (
+                    <li key={res.id}>
+                      <button
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setSelectedGroupId(res.id)}
+                        className={cx(
+                          'flex w-full flex-col gap-2 border-l-4 p-4 text-left transition-colors cursor-pointer',
+                          isSelected ? 'border-blue-800 bg-blue-50' : 'border-transparent hover:bg-slate-50',
+                        )}
+                      >
+                        <span className="text-sm font-semibold text-slate-900 line-clamp-2">{res.title}</span>
+                        <span className="text-sm text-slate-600 truncate">{getStudentNames(res.studentIds).split(',')[0]} (group leader)</span>
+                        <ResearchStatusBadge status={res.status} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Card>
+
+          <Card as="section" aria-labelledby="activity-title">
+            <CardHeader title="Recent activity" icon={<Bell className="h-5 w-5" aria-hidden="true" />} />
+            {activityNotifications.length === 0 ? (
+              <p className="text-sm text-slate-600">Nothing new yet. New uploads and defense dates will show here.</p>
+            ) : (
+              <ul className="max-h-64 space-y-3 overflow-y-auto">
+                {activityNotifications.map(n => (
+                  <li key={n.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                      {n.type === 'success' ? <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                        : n.type === 'warning' ? <MessageSquare className="h-4 w-4 text-amber-700" aria-hidden="true" />
+                        : <FileText className="h-4 w-4 text-blue-800" aria-hidden="true" />}
+                      {n.title}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">{n.message}</p>
+                    <p className="mt-1 text-xs text-slate-600">{n.date}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        {/* Right: details of the chosen group */}
+        <section className="lg:col-span-8" aria-label="Group details">
+          {selectedGroup ? (
+            <Card padded={false} className="overflow-hidden">
+              <div className="space-y-3 border-b border-slate-200 bg-slate-50 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h2 className="text-lg font-bold text-slate-900">{selectedGroup.title}</h2>
+                  <ResearchStatusBadge status={selectedGroup.status} />
+                </div>
+                <p className="text-sm text-slate-700">
+                  Course: <strong className="text-slate-900">{selectedGroupCourseName}</strong>
+                  <span aria-hidden="true"> · </span>
+                  Department: <strong className="text-slate-900">{selectedGroupDepartmentName}</strong>
+                </p>
+              </div>
+
+              {/* Tabs */}
+              <div role="tablist" aria-label="Group details" className="flex gap-1 overflow-x-auto border-b border-slate-200 px-3">
+                {detailTabs.map(t => (
+                  <button
+                    key={t.id}
+                    id={`tab-${t.id}`}
+                    role="tab"
+                    type="button"
+                    aria-selected={detailTab === t.id}
+                    aria-controls={`panel-${t.id}`}
+                    onClick={() => setDetailTab(t.id)}
+                    className={cx(
+                      'whitespace-nowrap border-b-4 px-4 py-3 text-sm font-semibold cursor-pointer',
+                      detailTab === t.id ? 'border-blue-800 text-blue-900' : 'border-transparent text-slate-600 hover:text-slate-900',
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <div role="tabpanel" id={`panel-${detailTab}`} aria-labelledby={`tab-${detailTab}`} className="p-5 sm:p-6">
+                {/* Members */}
+                {detailTab === 'info' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
+                        <Users className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                        Students in this group
+                      </h3>
+                      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {getStudentObjects(selectedGroup.studentIds).map((student, idx) => (
+                          <li key={student.id} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                            <img
+                              src={student.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${student.name}`}
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              className="h-10 w-10 shrink-0 rounded-full border border-slate-200 bg-slate-50"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-900">{student.name}</p>
+                              <p className="text-xs text-slate-600">{idx === 0 ? 'Group leader' : 'Group member'}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="mb-3 text-base font-bold text-slate-900">History</h3>
+                      <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
+                        <li className="flex justify-between gap-3 p-3">
+                          <span className="text-slate-700">Research paper first sent</span>
+                          <span className="text-slate-900">{formatDateLong(selectedGroup.createdAt)}</span>
+                        </li>
+                        <li className="flex justify-between gap-3 p-3">
+                          <span className="text-slate-700">Last updated</span>
+                          <span className="text-slate-900">{formatDateLong(selectedGroup.updatedAt)}</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {/* Latest paper */}
+                {detailTab === 'versions' && (
+                  selectedGroupLatestVersion ? (
+                    <div className="space-y-5">
+                      <div className="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
+                        <div className="min-w-0 space-y-1">
+                          <Badge tone="info" icon={FileText}>Version {selectedGroupLatestVersion.versionNumber}</Badge>
+                          <p className="text-base font-semibold text-slate-900 break-words">{selectedGroupLatestVersion.fileName}</p>
+                          <p className="text-sm text-slate-600">Sent {formatDateTime(selectedGroupLatestVersion.submittedAt)}</p>
+                        </div>
+                        <Button icon={MessageSquare} onClick={() => onSelectResearch(selectedGroup.id)} className="shrink-0">
+                          Read and Comment
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                        <h3 className="text-base font-bold text-slate-900">Your decision</h3>
+                        <p className="text-sm text-slate-600">
+                          Choose one when you have finished reading. The student will be notified.
+                        </p>
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                          {selectedGroup.status !== 'Approved by Adviser' && (
+                            <Button icon={ShieldCheck} onClick={() => setPendingDecision({ id: selectedGroup.id, approve: true })}>
+                              Approve This Paper
+                            </Button>
+                          )}
+                          {selectedGroup.status !== 'Revision Required' && (
+                            <Button variant="secondary" icon={Wrench} onClick={() => setPendingDecision({ id: selectedGroup.id, approve: false })}>
+                              Ask for Changes
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="mb-3 text-base font-bold text-slate-900">Chapter by chapter</h3>
+                        <Table
+                          caption="Chapter results for the latest paper"
+                          columns={chapterColumns}
+                          rows={chapterRows}
+                          rowKey={r => r.key}
+                          empty={<p className="text-sm text-slate-600">No chapter results have been recorded for this paper yet.</p>}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={Inbox}
+                      title="No paper uploaded yet"
+                      description="This group has not uploaded a file. You will get a notification when they do."
+                    />
+                  )
+                )}
+
+                {/* Defense */}
+                {detailTab === 'schedule' && (
+                  selectedGroupSchedule ? (
+                    <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                        <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                          <Clock className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                          Defense details
+                        </h3>
+                        <Badge tone="info">{defenseTypeLabels[selectedGroupSchedule.type]}</Badge>
+                      </div>
+                      <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                        <div>
+                          <dt className="text-slate-600">Room</dt>
+                          <dd className="font-semibold text-slate-900">{rooms.find(r => r.id === selectedGroupSchedule.roomId)?.name ?? 'Room not set'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-slate-600">Date and time</dt>
+                          <dd className="font-semibold text-slate-900">
+                            {formatDateLong(selectedGroupSchedule.date)}, {formatTime(selectedGroupSchedule.startTime)} to {formatTime(selectedGroupSchedule.endTime)}
+                          </dd>
+                        </div>
+                      </dl>
+                      <div className="border-t border-slate-200 pt-3">
+                        <p className="mb-2 text-sm font-bold text-slate-900">Panel members</p>
+                        <ul className="space-y-1.5 text-sm text-slate-900">
+                          {selectedGroupSchedule.panelistIds.map(pid => (
+                            <li key={pid}>{users.find(u => u.id === pid)?.name ?? 'Panel Member'}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={Calendar}
+                      title="No defense date yet"
+                      description="After you approve this paper, the coordinator will set a date, a room and a panel."
+                    />
+                  )
+                )}
+
+                {/* Progress */}
+                {detailTab === 'timeline' && (
+                  <div className="space-y-5">
+                    <p className="text-sm text-slate-600">Where this group is on the way from their first idea to the Repository.</p>
+                    <ol className="space-y-4">
+                      {getTimelineStages(selectedGroup.status).map(stage => (
+                        <li key={stage.id} className="flex items-start gap-3">
+                          <span
+                            className={cx(
+                              'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold',
+                              stage.state === 'completed' ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : stage.state === 'active' ? 'border-amber-500 bg-amber-100 text-amber-900'
+                                : 'border-slate-300 bg-white text-slate-600',
+                            )}
+                            aria-hidden="true"
+                          >
+                            {stage.state === 'completed' ? <CheckCircle2 className="h-4 w-4" /> : stage.id}
+                          </span>
+                          <div>
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-900">
+                              {stage.label}
+                              {stage.state === 'completed' && <Badge tone="success">Done</Badge>}
+                              {stage.state === 'active' && <Badge tone="warning" icon={Clock}>Now</Badge>}
+                            </p>
+                            <p className="text-sm text-slate-600">{stage.desc}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <Card padded={false}>
+              <EmptyState
+                icon={Compass}
+                title="Choose a group"
+                description="Select a group from the list to see their paper, defense and progress."
+              />
+            </Card>
+          )}
+        </section>
       </div>
 
-      {/* CONSULTATION SCHEDULER MODAL */}
-      {showConsultModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleConsultSubmit} 
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-sm p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
-          >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Calendar className="h-4.5 w-4.5 text-blue-700" />
-                Schedule Consultation Slot
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowConsultModal(false)}
-                className="text-slate-440 hover:text-slate-640 p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Meeting pop-up */}
+      <Modal
+        open={showConsultModal}
+        onClose={() => setShowConsultModal(false)}
+        title="Schedule a meeting"
+        description="Pick a student, a topic and a time. The meeting is confirmed right away."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowConsultModal(false)}>Cancel</Button>
+            <Button type="submit" form="consult-form">Confirm Meeting</Button>
+          </>
+        }
+      >
+        <form id="consult-form" onSubmit={handleConsultSubmit} className="space-y-5">
+          <Select label="Student" required value={studentId} onChange={e => setStudentId(e.target.value)}>
+            <option value="">Choose a student…</option>
+            {users.filter(u => u.role === 'student').map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </Select>
+          <Input
+            label="What will you talk about?"
+            required
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            placeholder="e.g. Chapter 3 review"
+          />
+          <Input label="Date and time" type="datetime-local" required value={dateTime} onChange={e => setDateTime(e.target.value)} />
+        </form>
+      </Modal>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Target Student Group</label>
-                <select
-                  required
-                  value={studentId}
-                  onChange={(e) => setStudentId(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">Select a Group Team...</option>
-                  {users.filter(u => u.role === 'student').map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Topic Coordinates</label>
-                <input
-                  type="text"
-                  required
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="e.g. Chapter 3 database normalization review"
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Date & Hour Slots</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={dateTime}
-                  onChange={(e) => setDateTime(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => setShowConsultModal(false)}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Confirm Slot
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
+      {/* "Are you sure?" before approving or asking for changes */}
+      <ConfirmDialog
+        open={!!pendingDecision}
+        onCancel={() => setPendingDecision(null)}
+        onConfirm={() => {
+          if (pendingDecision) onApproveManuscript(pendingDecision.id, pendingDecision.approve);
+          setPendingDecision(null);
+        }}
+        title={pendingDecision?.approve ? 'Approve this paper?' : 'Ask the group for changes?'}
+        message={
+          pendingDecision?.approve
+            ? `You are approving “${decisionGroup?.title ?? 'this paper'}”. The group will be told, and the coordinator can then schedule their defense.`
+            : `You are asking the group to change “${decisionGroup?.title ?? 'this paper'}”. They will be told to fix it and upload a new version.`
+        }
+        confirmLabel={pendingDecision?.approve ? 'Yes, Approve Paper' : 'Yes, Ask for Changes'}
+      />
     </div>
   );
 }
