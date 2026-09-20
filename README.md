@@ -27,17 +27,18 @@ Browser  ──►  frontend (port 3000)  ──►  backend (port 5000)  ──
 
 ## Run the whole system on your computer
 
-You need [Node.js](https://nodejs.org) and a MongoDB database. Open **two** terminal windows.
+You need [Node.js](https://nodejs.org) and a MongoDB database (a free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster works). Open **two** terminal windows.
 
 **Window 1: the backend**
 ```bash
 cd backend
 npm install
 ```
-Copy `.env.example` to `.env` and fill in your database address and a secret. Then:
+Copy `.env.example` to `.env` and fill in your database address and a long random secret. Then:
 ```bash
-npm run seed     # adds the starting data and demo accounts
-npm run dev      # starts the server on http://localhost:5000
+npm run seed            # adds departments, courses, school years and rooms
+npm run create-admin    # creates the first Admin (asks for a name, email and password)
+npm run dev             # starts the server on http://localhost:5000
 ```
 
 **Window 2: the frontend**
@@ -47,11 +48,22 @@ npm install
 ```
 Copy `.env.example` to `.env.local` (the default address already points to the backend). Then:
 ```bash
-npm run dev      # opens the website on http://localhost:3000
+npm run dev             # opens the website on http://localhost:3000
 ```
 
-Open http://localhost:3000. The backend's `CLIENT_URL` setting must be the address you open in the
-browser, otherwise the browser blocks the requests.
+Open http://localhost:3000 and sign in as the Admin. Add everyone else from **Manage Accounts**.
+There is no public sign-up: only an Admin can create accounts.
+
+The backend's `CLIENT_URL` setting must be the address you open in the browser, otherwise the browser
+blocks the requests.
+
+### Trying it out (testing only)
+
+- `npm run test-accounts` (in `backend`) creates one account for each role, for example
+  `test.student@normi.edu.ph`, with a random password shown once. **Delete these accounts before real use.**
+- `node scripts/dev-mongo.js` (in `backend`) starts a temporary database on your computer, so you can
+  test without Atlas. Its data disappears when you stop it. Set
+  `MONGODB_URI=mongodb://127.0.0.1:27117/normi_rms` in `.env` to use it.
 
 More detail is in each folder's own README: [`frontend/README.md`](frontend/README.md) and
 [`backend/README.md`](backend/README.md).
@@ -60,5 +72,5 @@ More detail is in each folder's own README: [`frontend/README.md`](frontend/READ
 
 - Never upload a `.env` file. It holds your database address and secret key.
   Both folders already ignore it.
-- The demo accounts created by `npm run seed` use simple passwords. Change or remove them before real use.
+- Use a strong password for the Admin, and delete any test accounts before real use.
 - Uploaded student files stay on the server in `backend/uploads/` and are not stored in Git.

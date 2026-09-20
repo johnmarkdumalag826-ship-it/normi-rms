@@ -7,6 +7,10 @@ const connectDB = require('./config/db');
 const AppError = require('./utils/AppError');
 
 if (require.main === module) {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+    console.error('JWT_SECRET is missing or too short. Put a long random text (16+ characters) in .env, then start again.');
+    process.exit(1);
+  }
   connectDB();
 }
 

@@ -1,5 +1,5 @@
-// One-time database seed, replacing Frontend/src/db/mockData.ts as the source of demo data
-// (see NORMI RMS roadmap Phase 6). Safe to re-run: every write is an upsert.
+// Adds the school's reference data: departments, courses, school years and rooms.
+// It does NOT create any user accounts. Use `npm run create-admin` for the first Admin.
 // Usage: node scripts/seed.js
 require('dotenv').config();
 const mongoose = require('mongoose');
@@ -9,7 +9,6 @@ const Department = require('../src/models/Department');
 const Course = require('../src/models/Course');
 const SchoolYear = require('../src/models/SchoolYear');
 const Room = require('../src/models/Room');
-const User = require('../src/models/User');
 
 async function upsertDepartment(name, code) {
   return Department.findOneAndUpdate({ code }, { name, code }, { upsert: true, returnDocument: 'after' });
@@ -17,17 +16,6 @@ async function upsertDepartment(name, code) {
 
 async function upsertCourse(departmentId, name, code) {
   return Course.findOneAndUpdate({ code, departmentId }, { departmentId, name, code }, { upsert: true, returnDocument: 'after' });
-}
-
-async function upsertUser({ email, password, name, role, departmentId, courseId, phone, avatar }) {
-  const existing = await User.findOne({ email });
-  if (existing) {
-    console.log(`  skip (already exists): ${email}`);
-    return existing;
-  }
-  const user = await User.create({ email, password, name, role, departmentId, courseId, phone, avatar, status: 'active' });
-  console.log(`  created: ${email} (${role})`);
-  return user;
 }
 
 async function main() {
@@ -74,24 +62,6 @@ async function main() {
   for (const [name, location, capacity] of rooms) {
     await Room.findOneAndUpdate({ name }, { name, location, capacity }, { upsert: true });
   }
-
-  // These match the "Demonstration Coordinates" shown on the Login screen for each role button.
-  console.log('Seeding demo accounts...');
-  await upsertUser({
-    email: 'admin@normi.edu.ph', password: 'admin123', name: 'Dr. Irish Mea D. Sajol', role: 'admin',
-  });
-  await upsertUser({
-    email: 'coordinator@normi.edu.ph', password: 'coord123', name: 'Prof. Patrick Earl O. Kimpang', role: 'coordinator', departmentId: cit._id,
-  });
-  await upsertUser({
-    email: 'adviser@normi.edu.ph', password: 'adviser123', name: 'Dr. John Mark L. Dumalag', role: 'adviser', departmentId: cit._id, phone: '+639171234567',
-  });
-  await upsertUser({
-    email: 'panel@normi.edu.ph', password: 'panel123', name: 'Dr. Arthur S. Pendelton', role: 'panelist', departmentId: cit._id, phone: '+639201234567',
-  });
-  await upsertUser({
-    email: 'student@normi.edu.ph', password: 'student123', name: 'Juan Dela Cruz', role: 'student', departmentId: cit._id, courseId: bsit._id, phone: '+639304567890',
-  });
 
   console.log('\nSeed complete.');
   await mongoose.disconnect();

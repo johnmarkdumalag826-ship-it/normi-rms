@@ -1,6 +1,6 @@
 // Throwaway local verification script — boots an in-memory MongoDB (no Atlas needed),
 // starts the real Express app against it, and exercises the core flows end-to-end:
-// register -> login -> create research -> upload version -> adviser approve ->
+// login -> create research -> upload version -> adviser approve ->
 // coordinator schedule -> panelist evaluate -> admin audit log.
 // Run with: node scripts/smoke-test.js
 require('dotenv').config();
@@ -9,6 +9,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'smoke-test-secret';
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const http = require('http');
+const User = require('../src/models/User');
 
 let failures = 0;
 
@@ -79,47 +80,60 @@ async function main() {
   const health = await request(server, 'GET', '/api/health');
   assert(health.status === 200 && health.body.status === 'ok', 'GET /api/health returns ok');
 
-  console.log('\n--- Auth: register + login ---');
-  const adviserReg = await request(server, 'POST', '/api/auth/register', {
-    email: 'adviser@normi.edu.ph', password: 'adviser123', name: 'Dr. John Dumalag', role: 'adviser', departmentId: dept._id,
-  });
-  assert(adviserReg.status === 201 && adviserReg.body.token, 'register adviser -> 201 + token');
-  const adviserToken = adviserReg.body.token;
-  const adviserId = adviserReg.body.user.id;
+  // There is no public sign-up: an Admin creates accounts. The test makes its users directly,
+  // then signs each one in through the real login route to get a token.
+  async function makeUser(fields, password) {
+    await User.create({ ...fields, password, status: 'active' });
+    const login = await request(server, 'POST', '/api/auth/login', { email: fields.email, password });
+    return { token: login.body.token, id: login.body.user && login.body.user.id };
+  }
 
-  const studentReg = await request(server, 'POST', '/api/auth/register', {
-    email: 'student@normi.edu.ph', password: 'student123', name: 'Juan Dela Cruz', role: 'student', departmentId: dept._id, courseId: course._id,
-  });
-  assert(studentReg.status === 201, 'register student -> 201');
-  const studentToken = studentReg.body.token;
+  console.log('\n--- Auth: login ---');
+  const adviser = await makeUser({ email: 'adviser@test.local', name: 'Dr. Test Adviser', role: 'adviser', departmentId: dept._id }, 'adviser-pass-1');
+  assert(!!adviser.token, 'adviser can sign in -> token');
+  const adviserToken = adviser.token;
+  const adviserId = adviser.id;
+
+  const student = await makeUser({ email: 'student@test.local', name: 'Test Student', role: 'student', departmentId: dept._id, courseId: course._id }, 'student-pass-1');
+  assert(!!student.token, 'student can sign in -> token');
+  const studentToken = student.token;
 
   const panelistTokens = [];
   for (let i = 1; i <= 3; i++) {
-    const reg = await request(server, 'POST', '/api/auth/register', {
-      email: `panelist${i}@normi.edu.ph`, password: 'panel123', name: `Panelist Number ${i}`, role: 'panelist', departmentId: dept._id,
-    });
-    panelistTokens.push({ token: reg.body.token, id: reg.body.user.id });
+    panelistTokens.push(await makeUser({ email: `panelist${i}@test.local`, name: `Panelist Number ${i}`, role: 'panelist', departmentId: dept._id }, 'panel-pass-1'));
   }
-  assert(panelistTokens.every((p) => p.token), 'register 3 panelists -> tokens issued');
+  assert(panelistTokens.every((p) => p.token), '3 panelists can sign in -> tokens issued');
 
-  const coordinatorReg = await request(server, 'POST', '/api/auth/register', {
-    email: 'coordinator@normi.edu.ph', password: 'coord123', name: 'Coordinator Reyes', role: 'coordinator', departmentId: dept._id,
-  });
-  const coordinatorToken = coordinatorReg.body.token;
+  const coordinatorToken = (await makeUser({ email: 'coordinator@test.local', name: 'Coordinator Test', role: 'coordinator', departmentId: dept._id }, 'coord-pass-1')).token;
+  const adminAcc = await makeUser({ email: 'admin@test.local', name: 'Test Admin', role: 'admin' }, 'admin-pass-1');
+  const adminToken = adminAcc.token;
 
-  const adminReg = await request(server, 'POST', '/api/auth/register', {
-    email: 'admin@normi.edu.ph', password: 'admin123', name: 'Super Admin', role: 'admin', departmentId: dept._id,
-  });
-  const adminToken = adminReg.body.token;
-
-  const badLogin = await request(server, 'POST', '/api/auth/login', { email: 'student@normi.edu.ph', password: 'wrong' });
+  const badLogin = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'wrong' });
   assert(badLogin.status === 401, 'login with wrong password -> 401');
 
-  const goodLogin = await request(server, 'POST', '/api/auth/login', { email: 'student@normi.edu.ph', password: 'student123' });
-  assert(goodLogin.status === 200 && goodLogin.body.token, 'login with correct password -> 200 + token');
-
   const me = await request(server, 'GET', '/api/auth/me', null, studentToken);
-  assert(me.status === 200 && me.body.user.email === 'student@normi.edu.ph', 'GET /api/auth/me returns the right user');
+  assert(me.status === 200 && me.body.user.email === 'student@test.local', 'GET /api/auth/me returns the right user');
+
+  console.log('\n--- Security ---');
+  const openSignUp = await request(server, 'POST', '/api/auth/register', { email: 'hacker@test.local', password: 'password123', name: 'Hacker', role: 'admin' });
+  assert(openSignUp.status === 404, 'public sign-up is closed (POST /api/auth/register -> 404)');
+  const noHacker = await User.findOne({ email: 'hacker@test.local' });
+  assert(!noHacker, 'no account was created by the closed sign-up');
+
+  const studentListsUsers = await request(server, 'GET', '/api/users', null, studentToken);
+  assert(studentListsUsers.status === 403, 'a student cannot list all accounts -> 403');
+
+  console.log('\n--- Admin sets a new password ---');
+  const shortPw = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'short' }, adminToken);
+  assert(shortPw.status === 400, 'a password under 8 characters is refused -> 400');
+  const studentTriesReset = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'sneaky-new-pass' }, studentToken);
+  assert(studentTriesReset.status === 403, 'a student cannot reset passwords -> 403');
+  const reset = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'student-pass-2' }, adminToken);
+  assert(reset.status === 200, 'admin can set a new password -> 200');
+  const oldPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-1' });
+  assert(oldPw.status === 401, 'the old password stops working -> 401');
+  const newPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
+  assert(newPw.status === 200 && !!newPw.body.token, 'the new password works -> 200');
 
   // Panelist availability for every day (so the auto-scheduler always has candidates)
   console.log('\n--- Panel availability ---');
@@ -160,12 +174,10 @@ async function main() {
   assert(researchAfterSchedule.body.status === 'Scheduled', 'research status flips to Scheduled');
 
   console.log('\n--- Auto-scheduler (second research group) ---');
-  const secondStudentReg = await request(server, 'POST', '/api/auth/register', {
-    email: 'student2@normi.edu.ph', password: 'student123', name: 'Maria Santos', role: 'student', departmentId: dept._id, courseId: course._id,
-  });
+  const secondStudent = await makeUser({ email: 'student2@test.local', name: 'Second Student', role: 'student', departmentId: dept._id, courseId: course._id }, 'student-pass-3');
   const secondCreate = await request(server, 'POST', '/api/research', {
     title: 'Blockchain-Based Voting System', abstract: 'Another abstract.', adviserId, fileName: 'proposal2.pdf',
-  }, secondStudentReg.body.token);
+  }, secondStudent.token);
   await request(server, 'POST', `/api/research/${secondCreate.body.id}/approve`, { decision: 'Approve' }, adviserToken);
 
   const autoGen = await request(server, 'POST', '/api/schedules/auto-generate', {}, coordinatorToken);

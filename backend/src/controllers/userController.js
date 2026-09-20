@@ -32,9 +32,18 @@ const listDirectory = async (req, res) => {
 
 // Handles handleToggleUserStatus / handleUpdateUserRole / handleUpdateUser (profile fields) in one generic PATCH
 const updateUser = async (req, res, next) => {
-  const { status, role, name, avatar, departmentId, courseId, phone, email } = req.body;
+  const { status, role, name, avatar, departmentId, courseId, phone, email, password } = req.body;
   const user = await User.findById(req.params.id);
   if (!user) return next(new AppError('User not found', 404));
+
+  // An Admin can set a new password for someone who forgot theirs.
+  if (password !== undefined) {
+    if (typeof password !== 'string' || password.length < 8) {
+      return next(new AppError('The new password must be at least 8 characters long', 400));
+    }
+    user.password = password; // hashed automatically when saved
+    await logAction(req, 'RESET_USER_PASSWORD', `Admin set a new password for ${user.name}`);
+  }
 
   if (status && status !== user.status) {
     user.status = status;
