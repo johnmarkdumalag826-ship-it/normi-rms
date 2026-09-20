@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2, FileText } from 'lucide-react';
+import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2, FileText, ExternalLink } from 'lucide-react';
 import { Research, Department, Course, SchoolYear, User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
@@ -557,7 +557,7 @@ export default function RepositoryView({
         open={!!previewingResearch}
         onClose={() => setPreviewingResearch(null)}
         title={previewingResearch?.title ?? 'Paper details'}
-        size="lg"
+        size="xl"
         footer={
           <>
             <Button variant="secondary" onClick={() => setPreviewingResearch(null)}>Close</Button>
@@ -575,6 +575,36 @@ export default function RepositoryView({
               <h3 className="mb-2 text-base font-bold text-slate-900">Summary</h3>
               <p className="text-base leading-relaxed text-slate-800">{previewingResearch.abstract}</p>
             </section>
+
+            {previewFile && (
+              <section>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Read the paper</h3>
+                  <a
+                    href={previewFile.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-blue-800 underline underline-offset-2"
+                  >
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                    Open in a New Tab
+                    <span className="sr-only">(opens in a new tab)</span>
+                  </a>
+                </div>
+                {previewFile.name.toLowerCase().endsWith('.pdf') ? (
+                  <iframe
+                    key={previewFile.url}
+                    src={previewFile.url}
+                    title={`Paper: ${previewFile.name}`}
+                    className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
+                  />
+                ) : (
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    This paper is a Word file, so it cannot be shown here. Use “Download Paper” to read it.
+                  </p>
+                )}
+              </section>
+            )}
 
             <section>
               <h3 className="mb-2 text-base font-bold text-slate-900">Details</h3>
