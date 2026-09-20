@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { 
-  FileText, History, CheckCircle2, AlertCircle, MessageSquare, Send, 
-  Upload, X, HelpCircle, ArrowLeft, Download, RefreshCw, Bookmark, Plus 
+import React, { useMemo, useState } from 'react';
+import {
+  FileText, History, MessageSquare, Send, Upload, Download, Bookmark, Highlighter, ClipboardCheck,
 } from 'lucide-react';
 import { Research, ResearchVersion, ResearchComment, User, ChapterStatus } from '../types';
-import { resolveFileUrl } from '../api/client';
+import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
+import {
+  Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, StatusBadge,
+  Textarea, chapterNames, chapterStatus, cx, formatDateLong, formatDateTime, roleLabels,
+} from '../ui';
 
 interface ResearchDetailsViewProps {
   research: Research;
@@ -14,35 +17,148 @@ interface ResearchDetailsViewProps {
   onBack: () => void;
   onAddComment: (comment: ResearchComment) => void;
   onUpdateChapterStatus: (researchId: string, versionId: string, chapter: string, status: 'Approved' | 'Revision Required' | 'Pending', feedback: string) => void;
-  onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, type: 'adviser_check' | 'defense_manuscript') => void;
+  onStudentUploadRevision: (
+    researchId: string, title: string, abstract: string, fileName: string, fileUrl: string,
+    type: 'adviser_check' | 'defense_manuscript',
+  ) => void;
 }
+
+const subtitles: Record<string, string> = {
+  student: 'Follow your paper’s progress, read your adviser’s feedback, and send new versions.',
+  adviser: 'Read this group’s paper, check each chapter, and leave feedback.',
+  panelist: 'Read the defense copy and leave your comments.',
+  coordinator: 'See this paper’s versions, chapters and comments.',
+  admin: 'See this paper’s versions, chapters and comments.',
+};
+
+const chapterFilters = ['all', 'chapter1', 'chapter2', 'chapter3', 'chapter4', 'chapter5', 'general'] as const;
+type ChapterFilter = (typeof chapterFilters)[number];
+
+const markerColors: { value: string; label: string }[] = [
+  { value: 'bg-yellow-100 border-yellow-300', label: 'Yellow' },
+  { value: 'bg-emerald-100 border-emerald-300', label: 'Green' },
+  { value: 'bg-blue-100 border-blue-300', label: 'Blue' },
+  { value: 'bg-rose-100 border-rose-300', label: 'Pink' },
+];
 
 export default function ResearchDetailsView({
   research, versions, comments, user, onBack, onAddComment, onUpdateChapterStatus, onStudentUploadRevision
 }: ResearchDetailsViewProps) {
-  const [activeChapterFilter, setActiveChapterFilter] = useState<'all' | 'chapter1' | 'chapter2' | 'chapter3' | 'general'>('all');
+  const [activeChapterFilter, setActiveChapterFilter] = useState<ChapterFilter>('all');
   const [newCommentText, setNewCommentText] = useState('');
-  
-  // Student upload revision modal
+
+  // Student: send a new version
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [newTitle, setNewTitle] = useState(research.title);
   const [newAbstract, setNewAbstract] = useState(research.abstract);
-  const [newFileName, setNewFileName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadType, setUploadType] = useState<'adviser_check' | 'defense_manuscript'>('adviser_check');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Highlights state
-  const [highlights, setHighlights] = useState<{ id: string; text: string; color: string; comment: string }[]>([
-    { id: 'h1', text: 'Centralized database systems for local colleges', color: 'bg-yellow-100 border-yellow-300', comment: 'Excellent introductory formulation.' }
-  ]);
+  // Notes on phrases (kept on this screen, and also posted to the conversation)
+  const [highlights, setHighlights] = useState<{ id: string; text: string; color: string; comment: string }[]>([]);
   const [showHighlightForm, setShowHighlightForm] = useState(false);
   const [selectedTextToHighlight, setSelectedTextToHighlight] = useState('');
-  const [highlightColor, setHighlightColor] = useState('bg-yellow-100 border-yellow-300');
+  const [highlightColor, setHighlightColor] = useState(markerColors[0].value);
   const [highlightComment, setHighlightComment] = useState('');
 
-  // Adviser review modal
+  // Adviser: feedback on one chapter
   const [selectedReviewChapter, setSelectedReviewChapter] = useState<string | null>(null);
   const [reviewStatus, setReviewStatus] = useState<'Approved' | 'Revision Required'>('Approved');
   const [reviewFeedback, setReviewFeedback] = useState('');
+
+  // Filter version history based on role:
+  // Panelists see the defense manuscripts, advisers see the drafts for adviser checking.
+  const myVersions = versions.filter(v => {
+    if (v.researchId !== research.id) return false;
+    if (user.role === 'panelist') {
+      return v.type === 'defense_manuscript';
+    }
+    if (user.role === 'adviser') {
+      return v.type !== 'defense_manuscript';
+    }
+    return true; // Student, Coordinator, Admin see all
+  }).sort((a, b) => b.versionNumber - a.versionNumber);
+
+  const currentVersion = myVersions[0];
+
+  const activeComments = comments.filter(c =>
+    c.researchId === research.id &&
+    (activeChapterFilter === 'all' || c.chapter === activeChapterFilter)
+  );
+
+  // Short sentences from the real summary, to pick a phrase quickly
+  const summarySentences = useMemo(
+    () =>
+      (research.abstract || '')
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 12)
+        .slice(0, 5),
+    [research.abstract],
+  );
+
+  // ---- What the student may send, based on where the paper is ----
+  const draftStatuses = ['Submitted', 'Under Review', 'Revision Required'];
+  const canStudentUpload = user.role === 'student' && research.status !== 'Archived';
+  const uploadTypeOptions: { value: 'adviser_check' | 'defense_manuscript'; label: string }[] = draftStatuses.includes(research.status)
+    ? [
+        { value: 'adviser_check', label: 'A new draft for my adviser to check' },
+        { value: 'defense_manuscript', label: 'The defense copy for my panel members' },
+      ]
+    : [{ value: 'defense_manuscript', label: 'The defense copy for my panel members' }];
+
+  const openUploadModal = () => {
+    setNewTitle(research.title);
+    setNewAbstract(research.abstract);
+    setSelectedFile(null);
+    setUploadError(null);
+    setUploadType(uploadTypeOptions[0].value);
+    setShowUploadModal(true);
+  };
+
+  const handleFileChoice = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'pdf' && ext !== 'docx' && ext !== 'doc') {
+      setUploadError('Please choose a PDF or Word (DOCX) file.');
+      setSelectedFile(null);
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setUploadError('That file is too big. Please choose a file smaller than 15 MB.');
+      setSelectedFile(null);
+      return;
+    }
+    setSelectedFile(file);
+  };
+
+  const handleStudentUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setUploadError('Please choose a file to send.');
+      return;
+    }
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const uploaded = await uploadFile(selectedFile);
+      onStudentUploadRevision(
+        research.id, newTitle, newAbstract, uploaded.fileName, resolveFileUrl(uploaded.url), uploadType,
+      );
+      setShowUploadModal(false);
+      setSelectedFile(null);
+    } catch (err) {
+      setUploadError(
+        err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.',
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleCreateHighlight = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +168,12 @@ export default function ResearchDetailsView({
       id: `high-${Date.now()}`,
       text: selectedTextToHighlight,
       color: highlightColor,
-      comment: highlightComment
+      comment: highlightComment,
     };
 
     setHighlights(prev => [...prev, newH]);
 
-    // Also post to comment conversation feed
+    // Also post to the conversation
     onAddComment({
       id: `comm-${Date.now()}`,
       researchId: research.id,
@@ -76,28 +192,6 @@ export default function ResearchDetailsView({
     setSelectedTextToHighlight('');
   };
 
-  // Filter version history based on role:
-  // Panelists receive and see the defense manuscripts
-  // Advisers receive and see adviser check drafts
-  const myVersions = versions.filter(v => {
-    if (v.researchId !== research.id) return false;
-    if (user.role === 'panelist') {
-      return v.type === 'defense_manuscript';
-    }
-    if (user.role === 'adviser') {
-      return v.type !== 'defense_manuscript';
-    }
-    return true; // Student, Coordinator, Admin see all
-  }).sort((a,b) => b.versionNumber - a.versionNumber);
-
-  const currentVersion = myVersions[0];
-
-  // Filter comments
-  const activeComments = comments.filter(c => 
-    c.researchId === research.id && 
-    (activeChapterFilter === 'all' || c.chapter === activeChapterFilter)
-  );
-
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim() || !currentVersion) return;
@@ -109,7 +203,7 @@ export default function ResearchDetailsView({
       authorId: user.id,
       authorName: user.name,
       authorRole: user.role,
-      chapter: activeChapterFilter === 'all' ? 'general' : activeChapterFilter as any,
+      chapter: activeChapterFilter === 'all' ? 'general' : activeChapterFilter,
       text: newCommentText,
       commentAt: new Date().toISOString(),
       resolved: false
@@ -134,579 +228,398 @@ export default function ResearchDetailsView({
     setReviewFeedback('');
   };
 
-  const handleStudentUploadSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFileName) return;
-
-    onStudentUploadRevision(research.id, newTitle, newAbstract, newFileName, uploadType);
-    setShowUploadModal(false);
-    setNewFileName('');
-  };
-
-  const getChapterBadgeColor = (statusObj: ChapterStatus | undefined) => {
-    const status = statusObj?.status || 'Not Submitted';
-    switch (status) {
-      case 'Approved': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'Revision Required': return 'bg-amber-50 text-amber-700 border-amber-100';
-      case 'Pending': return 'bg-blue-50 text-blue-700 border-blue-100';
-      default: return 'bg-slate-50 text-slate-500 border-slate-100';
-    }
-  };
+  const filterLabel = (f: ChapterFilter) => (f === 'all' ? 'All comments' : f === 'general' ? 'General' : `Chapter ${f.slice(-1)}`);
 
   return (
     <div className="space-y-6">
-      {/* Detail header bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-150 pb-4">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={onBack}
-            className="p-1.5 rounded-lg border hover:bg-slate-50 text-slate-500 cursor-pointer"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <div>
-            <span className="text-xs bg-blue-50 text-blue-700  font-bold px-2 py-0.5 rounded font-bold ">
-              Manuscript Detail Panel
-            </span>
-            <h2 className="text-sm font-bold text-slate-800 leading-snug mt-1 max-w-xl truncate" title={research.title}>
-              {research.title}
-            </h2>
-          </div>
-        </div>
+      <PageHeader
+        title={research.title}
+        subtitle={subtitles[user.role]}
+        onBack={onBack}
+        backLabel="Go Back"
+        action={
+          canStudentUpload ? (
+            <Button icon={Upload} onClick={openUploadModal}>Send a New Version</Button>
+          ) : undefined
+        }
+      />
 
-        {/* Floating actions (Student revision upload / Adviser status) */}
-        <div className="flex gap-2">
-          {user.role === 'student' && research.status === 'Revision Required' && (
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm shadow-blue-800/10"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Upload New Revision
-            </button>
-          )}
-        </div>
-      </div>
+      {user.role === 'student' && (
+        <Card>
+          <ResearchStatusBadge status={research.status} explain />
+        </Card>
+      )}
 
-      {/* Chapters checkpoint split layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Chapters directory & version timeline */}
-        <div className="lg:col-span-8 space-y-6">
-          
-          {/* Chapter checklist card */}
-          {currentVersion ? (
-            <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-              <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
-                <Bookmark className="h-4 w-4 text-blue-700" />
-                Chapters Checkpoint Board (Current Version {currentVersion.versionNumber})
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-8">
+          {/* Chapter by chapter */}
+          <Card as="section" aria-labelledby="chapters-title">
+            <CardHeader
+              title={currentVersion ? `Chapter progress (Version ${currentVersion.versionNumber})` : 'Chapter progress'}
+              description="Each chapter is checked by the adviser."
+              icon={<Bookmark className="h-5 w-5" aria-hidden="true" />}
+            />
+            {currentVersion ? (
+              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {Object.entries(currentVersion.chapters).map(([chapterKey, statusObj]) => {
-                  const chName = chapterKey === 'chapter1' ? 'Chapter 1: Situation & Intro'
-                    : chapterKey === 'chapter2' ? 'Chapter 2: Literature Review'
-                    : chapterKey === 'chapter3' ? 'Chapter 3: Methodology / Analysis'
-                    : chapterKey === 'chapter4' ? 'Chapter 4: Results & Discussion'
-                    : 'Chapter 5: Conclusion';
-
+                  const st = (statusObj?.status || 'Not Submitted') as ChapterStatus['status'];
+                  const info = chapterStatus[st];
                   return (
-                    <div 
-                      key={chapterKey}
-                      className="p-3 bg-slate-50 rounded-xl border border-slate-150 flex flex-col justify-between gap-2.5"
-                    >
-                      <div className="flex justify-between items-start">
-                        <strong className="text-xs text-slate-700 font-serif leading-none">{chName}</strong>
-                        <span className={`text-xs  font-bold px-1.5 py-0.25 rounded border  ${getChapterBadgeColor(statusObj)}`}>
-                          {statusObj?.status || 'Not Submitted'}
-                        </span>
+                    <li key={chapterKey} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="space-y-2">
+                        <p className="text-sm font-bold text-slate-900">{chapterNames[chapterKey] ?? chapterKey}</p>
+                        <StatusBadge info={info} />
+                        {statusObj?.feedback && (
+                          <p className="text-sm text-slate-700">
+                            <span className="font-semibold">Adviser’s feedback:</span> {statusObj.feedback}
+                          </p>
+                        )}
                       </div>
 
-                      {statusObj?.feedback && (
-                        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                          Feedback: "{statusObj.feedback}"
-                        </p>
-                      )}
-
-                      {/* Adviser action for chapter */}
                       {user.role === 'adviser' && research.adviserId === user.id && (
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={ClipboardCheck}
+                          className="self-start"
                           onClick={() => {
                             setSelectedReviewChapter(chapterKey);
+                            setReviewStatus(st === 'Revision Required' ? 'Revision Required' : 'Approved');
                             setReviewFeedback(statusObj?.feedback || '');
                           }}
-                          className="mt-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 text-xs font-bold py-1 px-2 rounded self-end cursor-pointer transition-colors"
                         >
-                          Assess Chapter
-                        </button>
+                          Give Feedback on This Chapter
+                        </Button>
                       )}
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-dashed p-12 text-center text-slate-500 text-xs">
-              {user.role === 'panelist' ? (
-                <div className="space-y-2">
-                  <div className="text-sm font-bold text-slate-700">Awaiting Presentation Manuscript Submission</div>
-                  <p className="max-w-md mx-auto text-xs text-slate-500 leading-relaxed">
-                    The student research team has not submitted their final defense manuscript copy under the <strong>"Jury Panelists"</strong> category yet. Once they upload it, the presentation copy will immediately populate here for committee reception and vetting.
-                  </p>
-                </div>
-              ) : (
-                <span>No manuscript versions uploaded yet. Student needs to submit the first draft proposal.</span>
-              )}
-            </div>
-          )}
-
-          {/* Interactive Annotation & Highlighting Hub */}
-          <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-            <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                <Bookmark className="h-4 w-4 text-orange-600" />
-                Manuscript Annotation & Text Highlighting Hub
-              </span>
-              <span className="text-xs bg-orange-50 text-orange-700  font-bold px-1.5 py-0.5 rounded border border-orange-200">
-                Panel & Adviser Tool
-              </span>
-            </h3>
-
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Select or copy a phrase from the manuscript description below, then click <strong className="text-slate-800">"Annotate Highlight"</strong> to leave a highlighted trace with a corresponding feedback comment.
-            </p>
-
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-              <div className="text-xs font-bold text-slate-500  tracking-normal ">
-                Active Abstract Manuscript Screen:
-              </div>
-              <div className="text-xs text-slate-700 leading-relaxed font-serif p-3 bg-white rounded border border-slate-150 select-text">
-                {research.abstract}
-              </div>
-
-              {/* Quick interactive sentence triggers */}
-              <div className="flex flex-wrap gap-2 pt-1.5">
-                <span className="text-xs text-slate-500  self-center">Quick Select:</span>
-                {[
-                  'Centralized database systems for local colleges',
-                  'replaces manual document tracking',
-                  'interactive automated room conflict detection',
-                  'facilitates repository archiving'
-                ].map((sentence, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTextToHighlight(sentence);
-                      setShowHighlightForm(true);
-                    }}
-                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 border px-2 py-0.5 rounded cursor-pointer transition-colors"
-                  >
-                    "{sentence.substring(0, 30)}..."
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Highlight creation drawer/popover */}
-            {showHighlightForm && (
-              <form onSubmit={handleCreateHighlight} className="bg-orange-50/40 border border-orange-150 p-4 rounded-xl space-y-3.5 animate-in slide-in-from-top-2 duration-150">
-                <div className="flex justify-between items-center border-b border-orange-100 pb-1.5">
-                  <span className="text-xs font-bold text-orange-850">Annotate Selected Text</span>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowHighlightForm(false)}
-                    className="text-slate-500 hover:text-slate-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500  block mb-1">Target Phrase</label>
-                    <input
-                      type="text"
-                      required
-                      value={selectedTextToHighlight}
-                      onChange={(e) => setSelectedTextToHighlight(e.target.value)}
-                      placeholder="Type or select a phrase to annotate"
-                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500  block mb-1">Highlight Color</label>
-                      <select
-                        value={highlightColor}
-                        onChange={(e) => setHighlightColor(e.target.value)}
-                        className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                      >
-                        <option value="bg-yellow-100 border-yellow-300">Yellow Marker</option>
-                        <option value="bg-emerald-100 border-emerald-300">Green Marker</option>
-                        <option value="bg-blue-100 border-blue-300">Blue Marker</option>
-                        <option value="bg-rose-100 border-rose-300 font-bold">Pink Marker</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-500  block mb-1">Annotation Note</label>
-                      <input
-                        type="text"
-                        required
-                        value={highlightComment}
-                        onChange={(e) => setHighlightComment(e.target.value)}
-                        placeholder="e.g., Needs citation update or clarification"
-                        className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowHighlightForm(false)}
-                    className="px-2.5 py-1 text-xs border border-slate-200 text-slate-600 rounded bg-white cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-3 py-1 bg-orange-700 hover:bg-orange-800 text-white font-semibold text-xs rounded cursor-pointer shadow-sm transition-colors"
-                  >
-                    Save Highlight Trace
-                  </button>
-                </div>
-              </form>
+              </ul>
+            ) : (
+              <EmptyState
+                icon={FileText}
+                title={user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'}
+                description={
+                  user.role === 'panelist'
+                    ? 'When the students upload their defense copy for the panel, it will show here.'
+                    : user.role === 'student'
+                      ? 'Use “Send a New Version” to upload your first file.'
+                      : 'The students have not uploaded a file yet.'
+                }
+              />
             )}
+          </Card>
 
-            {/* List of active highlights on this document */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-slate-500 block  tracking-normal">Active Trace Marks:</span>
-              {highlights.length === 0 ? (
-                <div className="text-center p-3 text-slate-500 text-xs italic">
-                  No highlight marks laid on this document.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                  {highlights.map(h => (
-                    <div key={h.id} className={`p-3 rounded-lg border flex flex-col justify-between gap-1.5 ${h.color}`}>
-                      <div className="space-y-1">
-                        <span className="text-xs  font-bold text-slate-500 block ">Marked Text:</span>
-                        <p className="text-xs font-semibold text-slate-800 leading-tight">"{h.text}"</p>
-                      </div>
-                      <div className="border-t border-slate-200/55 pt-1.5 mt-1 text-xs text-slate-600">
-                        <strong className="text-slate-800 font-semibold block mb-0.5">Annotation Comment:</strong>
-                        "{h.comment}"
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Notes on phrases */}
+          <Card as="section" aria-labelledby="notes-title">
+            <CardHeader
+              title="Leave a note on a phrase"
+              description="Pick a sentence from the summary, then write your note. It is also posted to the conversation."
+              icon={<Highlighter className="h-5 w-5" aria-hidden="true" />}
+            />
+            <div className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-sm font-bold text-slate-900">Summary of the research paper</p>
+                <p className="select-text text-base leading-relaxed text-slate-800">{research.abstract || 'No summary was written for this paper.'}</p>
+              </div>
 
-          {/* Uploaded Proposal Attachments */}
-          {research.proposalFiles && research.proposalFiles.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-3">
-              <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                Uploaded Proposal Attachments
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {research.proposalFiles.map(file => {
-                  const sizeInKb = (file.size ? Math.round(file.size / 102.4) / 10 : 120.5);
-                  const catLabel = file.category === 'proposal_document' ? 'Proposal Document'
-                    : file.category === 'research_summary' ? 'Research Summary'
-                    : file.category === 'supporting_files' ? 'Supporting Files'
-                    : 'Other Attachment';
-
-                  return (
-                    <div key={file.id} className="p-3 rounded-lg border border-slate-150 bg-slate-50/55 flex flex-col justify-between gap-2">
-                      <div className="space-y-1">
-                        <span className="text-xs font-semibold  px-2 py-0.5 rounded border bg-blue-50 text-blue-800 border-blue-100">
-                          {catLabel}
-                        </span>
-                        <p className="text-xs font-bold text-slate-700 truncate" title={file.name}>{file.name}</p>
-                        <span className="text-xs text-slate-500  block">Size: {sizeInKb} KB</span>
-                      </div>
-                      <div className="flex gap-2">
+              {summarySentences.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-800">Choose a sentence to comment on:</p>
+                  <ul className="flex flex-col gap-2">
+                    {summarySentences.map((sentence, idx) => (
+                      <li key={idx}>
                         <button
                           type="button"
-                          onClick={() => window.open(file.url, '_blank')}
-                          className="text-xs font-bold text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+                          onClick={() => { setSelectedTextToHighlight(sentence); setShowHighlightForm(true); }}
+                          className="tap-auto w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:border-blue-700 hover:bg-blue-50 cursor-pointer"
                         >
-                          <Download className="h-3 w-3" /> Download
+                          “{sentence.length > 110 ? `${sentence.slice(0, 110)}…` : sentence}”
                         </button>
-                      </div>
-                    </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div>
+                <Button variant="secondary" size="sm" icon={Highlighter} onClick={() => { setSelectedTextToHighlight(''); setShowHighlightForm(true); }}>
+                  Write My Own Phrase
+                </Button>
+              </div>
+
+              {showHighlightForm && (
+                <form onSubmit={handleCreateHighlight} className="space-y-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <h3 className="text-base font-bold text-slate-900">Add a note</h3>
+                  <Input
+                    label="Phrase you are commenting on"
+                    required
+                    value={selectedTextToHighlight}
+                    onChange={e => setSelectedTextToHighlight(e.target.value)}
+                    placeholder="Type or choose a phrase"
+                  />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Select label="Marker colour" value={highlightColor} onChange={e => setHighlightColor(e.target.value)}>
+                      {markerColors.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </Select>
+                    <Input
+                      label="Your note"
+                      required
+                      value={highlightComment}
+                      onChange={e => setHighlightComment(e.target.value)}
+                      placeholder="e.g. Please add a source for this"
+                    />
+                  </div>
+                  <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <Button variant="secondary" onClick={() => setShowHighlightForm(false)}>Cancel</Button>
+                    <Button type="submit">Save Note</Button>
+                  </div>
+                </form>
+              )}
+
+              <div>
+                <p className="mb-2 text-sm font-bold text-slate-900">Notes you added just now</p>
+                {highlights.length === 0 ? (
+                  <p className="text-sm text-slate-600">You have not added any notes yet.</p>
+                ) : (
+                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {highlights.map(h => (
+                      <li key={h.id} className={cx('space-y-2 rounded-lg border p-3 text-sm', h.color)}>
+                        <p className="font-semibold text-slate-900">“{h.text}”</p>
+                        <p className="text-slate-800"><span className="font-semibold">Note:</span> {h.comment}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          {/* Files sent with the first form */}
+          {research.proposalFiles && research.proposalFiles.length > 0 && (
+            <Card as="section" aria-labelledby="files-title">
+              <CardHeader title="Files sent with the research form" icon={<FileText className="h-5 w-5" aria-hidden="true" />} />
+              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {research.proposalFiles.map(file => {
+                  const sizeInKb = file.size ? Math.round(file.size / 102.4) / 10 : null;
+                  const catLabel = file.category === 'proposal_document' ? 'Main document'
+                    : file.category === 'research_summary' ? 'Research summary'
+                    : file.category === 'supporting_files' ? 'Supporting file'
+                    : 'Other file';
+                  return (
+                    <li key={file.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <Badge tone="info">{catLabel}</Badge>
+                      <p className="truncate text-sm font-semibold text-slate-900" title={file.name}>{file.name}</p>
+                      {sizeInKb !== null && <p className="text-xs text-slate-600">Size: {sizeInKb} KB</p>}
+                      <Button variant="secondary" size="sm" icon={Download} className="self-start" onClick={() => window.open(file.url, '_blank')}>
+                        Download File
+                      </Button>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </Card>
           )}
 
-          {/* Historical versions tracker */}
-          <div className="bg-white rounded-xl border border-slate-150 shadow-sm p-5 space-y-4">
-            <h3 className="text-xs font-bold text-slate-850  tracking-normal border-b pb-2 flex items-center gap-2">
-              <History className="h-4 w-4 text-slate-500" />
-              Manuscript Version Timeline
-            </h3>
-
-            <div className="space-y-3">
-              {myVersions.map(ver => (
-                <div key={ver.id} className="p-3.5 rounded-lg border border-slate-150 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div className="space-y-1">
-                    <span className="text-xs  font-bold bg-blue-100 text-blue-800 px-1.5 py-0.25 rounded ">
-                      Draft Version {ver.versionNumber}
-                    </span>
-                    <strong className="text-xs text-slate-700 block mt-1">{ver.fileName}</strong>
-                    <span className="text-xs text-slate-500 ">
-                      Uploaded by student on {new Date(ver.submittedAt).toLocaleString()}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={() => ver.fileUrl && window.open(resolveFileUrl(ver.fileUrl), '_blank')}
-                    disabled={!ver.fileUrl}
-                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 text-xs rounded flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <Download className="h-3 w-3" /> Download PDF
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Versions */}
+          <Card as="section" aria-labelledby="versions-title">
+            <CardHeader
+              title="All versions sent"
+              description="Newest first."
+              icon={<History className="h-5 w-5" aria-hidden="true" />}
+            />
+            {myVersions.length === 0 ? (
+              <p className="text-sm text-slate-600">No versions have been sent yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {myVersions.map(ver => (
+                  <li key={ver.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone="info">Version {ver.versionNumber}</Badge>
+                        {ver.type === 'defense_manuscript' && <Badge tone="warning">Defense copy</Badge>}
+                      </div>
+                      <p className="break-words text-sm font-semibold text-slate-900">{ver.fileName}</p>
+                      <p className="text-xs text-slate-600">Sent {formatDateTime(ver.submittedAt)}</p>
+                    </div>
+                    <div className="shrink-0">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Download}
+                        disabled={!ver.fileUrl}
+                        title={ver.fileUrl ? undefined : 'No file was saved for this version.'}
+                        onClick={() => ver.fileUrl && window.open(resolveFileUrl(ver.fileUrl), '_blank')}
+                      >
+                        Download File
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
         </div>
 
-        {/* Right Column: Peer comments section */}
-        <div className="lg:col-span-4 bg-white rounded-xl border border-slate-150 p-5 shadow-sm space-y-4 flex flex-col h-[520px]">
-          <div className="border-b pb-2 shrink-0">
-            <h3 className="text-xs font-bold text-slate-850  tracking-normal flex items-center gap-1.5">
-              <MessageSquare className="h-4 w-4 text-blue-700" />
-              Reviewer Conversation Feed
-            </h3>
-            
-            {/* Filter tags for chapters */}
-            <div className="flex gap-1 overflow-x-auto py-2 scrollbar-none">
-              {['all', 'chapter1', 'chapter2', 'chapter3', 'general'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setActiveChapterFilter(f as any)}
-                  className={`px-1.5 py-0.5 text-xs font-bold  rounded-full border shrink-0 cursor-pointer ${activeChapterFilter === f ? 'bg-blue-800 text-white border-blue-800' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 border-slate-200'}`}
-                >
-                  {f.toUpperCase()}
-                </button>
-              ))}
-            </div>
+        {/* Conversation */}
+        <Card as="section" aria-labelledby="chat-title" className="flex flex-col lg:col-span-4 lg:max-h-[46rem]">
+          <CardHeader
+            title="Comments"
+            description="Talk about this paper here."
+            icon={<MessageSquare className="h-5 w-5" aria-hidden="true" />}
+          />
+
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Show comments for">
+            {chapterFilters.map(f => (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={activeChapterFilter === f}
+                onClick={() => setActiveChapterFilter(f)}
+                className={cx(
+                  'tap-auto shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold cursor-pointer',
+                  activeChapterFilter === f
+                    ? 'border-blue-800 bg-blue-800 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-blue-700',
+                )}
+              >
+                {filterLabel(f)}
+              </button>
+            ))}
           </div>
 
-          {/* Comments list feed */}
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-none">
+          <div className="min-h-32 flex-1 space-y-3 overflow-y-auto pr-1">
             {activeComments.length === 0 ? (
-              <div className="text-center py-12 text-slate-405 text-xs">
-                No active conversations for the selected chapter category filter.
-              </div>
+              <p className="py-8 text-center text-sm text-slate-600">
+                No comments here yet. Write the first one below.
+              </p>
             ) : (
               activeComments.map(comm => (
-                <div key={comm.id} className="p-3 bg-slate-50 rounded-lg border border-slate-150 space-y-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-700">{comm.authorName}</span>
-                    <span className="text-slate-500  text-xs">{new Date(comm.commentAt).toLocaleDateString()}</span>
+                <div key={comm.id} className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 text-sm">
+                    <span className="font-bold text-slate-900">
+                      {comm.authorName}
+                      <span className="ml-1.5 text-xs font-normal text-slate-600">({roleLabels[comm.authorRole] ?? comm.authorRole})</span>
+                    </span>
+                    <span className="text-xs text-slate-600">{formatDateLong(comm.commentAt)}</span>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{comm.text}</p>
+                  <p className="text-sm text-slate-800">{comm.text}</p>
                 </div>
               ))
             )}
           </div>
 
-          {/* Quick Comment box */}
-          {currentVersion && (
-            <form onSubmit={handlePostComment} className="border-t pt-3 flex gap-2 shrink-0">
-              <input
-                type="text"
+          {currentVersion ? (
+            <form onSubmit={handlePostComment} className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+              <Input
+                label={activeChapterFilter === 'all' ? 'Write a comment' : `Write a comment about ${filterLabel(activeChapterFilter).toLowerCase()}`}
                 required
                 value={newCommentText}
-                onChange={(e) => setNewCommentText(e.target.value)}
-                placeholder={`Leave general comment...`}
-                className="flex-1 text-xs p-2 border border-slate-250 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                onChange={e => setNewCommentText(e.target.value)}
+                placeholder="Type your comment here"
               />
-              <button
-                type="submit"
-                className="bg-blue-800 hover:bg-blue-900 text-white p-2 rounded-lg cursor-pointer shrink-0 shadow-md"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </button>
+              <Button type="submit" icon={Send} fullWidth>Post Comment</Button>
             </form>
+          ) : (
+            <p className="mt-4 border-t border-slate-200 pt-4 text-sm text-slate-600">
+              You can write comments after a file has been sent.
+            </p>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* STUDENT NEW REVISION UPLOAD MODAL */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleStudentUploadSubmit}
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-md p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
+      {/* Student: send a new version */}
+      <Modal
+        open={showUploadModal}
+        onClose={() => !isUploading && setShowUploadModal(false)}
+        title="Send a new version"
+        description="Your adviser or panel members will be told when you send it. Fields marked with * are required."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowUploadModal(false)} disabled={isUploading}>Cancel</Button>
+            <Button type="submit" form="upload-form" loading={isUploading}>
+              {isUploading ? 'Sending…' : uploadType === 'adviser_check' ? 'Send to My Adviser' : 'Send Defense Copy'}
+            </Button>
+          </>
+        }
+      >
+        <form id="upload-form" onSubmit={handleStudentUploadSubmit} className="space-y-5">
+          {uploadError && <Alert tone="danger" title="We could not send your file">{uploadError}</Alert>}
+
+          <Select
+            label="What are you sending?"
+            required
+            value={uploadType}
+            onChange={e => setUploadType(e.target.value as typeof uploadType)}
+            hint={
+              uploadType === 'adviser_check'
+                ? 'Only your adviser will receive and check this draft.'
+                : 'Your 3 panel members will receive this copy for your defense.'
+            }
           >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Upload className="h-4.5 w-4.5 text-blue-700" />
-                Submit New Revision Draft
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setShowUploadModal(false)}
-                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
+            {uploadTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
 
-            <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 p-2.5 rounded border">
-              Upload the next iteration of your manuscript. This triggers notification pings to your supervisor and logs revision response counters.
-            </p>
+          <Input label="Research title" required value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+          <Textarea label="Short summary (abstract)" required rows={4} value={newAbstract} onChange={e => setNewAbstract(e.target.value)} />
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Upload Purpose / Recipient</label>
-                <select
-                  value={uploadType}
-                  onChange={(e) => setUploadType(e.target.value as any)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none bg-slate-50 font-semibold text-slate-700"
-                >
-                  <option value="adviser_check">Submit for Adviser Vetting & Checking</option>
-                  <option value="defense_manuscript">Submit Defense Copy for Panel Committee</option>
-                </select>
-                <span className="text-xs text-slate-500 mt-1 block">
-                  {uploadType === 'adviser_check' 
-                    ? 'Only your Adviser will receive and check this draft.' 
-                    : 'The 3-member panel committee will receive and evaluate this copy.'}
-                </span>
-              </div>
+          <div className="space-y-1.5">
+            <label htmlFor="upload-file" className="block text-sm font-semibold text-slate-800">
+              Your file <span className="text-rose-700" aria-hidden="true">*</span>
+              <span className="sr-only"> (required)</span>
+            </label>
+            <p id="upload-file-hint" className="text-xs text-slate-600">A PDF or Word (DOCX) file, smaller than 15 MB.</p>
+            <input
+              id="upload-file"
+              type="file"
+              required
+              accept=".pdf,.doc,.docx"
+              aria-describedby="upload-file-hint"
+              onChange={handleFileChoice}
+              className="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white text-sm text-slate-800 file:mr-4 file:min-h-11 file:cursor-pointer file:border-0 file:bg-blue-800 file:px-4 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-900"
+            />
+            {selectedFile && (
+              <p className="text-sm text-slate-800">
+                Chosen file: <strong>{selectedFile.name}</strong>
+              </p>
+            )}
+          </div>
+        </form>
+      </Modal>
 
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Refined Thesis Title</label>
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Updated Abstract summary</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={newAbstract}
-                  onChange={(e) => setNewAbstract(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Upload PDF File name</label>
-                <input
-                  type="text"
-                  required
-                  value={newFileName}
-                  onChange={(e) => setNewFileName(e.target.value)}
-                  placeholder="e.g. NORMI_Capstone_V3_Methodology_Locked.pdf"
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => setShowUploadModal(false)}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Upload Revision
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* ADVISER CHAPTER ASSESSMENT MODAL */}
-      {selectedReviewChapter && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <form 
-            onSubmit={handleReviewSubmit}
-            className="bg-white rounded-xl border border-slate-150 w-full max-w-md p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150"
+      {/* Adviser: feedback on a chapter */}
+      <Modal
+        open={!!selectedReviewChapter}
+        onClose={() => setSelectedReviewChapter(null)}
+        title={`Feedback: ${selectedReviewChapter ? chapterNames[selectedReviewChapter] ?? selectedReviewChapter : ''}`}
+        description="The students will be told what you decide. Fields marked with * are required."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSelectedReviewChapter(null)}>Cancel</Button>
+            <Button type="submit" form="review-form">Save Chapter Feedback</Button>
+          </>
+        }
+      >
+        <form id="review-form" onSubmit={handleReviewSubmit} className="space-y-5">
+          <Select
+            label="Your decision for this chapter"
+            required
+            value={reviewStatus}
+            onChange={e => setReviewStatus(e.target.value as typeof reviewStatus)}
           >
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5 font-serif">
-                <Bookmark className="h-4.5 w-4.5 text-blue-750" />
-                Assess Chapter: {selectedReviewChapter.toUpperCase()}
-              </h3>
-              <button 
-                type="button" 
-                onClick={() => setSelectedReviewChapter(null)}
-                className="text-slate-500 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Set Chapter Status</label>
-                <select
-                  required
-                  value={reviewStatus}
-                  onChange={(e) => setReviewStatus(e.target.value as any)}
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none"
-                >
-                  <option value="Approved">Approved (Pass Chapter)</option>
-                  <option value="Revision Required">Revision Required (Hold Check)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-500  block mb-1">Review Feedback Details</label>
-                <textarea
-                  rows={4}
-                  required
-                  value={reviewFeedback}
-                  onChange={(e) => setReviewFeedback(e.target.value)}
-                  placeholder="Detail exact bullet points the student group needs to correct..."
-                  className="w-full text-xs p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end border-t pt-3">
-              <button
-                type="button"
-                onClick={() => setSelectedReviewChapter(null)}
-                className="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 bg-blue-800 hover:bg-blue-900 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer"
-              >
-                Publish Chapter Review
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            <option value="Approved">Approved: this chapter is good</option>
+            <option value="Revision Required">Revision needed: the students must fix it</option>
+          </Select>
+          <Textarea
+            label="Your feedback"
+            required
+            rows={5}
+            value={reviewFeedback}
+            onChange={e => setReviewFeedback(e.target.value)}
+            hint="List exactly what the students should fix or keep."
+          />
+        </form>
+      </Modal>
     </div>
   );
 }
