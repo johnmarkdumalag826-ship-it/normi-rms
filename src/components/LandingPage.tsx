@@ -213,23 +213,23 @@ export default function LandingPage({ announcements, onEnterPortal, stats }: Lan
             <p className="mt-2 max-w-2xl text-base text-slate-600">
               Questions about sending your paper, joining a panel, or getting an account? The research office is happy to help.
             </p>
-            <ul className="mt-8 grid gap-4 md:grid-cols-3">
-              <li className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+              <li className="flex min-w-0 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <MapPin className="h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Visit us</h3>
                   <p className="mt-1 text-sm text-slate-700">NORMI Main Campus, City of Cabadbaran, Agusan del Norte, Philippines</p>
                 </div>
               </li>
-              <li className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <li className="flex min-w-0 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <Mail className="h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
                 <div className="min-w-0">
                   <h3 className="text-sm font-bold text-slate-900">Email us</h3>
-                  <p className="mt-1 break-words text-sm text-slate-700">coordinator@northernmindanaocolleges.edu.ph</p>
-                  <p className="break-words text-sm text-slate-700">research.support@northernmindanaocolleges.edu.ph</p>
+                  <p className="mt-1 break-all text-sm text-slate-700">coordinator@northernmindanaocolleges.edu.ph</p>
+                  <p className="break-all text-sm text-slate-700">research.support@northernmindanaocolleges.edu.ph</p>
                 </div>
               </li>
-              <li className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <li className="flex min-w-0 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                 <Phone className="h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Call us</h3>

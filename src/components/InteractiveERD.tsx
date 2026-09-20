@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Database, Link2, Key, ChevronDown, ChevronRight, FileCode, Check, Copy } from 'lucide-react';
+import { Alert, Button, PageHeader } from '../ui';
 
 interface DBTable {
   name: string;
@@ -268,25 +269,20 @@ export default function InteractiveERD() {
 
   return (
     <div className="space-y-6" id="erd-container">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-100 pb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-600" />
-            MySQL Relational Schema & ERD
-          </h2>
-          <p className="text-xs text-slate-500">
-            Interactive relational schema for NORMI showing Primary/Foreign key mappings. Click any table to inspect relations.
-          </p>
-        </div>
+      <PageHeader
+        title="Database Diagram"
+        subtitle="A picture of how the system’s information is organised. Select a table to see what it holds and how it connects to other tables."
+        action={
+          <Button variant="secondary" icon={FileCode} aria-pressed={showSQL} onClick={() => setShowSQL(!showSQL)}>
+            {showSQL ? 'Show the Diagram' : 'Show the SQL Script'}
+          </Button>
+        }
+      />
 
-        <button 
-          onClick={() => setShowSQL(!showSQL)}
-          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white shadow-sm hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-colors"
-        >
-          <FileCode className="h-3.5 w-3.5 text-slate-500" />
-          {showSQL ? "Hide MySQL DDL Script" : "Show MySQL DDL Script"}
-        </button>
-      </div>
+      <Alert tone="info" title="This page is for developers">
+        This is a planned MySQL-style diagram used for documentation. The running system keeps its data in MongoDB,
+        so the tables and fields here may not match exactly.
+      </Alert>
 
       {showSQL ? (
         <div className="bg-slate-900 rounded-xl overflow-hidden shadow-sm border border-slate-800">
@@ -294,7 +290,7 @@ export default function InteractiveERD() {
             <span className="text-xs text-slate-500 font-mono">normi_research_schema.sql</span>
             <button
               onClick={copyToClipboard}
-              className="px-2 py-1 text-xs text-slate-350 hover:text-white flex items-center gap-1 hover:bg-slate-800 rounded transition-colors"
+              className="px-3 py-2 text-xs text-slate-200 hover:text-white flex items-center gap-1 hover:bg-slate-800 rounded transition-colors cursor-pointer"
             >
               {copied ? (
                 <>
@@ -304,7 +300,7 @@ export default function InteractiveERD() {
               ) : (
                 <>
                   <Copy className="h-3 w-3" />
-                  <span>Copy SQL</span>
+                  <span>Copy Script</span>
                 </>
               )}
             </button>
@@ -336,10 +332,12 @@ export default function InteractiveERD() {
                 else if (isRelated) cardStyle = "bg-orange-50/70 border-orange-200 ring-1 ring-orange-100 shadow-sm";
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={table.name}
+                    aria-pressed={isActive}
                     onClick={() => setSelectedTable(table.name)}
-                    className={`cursor-pointer p-3 rounded-lg border flex flex-col justify-between transition-all duration-200 ${cardStyle}`}
+                    className={`tap-auto text-left cursor-pointer p-3 rounded-lg border flex flex-col justify-between transition-all duration-200 ${cardStyle}`}
                   >
                     <div>
                       <div className="flex justify-between items-center mb-1">
@@ -370,7 +368,7 @@ export default function InteractiveERD() {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -385,7 +383,7 @@ export default function InteractiveERD() {
                   <div className="space-y-4">
                     <div>
                       <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono font-semibold ">
-                        MySQL Database Entity
+                        Table
                       </span>
                       <h3 className="text-lg font-bold text-slate-800 font-mono mt-1">
                         {table.name}
@@ -397,7 +395,7 @@ export default function InteractiveERD() {
 
                     <div className="border-t border-slate-100 pt-3">
                       <h4 className="text-xs font-semibold text-slate-700 mb-2  tracking-wide">
-                        Columns Schema ({table.columns.length})
+                        Fields ({table.columns.length})
                       </h4>
                       <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                         {table.columns.map(col => (
@@ -431,21 +429,22 @@ export default function InteractiveERD() {
                     </div>
 
                     <div className="bg-slate-50 p-2.5 rounded border border-slate-150 text-xs leading-relaxed text-slate-600">
-                      <strong className="text-slate-700">Relational Mapping:</strong>
+                      <strong className="text-slate-700">Connected tables:</strong>
                       {highlightedConnections.length > 0 ? (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {highlightedConnections.map(c => (
-                            <span 
-                              key={c} 
+                            <button
+                              type="button"
+                              key={c}
                               onClick={() => setSelectedTable(c)}
-                              className="cursor-pointer font-mono text-xs bg-white border border-slate-200 hover:border-orange-300 hover:text-orange-700 text-slate-600 px-1.5 py-0.5 rounded transition-colors"
+                              className="tap-auto cursor-pointer font-mono text-xs bg-white border border-slate-300 hover:border-orange-400 hover:text-orange-800 text-slate-700 px-2 py-1 rounded transition-colors"
                             >
                               {c}
-                            </span>
+                            </button>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-slate-500 mt-0.5">This table is self-contained without active constraints.</div>
+                        <div className="text-slate-500 mt-0.5">This table is not connected to any other table.</div>
                       )}
                     </div>
                   </div>
@@ -453,7 +452,7 @@ export default function InteractiveERD() {
               })()
             ) : (
               <div className="text-center py-12 text-slate-500 text-xs">
-                Select a table to inspect columns, constraints, and relationships.
+                Select a table to see its fields and how it connects to other tables.
               </div>
             )}
           </div>

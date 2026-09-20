@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  FileText, Users, Briefcase, FileUp, Sparkles, AlertCircle, ArrowRight,
-  ShieldCheck, UploadCloud, Eye, Trash2, Download, RefreshCw, Plus, X
+import {
+  FileText, Users, ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, LogOut, ExternalLink, Send,
 } from 'lucide-react';
 import { User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
+import {
+  Alert, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong,
+} from '../ui';
 
 interface ResearchInformationFormProps {
   user: User;
@@ -21,6 +23,13 @@ interface ResearchInformationFormProps {
   onLogout: () => void;
 }
 
+const categoryLabels: Record<ProposalFile['category'], string> = {
+  proposal_document: 'Main document',
+  research_summary: 'Research summary',
+  supporting_files: 'Supporting file',
+  other_attachments: 'Other file',
+};
+
 export default function ResearchInformationForm({
   user, advisers, onSubmit, onLogout
 }: ResearchInformationFormProps) {
@@ -30,24 +39,25 @@ export default function ResearchInformationForm({
   const [keywordsStr, setKeywordsStr] = useState('');
   const [adviserId, setAdviserId] = useState('');
   const [memberNames, setMemberNames] = useState('');
-  
-  // Multi-file upload states
+  const [attemptedNext, setAttemptedNext] = useState(false);
+
+  // Files
   const [dragActive, setDragActive] = useState(false);
   const [proposalFiles, setProposalFiles] = useState<ProposalFile[]>([]);
   const [uploadCategory, setUploadCategory] = useState<'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments'>('proposal_document');
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Track specific file ID to replace
   const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
-
-  // File Preview Modal state
   const [previewFile, setPreviewFile] = useState<ProposalFile | null>(null);
 
+  // Final "are you sure?"
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+
   const handleFileUpload = async (file: File) => {
-    const isPdfOrDocx = file.name.endsWith('.pdf') || file.name.endsWith('.docx');
+    const lower = file.name.toLowerCase();
+    const isPdfOrDocx = lower.endsWith('.pdf') || lower.endsWith('.docx');
     if (!isPdfOrDocx) {
-      setError("Only PDF and DOCX documents are accepted for manuscript vetting.");
+      setError('Please choose a PDF or Word (DOCX) file.');
       return;
     }
 
@@ -68,7 +78,7 @@ export default function ResearchInformationForm({
         return;
       }
 
-      // Auto-replace same category to keep it neat, or append if other attachments
+      // Main document and summary: one file each. Other categories can have many.
       const isSingleCategory = uploadCategory === 'proposal_document' || uploadCategory === 'research_summary';
       const existing = proposalFiles.find(f => f.category === uploadCategory);
 
@@ -85,7 +95,9 @@ export default function ResearchInformationForm({
 
       setProposalFiles(prev => [...prev, newFile]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Upload failed. Please try again.');
+      setError(
+        err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.',
+      );
     } finally {
       setIsUploading(false);
     }
@@ -94,9 +106,9 @@ export default function ResearchInformationForm({
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+    if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
   };
@@ -106,16 +118,14 @@ export default function ResearchInformationForm({
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      handleFileUpload(file);
+      handleFileUpload(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      handleFileUpload(file);
-      e.target.value = ''; // Reset input
+      handleFileUpload(e.target.files[0]);
+      e.target.value = ''; // so the same file can be chosen again
     }
   };
 
@@ -132,22 +142,36 @@ export default function ResearchInformationForm({
     window.open(file.url, '_blank');
   };
 
+  const titleError = attemptedNext && !title.trim() ? 'Please write your research title.' : undefined;
+  const abstractError = attemptedNext && !abstract.trim() ? 'Please write a short summary of your research.' : undefined;
+  const adviserError = attemptedNext && !adviserId ? 'Please choose your adviser.' : undefined;
+
   const handleNextStep = () => {
+    setAttemptedNext(true);
     if (!title.trim() || !abstract.trim() || !adviserId) {
-      setError("Please fill in the title, abstract, and select an academic adviser.");
+      setError('Some details are missing. Please fix the fields marked in red.');
       return;
     }
     setError(null);
     setStep(2);
   };
 
+  // Step 2 button: check the main file, then ask "are you sure?"
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const mainDoc = proposalFiles.find(f => f.category === 'proposal_document');
     if (!mainDoc) {
-      setError("At least a Title Proposal Document (.pdf or .docx) must be uploaded to initiate defense vetting.");
+      setError('Please upload your main document (PDF or Word) before sending. Choose “Main document” below, then add your file.');
       return;
     }
+    setError(null);
+    setConfirmingSubmit(true);
+  };
+
+  // Confirmed: send it
+  const submitConfirmed = () => {
+    const mainDoc = proposalFiles.find(f => f.category === 'proposal_document');
+    if (!mainDoc) return;
 
     const keywords = keywordsStr
       .split(',')
@@ -168,363 +192,269 @@ export default function ResearchInformationForm({
       fileName: mainDoc.name,
       proposalFiles: proposalFiles
     });
+    setConfirmingSubmit(false);
   };
 
+  const adviserName = advisers.find(a => a.id === adviserId)?.name ?? '—';
+  const stepTitle = step === 1 ? 'Your research details' : 'Your group and your files';
+
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-between p-4 sm:p-6 lg:p-8 relative overflow-hidden text-slate-100">
-      {/* Dynamic Background Accents */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl -z-10" />
-
-      {/* Top Brand Banner */}
-      <div className="flex justify-between items-center w-full max-w-4xl mx-auto border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md">
-            <FileText className="h-5 w-5" />
+    <div className="min-h-screen bg-slate-50 text-slate-800">
+      {/* Top bar */}
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-900 text-white">
+              <FileText className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="leading-tight">
+              <p className="font-serif text-lg font-bold text-navy-900">NORMI</p>
+              <p className="text-xs text-slate-600">Research Management System</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-serif font-bold text-white tracking-tight leading-none">NORMI</h1>
-            <span className="text-xs text-slate-300  tracking-normal font-bold block mt-1">Research Portal</span>
-          </div>
+          <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout}>Sign Out</Button>
         </div>
-        <button 
-          onClick={onLogout}
-          className="text-xs font-semibold text-slate-500 hover:text-rose-400 transition-colors"
-        >
-          Sign Out Session
-        </button>
-      </div>
+      </header>
 
-      {/* Main Guided Form Card */}
-      <div className="w-full max-w-2xl mx-auto my-8 bg-slate-950/60 backdrop-blur-md border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
-        
-        {/* Step Indicator Header */}
-        <div className="flex items-center justify-between border-b border-white/15 pb-4">
-          <div>
-            <span className="text-xs  tracking-normal font-bold text-blue-400">Prerequisite Registration</span>
-            <h2 className="text-lg font-serif font-bold text-white">Research Information Form</h2>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs ">
-            <span className={`px-2 py-0.5 rounded font-bold ${step === 1 ? 'bg-blue-900/50 text-blue-300 border border-blue-500/20' : 'bg-slate-900 text-slate-500'}`}>1</span>
-            <span className="text-slate-500">/</span>
-            <span className={`px-2 py-0.5 rounded font-bold ${step === 2 ? 'bg-blue-900/50 text-blue-300 border border-blue-500/20' : 'bg-slate-900 text-slate-500'}`}>2</span>
-          </div>
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-slate-900">Start your research paper</h1>
+          <p className="text-base text-slate-600">
+            Welcome, {user.name}. Before you can use the system, tell us about your research paper. It takes about 5 minutes.
+          </p>
         </div>
 
-        {error && (
-          <div className="p-3 bg-rose-950/40 border border-rose-900/40 text-rose-300 text-xs rounded-xl flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+        {/* Where am I? */}
+        <div aria-live="polite">
+          <p className="text-sm font-semibold text-slate-700">Step {step} of 2 · {stepTitle}</p>
+          <div
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={2}
+            aria-valuenow={step}
+            aria-label={`Step ${step} of 2`}
+            className="mt-2 flex gap-2"
+          >
+            <span className="h-2 flex-1 rounded-full bg-blue-800" />
+            <span className={cx('h-2 flex-1 rounded-full', step === 2 ? 'bg-blue-800' : 'bg-slate-300')} />
           </div>
-        )}
+        </div>
 
-        {step === 1 ? (
-          /* Step 1: Research Title & Abstract Proposal */
-          <div className="space-y-4 animate-in fade-in duration-150">
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Complete your initial research team and proposal details to generate your system timeline. This triggers adviser feedback loops instantly.
-            </p>
+        <Card className="space-y-6">
+          {error && <Alert tone="danger" title="Please check the form">{error}</Alert>}
 
-            <div className="space-y-3.5">
-              <div>
-                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Proposed Research Title</label>
-                <input
-                  type="text"
+          {step === 1 ? (
+            /* Step 1: title, summary, adviser */
+            <div className="space-y-5">
+              <p className="text-sm text-slate-600">Fields marked with * are required.</p>
+
+              <Input
+                label="Research title"
+                required
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                hint="The name of your research paper."
+                placeholder="e.g. Web-Based Research Management System"
+                error={titleError}
+              />
+
+              <Textarea
+                label="Short summary (abstract)"
+                required
+                rows={5}
+                value={abstract}
+                onChange={e => setAbstract(e.target.value)}
+                hint="What problem will you solve, and how? A few sentences is enough."
+                error={abstractError}
+              />
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <Select
+                  label="Your adviser"
                   required
-                  placeholder="e.g. Web-Based Research Management And Monitoring System"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-xs p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white font-medium"
+                  value={adviserId}
+                  onChange={e => setAdviserId(e.target.value)}
+                  hint="The teacher who will guide your group."
+                  error={adviserError}
+                >
+                  <option value="">Choose your adviser…</option>
+                  {advisers.map(adv => (
+                    <option key={adv.id} value={adv.id}>{adv.name}</option>
+                  ))}
+                </Select>
+
+                <Input
+                  label="Keywords"
+                  optional
+                  value={keywordsStr}
+                  onChange={e => setKeywordsStr(e.target.value)}
+                  hint="Separate each keyword with a comma."
+                  placeholder="e.g. Web-based, Monitoring"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Executive Summary / Abstract</label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Briefly describe the problem statement, target objectives, scope of system development, and technical stack parameters..."
-                  value={abstract}
-                  onChange={(e) => setAbstract(e.target.value)}
-                  className="w-full text-xs p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white leading-relaxed"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Designated Thesis Adviser</label>
-                  <select
-                    value={adviserId}
-                    onChange={(e) => setAdviserId(e.target.value)}
-                    className="w-full text-xs p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white font-semibold"
-                  >
-                    <option value="">-- Choose Adviser --</option>
-                    {advisers.map(adv => (
-                      <option key={adv.id} value={adv.id}>{adv.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Project Keywords (Comma Separated)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Web-based, Monitoring, MySQL"
-                    value={keywordsStr}
-                    onChange={(e) => setKeywordsStr(e.target.value)}
-                    className="w-full text-xs p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white"
-                  />
-                </div>
+              <div className="flex justify-end pt-2">
+                <Button icon={ArrowRight} onClick={handleNextStep}>Continue to Step 2</Button>
               </div>
             </div>
-
-            <div className="flex justify-end pt-4">
-              <button
-                type="button"
-                onClick={handleNextStep}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-blue-600/10 transition-all cursor-pointer"
-              >
-                Continue to Upload
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Step 2: Collaborators & Multi-file Upload Area */
-          <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in duration-150">
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Co-Authors / Team Members (Comma Separated)</label>
-                <div className="relative">
-                  <Users className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="e.g. Juan dela Cruz, Maria Santos (Exclude yourself)"
-                    value={memberNames}
-                    onChange={(e) => setMemberNames(e.target.value)}
-                    className="w-full text-xs pl-10 pr-4 p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white"
-                  />
-                </div>
-                <span className="text-xs text-slate-500 block mt-1">Your own account: <strong className="text-slate-300">{user.name}</strong> will be registered automatically as the group lead.</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Target Document Category</label>
-                  <select
-                    value={uploadCategory}
-                    onChange={(e) => setUploadCategory(e.target.value as any)}
-                    className="w-full text-xs p-3 bg-slate-900 border border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 text-white font-semibold"
-                  >
-                    <option value="proposal_document">Title Proposal Document (Main)</option>
-                    <option value="research_summary">Research Summary Brief</option>
-                    <option value="supporting_files">Supporting Files (Data/Syllabi)</option>
-                    <option value="other_attachments">Other Attachments</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500  tracking-normal block mb-1">Upload Selected Category</label>
-                  
-                  <div 
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    className={`border border-dashed rounded-xl p-3.5 text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer h-[46px] ${
-                      dragActive 
-                        ? 'border-blue-500 bg-blue-900/20' 
-                        : 'border-white/15 bg-slate-900 hover:bg-slate-900/70'
-                    }`}
-                    onClick={() => !isUploading && document.getElementById('manuscript-input')?.click()}
-                  >
-                    <input
-                      id="manuscript-input"
-                      type="file"
-                      accept=".pdf,.docx"
-                      className="hidden"
-                      disabled={isUploading}
-                      onChange={handleFileSelect}
-                    />
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      {isUploading ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 text-blue-400 shrink-0 animate-spin" />
-                          <span className="text-xs font-semibold">Uploading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <UploadCloud className="h-4 w-4 text-blue-400 shrink-0" />
-                          <span className="text-xs font-semibold">Drop or Click to Upload</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Organized files list */}
+          ) : (
+            /* Step 2: group members and files */
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-500  block tracking-normal">
-                  Uploaded Proposal Attachment Grid
-                </span>
+                <Input
+                  label="Other students in your group"
+                  optional
+                  value={memberNames}
+                  onChange={e => setMemberNames(e.target.value)}
+                  hint="Type their names separated by commas. Do not type your own name."
+                  placeholder="e.g. Juan dela Cruz, Maria Santos"
+                />
+                <p className="flex items-center gap-2 text-sm text-slate-700">
+                  <Users className="h-4 w-4 text-slate-600" aria-hidden="true" />
+                  You (<strong>{user.name}</strong>) are added automatically as the group leader.
+                </p>
+              </div>
 
-                {proposalFiles.length === 0 ? (
-                  <div className="border border-dashed border-white/10 rounded-xl p-6 text-center text-xs text-slate-500 bg-slate-950/20">
-                    No files added yet. Please upload the required <strong>Title Proposal Document</strong>.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden bg-slate-950/40">
-                    {proposalFiles.map(file => {
-                      const sizeInKb = (file.size ? Math.round(file.size / 102.4) / 10 : 150.5);
-                      const catLabel = file.category === 'proposal_document' ? 'Proposal Document'
-                        : file.category === 'research_summary' ? 'Research Summary'
-                        : file.category === 'supporting_files' ? 'Supporting Files'
-                        : 'Other Attachment';
+              <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
+                <legend className="px-2 text-base font-bold text-slate-900">Your files</legend>
+                <p className="text-sm text-slate-600">
+                  You must add your <strong>main document</strong>. Other files are optional. Only PDF and Word (DOCX) files are accepted.
+                </p>
 
-                      const catBadgeColor = file.category === 'proposal_document' ? 'bg-blue-950 text-blue-300 border-blue-500/20'
-                        : file.category === 'research_summary' ? 'bg-indigo-950 text-indigo-300 border-indigo-500/20'
-                        : file.category === 'supporting_files' ? 'bg-emerald-950 text-emerald-300 border-emerald-500/20'
-                        : 'bg-slate-900 text-slate-500 border-white/10';
+                <Select
+                  label="What kind of file is this?"
+                  value={uploadCategory}
+                  onChange={e => setUploadCategory(e.target.value as typeof uploadCategory)}
+                >
+                  <option value="proposal_document">Main document (required)</option>
+                  <option value="research_summary">Research summary</option>
+                  <option value="supporting_files">Supporting files (data, syllabus)</option>
+                  <option value="other_attachments">Other files</option>
+                </Select>
 
-                      return (
-                        <div key={file.id} className="p-3 flex items-center justify-between gap-3 text-xs hover:bg-white/2">
-                          <div className="space-y-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-xs font-semibold  px-2 py-0.5 rounded border ${catBadgeColor}`}>
-                                {catLabel}
-                              </span>
-                              <span className="text-xs  text-slate-500">
-                                {sizeInKb} KB
-                              </span>
+                {/* Drop area */}
+                <div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  className={cx(
+                    'flex flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 text-center',
+                    dragActive ? 'border-blue-700 bg-blue-50' : 'border-slate-300 bg-slate-50',
+                  )}
+                >
+                  <input
+                    id="manuscript-input"
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="sr-only"
+                    tabIndex={-1}
+                    disabled={isUploading}
+                    onChange={handleFileSelect}
+                  />
+                  <UploadCloud className="h-8 w-8 text-blue-800" aria-hidden="true" />
+                  <p className="text-sm text-slate-700">Drop your file here, or choose it from your device.</p>
+                  <Button
+                    icon={isUploading ? RefreshCw : UploadCloud}
+                    loading={isUploading}
+                    onClick={() => document.getElementById('manuscript-input')?.click()}
+                  >
+                    {isUploading ? 'Uploading…' : 'Choose a File'}
+                  </Button>
+                </div>
+
+                {/* Files added so far */}
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-slate-900">Files you added ({proposalFiles.length})</p>
+                  {proposalFiles.length === 0 ? (
+                    <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                      No files yet. Please add your <strong>main document</strong>.
+                    </p>
+                  ) : (
+                    <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+                      {proposalFiles.map(file => {
+                        const sizeInKb = file.size ? Math.round(file.size / 102.4) / 10 : null;
+                        return (
+                          <li key={file.id} className="flex flex-col gap-3 p-4">
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge tone={file.category === 'proposal_document' ? 'info' : 'neutral'}>{categoryLabels[file.category]}</Badge>
+                                {sizeInKb !== null && <span className="text-xs text-slate-600">{sizeInKb} KB</span>}
+                              </div>
+                              <p className="break-words text-sm font-semibold text-slate-900">{file.name}</p>
                             </div>
-                            <strong className="text-white block font-medium truncate max-w-sm" title={file.name}>
-                              {file.name}
-                            </strong>
-                          </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button variant="secondary" size="sm" icon={Eye} onClick={() => setPreviewFile(file)}>File Details</Button>
+                              <Button variant="secondary" size="sm" icon={Download} onClick={() => handleFileDownload(file)}>Download</Button>
+                              <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => triggerReplace(file.id)}>Replace File</Button>
+                              <Button variant="danger" size="sm" icon={Trash2} onClick={() => handleDeleteFile(file.id)}>Remove File</Button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </fieldset>
 
-                          {/* Options: View, Download, Replace, Delete */}
-                          <div className="flex gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewFile(file)}
-                              title="View Document"
-                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleFileDownload(file)}
-                              title="Download File"
-                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => triggerReplace(file.id)}
-                              title="Replace File"
-                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 cursor-pointer"
-                            >
-                              <RefreshCw className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteFile(file.id)}
-                              title="Delete File"
-                              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-500 hover:text-rose-400 border border-white/10 cursor-pointer"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
+                <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep(1)}>Back to Step 1</Button>
+                <Button type="submit" icon={Send}>Send My Research Title</Button>
               </div>
-            </div>
+            </form>
+          )}
+        </Card>
+      </main>
 
-            <div className="flex gap-2 justify-between pt-4 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-2.5 border border-white/10 text-slate-300 text-xs font-semibold rounded-xl hover:bg-white/5 transition-all cursor-pointer"
-              >
-                Back to Details
-              </button>
-              <button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2.5 rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-600/15 transition-all cursor-pointer"
-              >
-                Submit Title Proposal & Access Portal
-                <Sparkles className="h-4 w-4" />
-              </button>
+      {/* File details */}
+      <Modal
+        open={!!previewFile}
+        onClose={() => setPreviewFile(null)}
+        title="File details"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPreviewFile(null)}>Close</Button>
+            {previewFile && (
+              <Button icon={ExternalLink} onClick={() => handleFileDownload(previewFile)}>Open File</Button>
+            )}
+          </>
+        }
+      >
+        {previewFile && (
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="text-slate-600">File name</dt>
+              <dd className="break-words font-semibold text-slate-900">{previewFile.name}</dd>
             </div>
-          </form>
+            <div>
+              <dt className="text-slate-600">Kind of file</dt>
+              <dd className="font-semibold text-slate-900">{categoryLabels[previewFile.category]}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">Size</dt>
+              <dd className="font-semibold text-slate-900">
+                {previewFile.size ? `${Math.round(previewFile.size / 102.4) / 10} KB` : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">Added on</dt>
+              <dd className="font-semibold text-slate-900">{formatDateLong(previewFile.uploadedAt)}</dd>
+            </div>
+          </dl>
         )}
-      </div>
+      </Modal>
 
-      {/* Dynamic File Preview Modal */}
-      {previewFile && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-55 p-4 animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-white/5 pb-2.5">
-              <div className="min-w-0">
-                <span className="text-xs font-bold  bg-blue-900/50 text-blue-300 border border-blue-500/20 px-2 py-0.5 rounded">
-                  {previewFile.category.replace('_', ' ').toUpperCase()}
-                </span>
-                <h4 className="text-xs font-bold text-white mt-1 truncate" title={previewFile.name}>
-                  {previewFile.name}
-                </h4>
-              </div>
-              <button 
-                onClick={() => setPreviewFile(null)}
-                className="text-slate-500 hover:text-white p-1 rounded-lg"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="bg-slate-950 rounded-xl p-4 border border-white/5 h-60 overflow-y-auto text-xs text-slate-300 leading-relaxed font-serif space-y-3 scrollbar-none">
-              <h3 className="text-xs font-bold text-center text-white border-b border-white/5 pb-2  tracking-wide">
-                {title || "Proposed Research Title Placeholder"}
-              </h3>
-              <p className="text-center italic text-xs text-slate-500">
-                Submitted by: {user.name} {memberNames ? `, ${memberNames}` : ""}
-              </p>
-              <p className="pt-2">
-                <strong>Vetted Attachment File:</strong> {previewFile.name}
-              </p>
-              <p>
-                This panel simulates the <strong>NORMI High-Fidelity Document Sandbox</strong>. When connected to physical cloud storage, it invokes real-time metadata streams, PDF.js canvas overlays, and panel review annotations.
-              </p>
-              <p>
-                <strong>Abstract Context:</strong> {abstract || "No abstract details provided."}
-              </p>
-              <p className="text-xs text-slate-500 italic">
-                System Status: Verified and compiled securely on NORMI Academic handshakes. No viruses or checksum anomalies detected.
-              </p>
-            </div>
-
-            <div className="flex justify-end border-t border-white/5 pt-2.5">
-              <button
-                type="button"
-                onClick={() => setPreviewFile(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
-              >
-                Close Simulator View
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer credits */}
-      <div className="text-center text-xs text-slate-500">
-        Northern Mindanao Colleges, Inc. • High-Fidelity Research Defense Management Engine
-      </div>
+      {/* Are you sure? */}
+      <ConfirmDialog
+        open={confirmingSubmit}
+        onCancel={() => setConfirmingSubmit(false)}
+        onConfirm={submitConfirmed}
+        title="Send your research title?"
+        message={`“${title.trim()}” will be sent to ${adviserName}. You can send new versions later from your home page.`}
+        confirmLabel="Yes, Send My Research Title"
+        cancelLabel="No, Let Me Check"
+      />
     </div>
   );
 }
