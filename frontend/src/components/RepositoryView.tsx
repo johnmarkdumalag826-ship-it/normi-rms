@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Research, Department, Course, SchoolYear, User } from '../types';
+import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2, FileText } from 'lucide-react';
+import { Research, Department, Course, SchoolYear, User, ProposalFile } from '../types';
+import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
-  Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
+  Alert, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
 } from '../ui';
 
 interface RepositoryViewProps {
@@ -45,6 +46,10 @@ export default function RepositoryView({
   const [adviserId, setAdviserId] = useState('');
   const [keywordsString, setKeywordsString] = useState('');
   const [authorNamesString, setAuthorNamesString] = useState('');
+  // The PDF of the finished paper. It is uploaded when the person clicks Publish / Save Changes.
+  const [paperFile, setPaperFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Everyone sees finished papers. Admins also see papers that are still in progress.
   const repoPapers = useMemo(() => {
@@ -54,57 +59,122 @@ export default function RepositoryView({
     return researchList.filter(r => r.status === 'Completed' || r.status === 'Archived');
   }, [researchList, user.role]);
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const uploadPaperFile = async (file: File): Promise<ProposalFile> => {
+    const uploaded = await uploadFile(file);
+    return {
+      id: `prop-file-${Date.now()}`,
+      name: uploaded.fileName,
+      url: resolveFileUrl(uploaded.url),
+      size: uploaded.size,
+      uploadedAt: new Date().toISOString(),
+      category: 'proposal_document',
+    };
+  };
+
+  const uploadErrorText = (err: unknown) =>
+    err instanceof ApiError ? err.message : 'We could not upload the file. Please check your internet connection and try again.';
+
+  const handleFileChoice = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setFileError('Please choose a PDF file.');
+      setPaperFile(null);
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setFileError('That file is too big. Please choose a PDF smaller than 15 MB.');
+      setPaperFile(null);
+      e.target.value = '';
+      return;
+    }
+    setPaperFile(file);
+  };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !abstract || !departmentId || !courseId || !schoolYearId || !adviserId) return;
+    if (!paperFile) {
+      setFileError('Please choose the PDF file of the finished paper.');
+      return;
+    }
 
     const keywords = keywordsString.split(',').map(k => k.trim()).filter(Boolean);
 
-    const newPaper: Research = {
-      id: `repo-paper-${Date.now()}`,
-      title,
-      abstract,
-      status: 'Archived',
-      departmentId,
-      courseId,
-      schoolYearId,
-      adviserId,
-      studentIds: [],
-      panelistIds: [],
-      keywords,
-      viewCount: 0,
-      downloadCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    setIsSaving(true);
+    setFileError(null);
+    try {
+      const file = await uploadPaperFile(paperFile);
 
-    onAddPaper(newPaper);
-    setShowAddModal(false);
-    resetForm();
+      const newPaper: Research = {
+        id: `repo-paper-${Date.now()}`,
+        title,
+        abstract,
+        status: 'Archived',
+        departmentId,
+        courseId,
+        schoolYearId,
+        adviserId,
+        studentIds: [],
+        panelistIds: [],
+        keywords,
+        proposalFiles: [file],
+        viewCount: 0,
+        downloadCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      onAddPaper(newPaper);
+      setShowAddModal(false);
+      resetForm();
+    } catch (err) {
+      setFileError(uploadErrorText(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPaper || !title || !abstract || !departmentId || !courseId || !schoolYearId || !adviserId) return;
 
     const keywords = keywordsString.split(',').map(k => k.trim()).filter(Boolean);
 
-    const updatedPaper: Research = {
-      ...editingPaper,
-      title,
-      abstract,
-      departmentId,
-      courseId,
-      schoolYearId,
-      adviserId,
-      keywords,
-      updatedAt: new Date().toISOString()
-    };
+    setIsSaving(true);
+    setFileError(null);
+    try {
+      // A new PDF replaces the old main document. Other files stay as they are.
+      let proposalFiles = editingPaper.proposalFiles;
+      if (paperFile) {
+        const file = await uploadPaperFile(paperFile);
+        proposalFiles = [...(editingPaper.proposalFiles ?? []).filter(f => f.category !== 'proposal_document'), file];
+      }
 
-    onEditPaper(updatedPaper);
-    setShowEditModal(false);
-    setEditingPaper(null);
-    resetForm();
+      const updatedPaper: Research = {
+        ...editingPaper,
+        title,
+        abstract,
+        departmentId,
+        courseId,
+        schoolYearId,
+        adviserId,
+        keywords,
+        proposalFiles,
+        updatedAt: new Date().toISOString()
+      };
+
+      onEditPaper(updatedPaper);
+      setShowEditModal(false);
+      setEditingPaper(null);
+      resetForm();
+    } catch (err) {
+      setFileError(uploadErrorText(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const resetForm = () => {
@@ -116,6 +186,8 @@ export default function RepositoryView({
     setAdviserId(users.filter(u => u.role === 'adviser')[0]?.id || '');
     setKeywordsString('');
     setAuthorNamesString('');
+    setPaperFile(null);
+    setFileError(null);
   };
 
   const openEditModal = (paper: Research) => {
@@ -127,6 +199,8 @@ export default function RepositoryView({
     setSchoolYearId(paper.schoolYearId);
     setAdviserId(paper.adviserId);
     setKeywordsString(paper.keywords.join(', '));
+    setPaperFile(null);
+    setFileError(null);
     setShowEditModal(true);
   };
 
@@ -246,6 +320,45 @@ export default function RepositoryView({
         hint="Separate each keyword with a comma."
         placeholder="e.g. Automation, Enrollment, Database"
       />
+
+      {/* The PDF people will download */}
+      <div className="space-y-1.5">
+        <label htmlFor="paper-file" className="block text-sm font-semibold text-slate-800">
+          Paper file (PDF)
+          {showAddModal ? <span className="ml-1 text-rose-700" aria-hidden="true">*</span> : <span className="ml-1.5 text-xs font-normal text-slate-600">(optional)</span>}
+          {showAddModal && <span className="sr-only"> (required)</span>}
+        </label>
+        <p id="paper-file-hint" className="text-xs text-slate-600">
+          {showAddModal
+            ? 'Add the finished paper as a PDF, smaller than 15 MB. This is the file people download.'
+            : 'Choose a new PDF only if you want to replace the current file.'}
+        </p>
+        {showEditModal && editingPaper && (
+          <p className="text-sm text-slate-800">
+            Current file: <strong>{editingPaper.proposalFiles?.find(f => f.category === 'proposal_document')?.name ?? 'none yet'}</strong>
+          </p>
+        )}
+        <input
+          id="paper-file"
+          type="file"
+          accept=".pdf,application/pdf"
+          required={showAddModal && !paperFile}
+          aria-describedby="paper-file-hint"
+          aria-invalid={!!fileError || undefined}
+          onChange={handleFileChoice}
+          disabled={isSaving}
+          className="block w-full cursor-pointer rounded-lg border border-slate-300 bg-white text-sm text-slate-800 file:mr-4 file:min-h-11 file:cursor-pointer file:border-0 file:bg-blue-800 file:px-4 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-900"
+        />
+        {paperFile && (
+          <p className="flex items-center gap-2 text-sm text-slate-800">
+            <FileText className="h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
+            <span className="min-w-0 break-all">Chosen file: <strong>{paperFile.name}</strong> ({Math.round(paperFile.size / 102.4) / 10} KB)</span>
+          </p>
+        )}
+        {fileError && (
+          <Alert tone="danger" title="There is a problem with the file">{fileError}</Alert>
+        )}
+      </div>
     </div>
   );
 
@@ -493,13 +606,13 @@ export default function RepositoryView({
       {/* Add a paper */}
       <Modal
         open={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => !isSaving && setShowAddModal(false)}
         title="Add a finished paper to the Repository"
-        description="The paper will be saved as finished and everyone will be able to find it. Fields marked with * are required."
+        description="Publishing saves the paper as finished, and everyone will be able to find and download it. Fields marked with * are required."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
-            <Button type="submit" form="paper-add-form">Add Paper to Repository</Button>
+            <Button variant="secondary" onClick={() => setShowAddModal(false)} disabled={isSaving}>Cancel</Button>
+            <Button type="submit" form="paper-add-form" loading={isSaving}>{isSaving ? 'Publishing…' : 'Publish'}</Button>
           </>
         }
       >
@@ -509,13 +622,13 @@ export default function RepositoryView({
       {/* Edit a paper */}
       <Modal
         open={showEditModal && !!editingPaper}
-        onClose={closeEdit}
+        onClose={() => !isSaving && closeEdit()}
         title="Edit paper details"
         description="Change the details people see in the Repository. Fields marked with * are required."
         footer={
           <>
-            <Button variant="secondary" onClick={closeEdit}>Cancel</Button>
-            <Button type="submit" form="paper-edit-form">Save Changes</Button>
+            <Button variant="secondary" onClick={closeEdit} disabled={isSaving}>Cancel</Button>
+            <Button type="submit" form="paper-edit-form" loading={isSaving}>{isSaving ? 'Saving…' : 'Save Changes'}</Button>
           </>
         }
       >

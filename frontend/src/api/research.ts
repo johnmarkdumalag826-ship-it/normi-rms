@@ -11,7 +11,7 @@ export const createResearch = (input: {
 // Admin archiving a manuscript directly into the repository (no student submitter/version)
 export const createArchivedResearch = (input: {
   title: string; abstract: string; departmentId: string; courseId: string; schoolYearId: string;
-  adviserId: string; keywords?: string[]; status?: ResearchStatus;
+  adviserId: string; keywords?: string[]; status?: ResearchStatus; proposalFiles?: ProposalFile[];
 }): Promise<Research> => api.post('/research/archived', input);
 
 export const updateResearch = (id: string, patch: Partial<Research>): Promise<Research> =>

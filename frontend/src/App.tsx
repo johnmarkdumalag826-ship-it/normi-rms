@@ -505,12 +505,12 @@ export default function App() {
       const created = await createArchivedResearch({
         title: paper.title, abstract: paper.abstract, departmentId: paper.departmentId,
         courseId: paper.courseId, schoolYearId: paper.schoolYearId, adviserId: paper.adviserId,
-        keywords: paper.keywords, status: paper.status,
+        keywords: paper.keywords, status: paper.status, proposalFiles: paper.proposalFiles,
       });
       setResearchList(prev => [created, ...prev]);
-      triggerAlert("New manuscript archived in repository!");
+      triggerAlert('The paper was published to the Repository.');
     } catch (err) {
-      handleApiError(err, 'Could not archive manuscript.');
+      handleApiError(err, 'Could not publish the paper.');
     }
   };
 

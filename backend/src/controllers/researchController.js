@@ -65,7 +65,7 @@ const createResearch = async (req, res, next) => {
 // distinct from createResearch: no student submitter, no version record, status is
 // set directly rather than starting the Submitted -> ... pipeline.
 const createArchivedResearch = async (req, res, next) => {
-  const { title, abstract, departmentId, courseId, schoolYearId, adviserId, keywords, status } = req.body;
+  const { title, abstract, departmentId, courseId, schoolYearId, adviserId, keywords, status, proposalFiles } = req.body;
   if (!title || !abstract || !departmentId || !courseId || !schoolYearId || !adviserId) {
     return next(new AppError('title, abstract, departmentId, courseId, schoolYearId, and adviserId are required', 400));
   }
@@ -73,6 +73,7 @@ const createArchivedResearch = async (req, res, next) => {
   const research = await Research.create({
     title, abstract, departmentId, courseId, schoolYearId, adviserId,
     keywords: keywords || [], studentIds: [], panelistIds: [],
+    proposalFiles: Array.isArray(proposalFiles) ? proposalFiles : [],
     status: status || 'Archived', viewCount: 0, downloadCount: 0,
   });
 

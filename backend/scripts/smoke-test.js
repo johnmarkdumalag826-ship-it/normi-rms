@@ -73,7 +73,7 @@ async function main() {
 
   const dept = await Department.create({ name: 'College of Computing Studies', code: 'CCS' });
   const course = await Course.create({ departmentId: dept._id, name: 'BS Information Technology', code: 'BSIT' });
-  await SchoolYear.create({ name: '2025-2026', isCurrent: true });
+  const schoolYear = await SchoolYear.create({ name: '2025-2026', isCurrent: true });
   const room = await Room.create({ name: 'Room 301', location: 'Main Building', capacity: 20 });
 
   console.log('\n--- Health check ---');
@@ -134,6 +134,17 @@ async function main() {
   assert(oldPw.status === 401, 'the old password stops working -> 401');
   const newPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
   assert(newPw.status === 200 && !!newPw.body.token, 'the new password works -> 200');
+
+  console.log('\n--- Admin publishes a finished paper with its PDF ---');
+  const published = await request(server, 'POST', '/api/research/archived', {
+    title: 'A Finished Paper', abstract: 'Already defended.', departmentId: dept._id, courseId: course._id,
+    schoolYearId: schoolYear._id, adviserId, keywords: ['test'],
+    proposalFiles: [{ name: 'finished.pdf', url: 'http://localhost/uploads/finished.pdf', size: 1234, category: 'proposal_document' }],
+  }, adminToken);
+  assert(published.status === 201, 'admin publishes a finished paper -> 201');
+  assert(Array.isArray(published.body.proposalFiles) && published.body.proposalFiles.length === 1, 'the PDF is saved with the paper');
+  const studentPublishes = await request(server, 'POST', '/api/research/archived', { title: 'x' }, studentToken);
+  assert(studentPublishes.status === 403, 'a student cannot publish to the Repository -> 403');
 
   // Panelist availability for every day (so the auto-scheduler always has candidates)
   console.log('\n--- Panel availability ---');
