@@ -4,9 +4,9 @@ A web app for **Northern Mindanao Colleges, Inc.** that helps students, advisers
 coordinators and admins handle thesis and capstone work in one place: sending research papers,
 adviser feedback, defense scheduling, panel scoring, and a searchable research repository.
 
-> **This repository is the frontend (the part people see in the browser).**
-> It needs the NORMI RMS backend (Express + MongoDB) to work. The backend is a separate project
-> and is not stored here.
+> **This folder is the frontend (the part people see in the browser).**
+> It needs the backend in the [`../backend`](../backend) folder to work.
+> See the [main README](../README.md) for how to run both together.
 
 ---
 
@@ -36,7 +36,7 @@ The words people read on screen come from `src/ui/labels.ts`. The values stored 
 
 ## Run it on your computer
 
-You need [Node.js](https://nodejs.org) and the backend running.
+You need [Node.js](https://nodejs.org) and the backend (in `../backend`) running.
 
 1. **Install the packages**
    ```bash

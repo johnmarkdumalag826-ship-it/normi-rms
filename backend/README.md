@@ -3,7 +3,7 @@
 The server for the **NORMI Research Management & Monitoring System** of Northern Mindanao Colleges, Inc.
 It stores the data and answers the requests from the web app.
 
-- The web app (frontend) is a separate repository: **normi-rms**.
+- The web app (frontend) is in the [`../frontend`](../frontend) folder. See the [main README](../README.md) for how to run both together.
 - Built with Node.js, Express 5 and MongoDB (Mongoose).
 
 ## What it does

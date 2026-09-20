@@ -1,0 +1,20 @@
+# Safety net for the whole repository (each folder also has its own .gitignore).
+
+# Secrets: never upload these
+.env
+.env.*
+!.env.example
+
+# Installed packages and build results
+node_modules/
+dist/
+build/
+
+# Student uploads and logs
+backend/uploads/*
+!backend/uploads/.gitkeep
+*.log
+
+# Computer clutter
+.DS_Store
+Thumbs.db
