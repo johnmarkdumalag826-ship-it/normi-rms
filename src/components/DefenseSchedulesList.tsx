@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { 
-  Calendar as CalendarIcon, Clock, Landmark, Users, User, ShieldCheck, 
-  Video, Search, Tag, AlertTriangle, ChevronRight, BookOpen, Clock3,
-  LayoutGrid, List, MapPin, ExternalLink, UserCheck, CheckCircle
+import {
+  Calendar as CalendarIcon, Clock, Landmark, Users, User, ShieldCheck, Video, Search,
+  LayoutGrid, List, ExternalLink, CheckCircle2, CalendarCheck, UserCheck, Compass,
 } from 'lucide-react';
 import { Schedule, Room, User as UserType, Research } from '../types';
+import {
+  Badge, Button, Card, EmptyState, PageHeader, Select, StatusBadge, Table, cx, defenseTypeLabels, formatDate, formatDateLong,
+  formatDateAndTime, formatTime, scheduleStatus, type Column,
+} from '../ui';
 
 interface DefenseSchedulesListProps {
   schedules: Schedule[];
@@ -14,6 +17,14 @@ interface DefenseSchedulesListProps {
   currentUser: UserType;
 }
 
+const subtitles: Record<string, string> = {
+  student: 'See when and where your defense will be, and who your panel members are.',
+  adviser: 'See the defense dates of your student groups.',
+  panelist: 'See the defenses you will attend as a panel member.',
+  coordinator: 'See every defense that is scheduled.',
+  admin: 'See every defense that is scheduled.',
+};
+
 export default function DefenseSchedulesList({
   schedules, rooms, users, researchList, currentUser
 }: DefenseSchedulesListProps) {
@@ -22,63 +33,39 @@ export default function DefenseSchedulesList({
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  const getRoomName = (roomId: string) => {
-    const r = rooms.find(x => x.id === roomId);
-    return r ? r.name : 'Online Video Room';
-  };
-
-  const getRoomLocation = (roomId: string) => {
-    const r = rooms.find(x => x.id === roomId);
-    return r ? r.location : 'Google Meet Platform';
-  };
-
-  const getResearchTitle = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
-    return res ? res.title : 'Research Project';
-  };
+  const getRoomName = (roomId: string) => rooms.find(x => x.id === roomId)?.name ?? 'Online meeting';
+  const getRoomLocation = (roomId: string) => rooms.find(x => x.id === roomId)?.location ?? 'Online';
+  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
 
   const getAdviserName = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);
-    if (!res) return 'Unassigned Adviser';
-    const u = users.find(x => x.id === res.adviserId);
-    return u ? u.name : 'Unassigned Adviser';
+    if (!res) return 'No adviser yet';
+    return users.find(x => x.id === res.adviserId)?.name ?? 'No adviser yet';
   };
 
-  const getPanelistNames = (panelistIds: string[]) => {
-    return panelistIds.map(pid => {
-      const u = users.find(x => x.id === pid);
-      return u ? u.name : 'Faculty Evaluator';
-    });
-  };
+  const getPanelistNames = (panelistIds: string[]) =>
+    panelistIds.map(pid => users.find(x => x.id === pid)?.name ?? 'Panel Member');
 
   const getStudentNames = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);
-    if (!res) return 'No Authors';
-    const students = res.studentIds.map(sid => {
-      const u = users.find(x => x.id === sid);
-      return u ? u.name : 'Unknown Student';
-    });
-    return students.join(', ');
+    if (!res) return 'No students';
+    return res.studentIds.map(sid => users.find(x => x.id === sid)?.name ?? 'Student').join(', ');
   };
 
-  // Check if a schedule belongs to the current user (if student, adviser, or panelist)
+  // Is this defense connected to the person who is signed in?
   const isMySchedule = (sched: Schedule) => {
     if (currentUser.role === 'coordinator' || currentUser.role === 'admin') return true;
-    
+
     const res = researchList.find(r => r.id === sched.researchId);
     if (!res) return false;
 
-    if (currentUser.role === 'student') {
-      return res.studentIds.includes(currentUser.id);
-    }
-    if (currentUser.role === 'adviser') {
-      return res.adviserId === currentUser.id;
-    }
-    if (currentUser.role === 'panelist') {
-      return sched.panelistIds.includes(currentUser.id);
-    }
+    if (currentUser.role === 'student') return res.studentIds.includes(currentUser.id);
+    if (currentUser.role === 'adviser') return res.adviserId === currentUser.id;
+    if (currentUser.role === 'panelist') return sched.panelistIds.includes(currentUser.id);
     return false;
   };
+
+  const seesEverything = currentUser.role === 'coordinator' || currentUser.role === 'admin';
 
   const filteredSchedules = useMemo(() => {
     return schedules
@@ -102,15 +89,9 @@ export default function DefenseSchedulesList({
       });
   }, [schedules, searchQuery, typeFilter, statusFilter, researchList, users, rooms]);
 
-  const mySchedules = useMemo(() => {
-    return filteredSchedules.filter(isMySchedule);
-  }, [filteredSchedules, currentUser, researchList]);
+  const mySchedules = useMemo(() => filteredSchedules.filter(isMySchedule), [filteredSchedules, currentUser, researchList]);
+  const otherSchedules = useMemo(() => filteredSchedules.filter(s => !isMySchedule(s)), [filteredSchedules, currentUser, researchList]);
 
-  const otherSchedules = useMemo(() => {
-    return filteredSchedules.filter(s => !isMySchedule(s));
-  }, [filteredSchedules, currentUser, researchList]);
-
-  // Statistics calculation
   const stats = useMemo(() => {
     const active = schedules.filter(s => s.status === 'scheduled').length;
     const completed = schedules.filter(s => s.status === 'completed').length;
@@ -118,487 +99,303 @@ export default function DefenseSchedulesList({
     return { active, completed, myCount, total: schedules.length };
   }, [schedules, currentUser, researchList]);
 
+  // The next defense that is still coming up for this person
+  const today = new Date().toISOString().slice(0, 10);
+  const nextDefense = useMemo(
+    () =>
+      schedules
+        .filter(s => s.status === 'scheduled' && s.date >= today && isMySchedule(s))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0],
+    [schedules, currentUser, researchList, today],
+  );
+
+  const hasFilters = searchQuery !== '' || typeFilter !== 'all' || statusFilter !== 'all';
+  const clearFilters = () => { setSearchQuery(''); setTypeFilter('all'); setStatusFilter('all'); };
+
+  const cardProps = { getRoomName, getRoomLocation, getResearchTitle, getAdviserName, getPanelistNames, getStudentNames };
+
+  const columns: Column<Schedule>[] = [
+    {
+      key: 'when', header: 'Date and time', primary: true,
+      render: s => (
+        <span className="space-y-0.5">
+          <span className="block font-bold text-slate-900">{formatDate(s.date)}</span>
+          <span className="block text-sm font-normal text-slate-700">{formatTime(s.startTime)} to {formatTime(s.endTime)}</span>
+        </span>
+      ),
+    },
+    { key: 'type', header: 'Type', render: s => <Badge tone="info">{defenseTypeLabels[s.type] ?? s.type}</Badge> },
+    {
+      key: 'paper', header: 'Research paper and group',
+      render: s => (
+        <span className="block max-w-sm space-y-0.5">
+          <span className="block font-semibold text-slate-900">{getResearchTitle(s.researchId)}</span>
+          <span className="block text-sm text-slate-600">{getStudentNames(s.researchId)}</span>
+        </span>
+      ),
+    },
+    { key: 'room', header: 'Room', render: s => getRoomName(s.roomId) },
+    {
+      key: 'people', header: 'Adviser and panel',
+      render: s => (
+        <span className="block space-y-0.5 text-sm">
+          <span className="block">Adviser: <strong>{getAdviserName(s.researchId)}</strong></span>
+          <span className="block text-slate-700">Panel: {getPanelistNames(s.panelistIds).join(', ') || '—'}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'status', header: 'Status',
+      render: s => (
+        <span className="flex flex-wrap gap-1.5">
+          <StatusBadge info={scheduleStatus[s.status]} />
+          {!seesEverything && isMySchedule(s) && <Badge tone="success">Yours</Badge>}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Overview Stat Cards Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 text-blue-800 rounded-xl">
-            <CalendarIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Total Defenses</span>
-            <span className="text-base font-extrabold text-slate-800">{stats.total} Sessions</span>
-          </div>
+      <PageHeader title="Defense Schedule" subtitle={subtitles[currentUser.role]} />
+
+      {/* Your next defense */}
+      {!seesEverything && (
+        <section aria-labelledby="next-defense">
+          <Card className={cx(nextDefense ? 'border-blue-200 bg-blue-50' : '')}>
+            <p id="next-defense" className="flex items-center gap-2 text-sm font-bold text-blue-900">
+              <Compass className="h-5 w-5" aria-hidden="true" />
+              Your next defense
+            </p>
+            {nextDefense ? (
+              <div className="mt-2 space-y-1">
+                <h2 className="text-xl font-bold text-slate-900">{formatDateAndTime(nextDefense.date, nextDefense.startTime)}</h2>
+                <p className="text-base text-slate-700">
+                  {getResearchTitle(nextDefense.researchId)} · {getRoomName(nextDefense.roomId)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-base text-slate-700">
+                {currentUser.role === 'student'
+                  ? 'Your defense date is not set yet. After your adviser approves your paper, the coordinator will set it and you will get a notification.'
+                  : 'You have no defense coming up right now.'}
+              </p>
+            )}
+          </Card>
+        </section>
+      )}
+
+      {/* Numbers */}
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          { icon: CalendarIcon, tone: 'text-blue-800', label: 'All defenses', value: stats.total },
+          { icon: CheckCircle2, tone: 'text-emerald-700', label: 'Finished', value: stats.completed },
+          { icon: CalendarCheck, tone: 'text-amber-700', label: 'Coming up', value: stats.active },
+          ...(seesEverything ? [] : [{ icon: UserCheck, tone: 'text-indigo-700', label: 'Yours', value: stats.myCount }]),
+        ].map(({ icon: Icon, tone, label, value }) => (
+          <Card key={label} className="flex items-start gap-3 !p-4">
+            <Icon className={cx('mt-0.5 h-6 w-6 shrink-0', tone)} aria-hidden="true" />
+            <div>
+              <dd className="text-2xl font-bold text-slate-900">{value}</dd>
+              <dt className="text-sm text-slate-600">{label}</dt>
+            </div>
+          </Card>
+        ))}
+      </dl>
+
+      {/* Search and filters */}
+      <Card as="section" aria-label="Search and filters" className="space-y-4">
+        <div className="relative">
+          <label htmlFor="defense-search" className="sr-only">Search defenses</label>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <input
+            id="defense-search"
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by paper title, student, adviser or room"
+            className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+          />
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-50 text-emerald-800 rounded-xl">
-            <CheckCircle className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Completed</span>
-            <span className="text-base font-extrabold text-slate-800">{stats.completed} Presentations</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-amber-50 text-amber-800 rounded-xl">
-            <Clock3 className="h-5 w-5 animate-pulse" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Scheduled</span>
-            <span className="text-base font-extrabold text-slate-800">{stats.active} Pending</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-50 text-indigo-800 rounded-xl">
-            <UserCheck className="h-5 w-5" />
-          </div>
-          <div>
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">My Assignments</span>
-            <span className="text-base font-extrabold text-slate-800">{stats.myCount} Slotted</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Control Bar */}
-      <div className="bg-white p-4.5 rounded-2xl border border-slate-150 shadow-sm flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-4">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
-          {/* Search bar */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search by title, team members, adviser, or venue..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700 w-full"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {/* Type filter */}
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700"
-            >
-              <option value="all">All Types</option>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select label="Type of defense" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+              <option value="all">All types</option>
               <option value="proposal">Proposal Defense</option>
               <option value="final">Final Defense</option>
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold text-slate-700"
-            >
-              <option value="all">All Statuses</option>
+            </Select>
+            <Select label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="all">All statuses</option>
               <option value="scheduled">Scheduled</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
-            </select>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="How to show the list">
+            <Button variant={viewMode === 'grid' ? 'primary' : 'secondary'} size="sm" icon={LayoutGrid} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+              Cards
+            </Button>
+            <Button variant={viewMode === 'table' ? 'primary' : 'secondary'} size="sm" icon={List} aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
+              Table
+            </Button>
+            {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters}>Clear Search and Filters</Button>}
           </div>
         </div>
+      </Card>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg shrink-0 w-fit">
-          <button
-            type="button"
-            onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer ${
-              viewMode === 'grid' ? 'bg-white shadow text-blue-900' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span>Card Feed</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer ${
-              viewMode === 'table' ? 'bg-white shadow text-blue-900' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <List className="h-3.5 w-3.5" />
-            <span>Table Registry</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Render Content */}
-      {viewMode === 'grid' ? (
+      {/* List */}
+      {filteredSchedules.length === 0 ? (
+        <Card padded={false}>
+          {schedules.length === 0 ? (
+            <EmptyState
+              icon={CalendarIcon}
+              title="No defenses are scheduled yet"
+              description="When the coordinator sets a defense date, it will show here."
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No defenses match your search"
+              description="Try a shorter search, or clear the filters to see every defense."
+              action={<Button variant="secondary" onClick={clearFilters}>Clear Search and Filters</Button>}
+            />
+          )}
+        </Card>
+      ) : viewMode === 'grid' ? (
         <div className="space-y-8">
-          {/* My Assigned Defenses Panel */}
           {mySchedules.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-blue-100 pb-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-700 animate-pulse"></span>
-                <h3 className="text-xs font-bold  tracking-normal text-blue-900">My Assigned Presentations</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-6">
+            <section className="space-y-4" aria-labelledby="mine-title">
+              <h2 id="mine-title" className="text-lg font-bold text-slate-900">
+                {seesEverything ? `All defenses (${mySchedules.length})` : `Your defenses (${mySchedules.length})`}
+              </h2>
+              <ul className="space-y-4">
                 {mySchedules.map(sched => (
-                  <ScheduleCard 
-                    key={sched.id} 
-                    sched={sched} 
-                    getRoomName={getRoomName}
-                    getRoomLocation={getRoomLocation}
-                    getResearchTitle={getResearchTitle}
-                    getAdviserName={getAdviserName}
-                    getPanelistNames={getPanelistNames}
-                    getStudentNames={getStudentNames}
-                    isHighlighted={true}
-                  />
+                  <li key={sched.id}><ScheduleCard sched={sched} highlighted={!seesEverything} {...cardProps} /></li>
                 ))}
-              </div>
-            </div>
+              </ul>
+            </section>
           )}
 
-          {/* General Calendar Directory */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-              <h3 className="text-xs font-bold  tracking-normal text-slate-500">
-                {currentUser.role === 'student' || currentUser.role === 'adviser' || currentUser.role === 'panelist' 
-                  ? 'General Defense Calendar Feed' 
-                  : 'Institutional Defense Registry'}
-              </h3>
-              <span className="text-xs text-slate-500  font-bold">
-                Showing {otherSchedules.length} schedules
-              </span>
-            </div>
-
-            {otherSchedules.length === 0 && mySchedules.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-dashed border-slate-200 p-12 text-center text-slate-450 text-xs">
-                No confirmed defense sessions match your selected filter options.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-6">
+          {otherSchedules.length > 0 && (
+            <section className="space-y-4" aria-labelledby="others-title">
+              <h2 id="others-title" className="text-lg font-bold text-slate-900">
+                {mySchedules.length > 0 ? `Other defenses (${otherSchedules.length})` : `All defenses (${otherSchedules.length})`}
+              </h2>
+              <ul className="space-y-4">
                 {otherSchedules.map(sched => (
-                  <ScheduleCard 
-                    key={sched.id} 
-                    sched={sched} 
-                    getRoomName={getRoomName}
-                    getRoomLocation={getRoomLocation}
-                    getResearchTitle={getResearchTitle}
-                    getAdviserName={getAdviserName}
-                    getPanelistNames={getPanelistNames}
-                    getStudentNames={getStudentNames}
-                    isHighlighted={false}
-                  />
+                  <li key={sched.id}><ScheduleCard sched={sched} highlighted={false} {...cardProps} /></li>
                 ))}
-              </div>
-            )}
-          </div>
+              </ul>
+            </section>
+          )}
         </div>
       ) : (
-        /* Redesigned Table View */
-        <div className="bg-white rounded-2xl border border-slate-150 shadow-sm overflow-hidden">
-          {filteredSchedules.length === 0 ? (
-            <div className="p-12 text-center text-slate-450 text-xs">
-              No confirmed defense sessions match your selected filter options.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-150 text-xs font-bold text-slate-500  tracking-normal">
-                    <th className="p-4">Type & Date</th>
-                    <th className="p-4">Time & Venue</th>
-                    <th className="p-4">Capstone Title & Team</th>
-                    <th className="p-4">Adviser & Jury Panel</th>
-                    <th className="p-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredSchedules.map(sched => {
-                    const isMySched = isMySchedule(sched);
-                    const isOnline = sched.roomId === 'online' || !sched.roomId;
-                    const typeLabel = sched.type === 'proposal' ? 'Proposal' : 'Final Defense';
-
-                    const typeBadgeColor = sched.type === 'proposal' ? 'bg-blue-50 text-blue-800 border-blue-100'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-100';
-
-                    return (
-                      <tr 
-                        key={sched.id} 
-                        className={`hover:bg-slate-50/50 transition-colors ${
-                          isMySched ? 'bg-blue-50/10' : ''
-                        }`}
-                      >
-                        {/* Type & Date */}
-                        <td className="p-4 space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-extrabold px-2 py-0.5 border rounded-lg  ${typeBadgeColor}`}>
-                              {typeLabel}
-                            </span>
-                            {isMySched && (
-                              <span className="text-xs bg-blue-700 text-white px-1.5 py-0.25 rounded font-bold ">
-                                MY ASSIGNMENT
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-700 font-bold">
-                            <CalendarIcon className="h-3.5 w-3.5 text-slate-450" />
-                            <span>{sched.date}</span>
-                          </div>
-                        </td>
-
-                        {/* Time & Venue */}
-                        <td className="p-4 space-y-1">
-                          <div className="flex items-center gap-1.5 text-slate-700 font-semibold ">
-                            <Clock className="h-3.5 w-3.5 text-slate-450" />
-                            <span>{sched.startTime} - {sched.endTime}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-500">
-                            {isOnline ? (
-                              <Video className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                            ) : (
-                              <Landmark className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                            )}
-                            <span className="truncate max-w-[150px] font-medium text-xs" title={getRoomName(sched.roomId)}>
-                              {getRoomName(sched.roomId)}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Capstone Title & Team */}
-                        <td className="p-4 space-y-2 max-w-xs">
-                          <h4 className="font-serif font-bold text-slate-800 line-clamp-2 leading-relaxed" title={getResearchTitle(sched.researchId)}>
-                            {getResearchTitle(sched.researchId)}
-                          </h4>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-450 truncate" title={getStudentNames(sched.researchId)}>
-                            <Users className="h-3.5 w-3.5 text-slate-350 shrink-0" />
-                            <span className="font-medium">{getStudentNames(sched.researchId)}</span>
-                          </div>
-                        </td>
-
-                        {/* Adviser & Jury Panel */}
-                        <td className="p-4 space-y-2">
-                          <div className="text-xs font-semibold text-slate-700">
-                            <span className="text-xs  text-slate-500 block ">Adviser</span>
-                            <span className="font-bold">{getAdviserName(sched.researchId)}</span>
-                          </div>
-                          <div>
-                            <span className="text-xs  text-slate-500 block ">Jury Panel</span>
-                            <span className="text-xs text-slate-600 font-medium line-clamp-1" title={getPanelistNames(sched.panelistIds).join(', ')}>
-                              {getPanelistNames(sched.panelistIds).join(', ')}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="p-4">
-                          {sched.status === 'completed' && (
-                            <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold ">
-                              Completed
-                            </span>
-                          )}
-                          {sched.status === 'cancelled' && (
-                            <span className="text-xs bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold ">
-                              Cancelled
-                            </span>
-                          )}
-                          {sched.status === 'scheduled' && (
-                            <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold ">
-                              Confirmed
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <Table caption="Defense schedules" columns={columns} rows={filteredSchedules} rowKey={s => s.id} />
       )}
     </div>
   );
 }
 
-// Redesigned Single Schedule Card Sub-component
 interface ScheduleCardProps {
-  key?: string | number;
   sched: Schedule;
+  highlighted: boolean;
   getRoomName: (roomId: string) => string;
   getRoomLocation: (roomId: string) => string;
   getResearchTitle: (researchId: string) => string;
   getAdviserName: (researchId: string) => string;
   getPanelistNames: (panelistIds: string[]) => string[];
   getStudentNames: (researchId: string) => string;
-  isHighlighted: boolean;
 }
 
 function ScheduleCard({
-  sched, getRoomName, getRoomLocation, getResearchTitle, getAdviserName, getPanelistNames, getStudentNames, isHighlighted
+  sched, highlighted, getRoomName, getRoomLocation, getResearchTitle, getAdviserName, getPanelistNames, getStudentNames,
 }: ScheduleCardProps) {
-  
   const isOnline = sched.roomId === 'online' || !sched.roomId;
 
-  // Modern subtle thematic coloring depending on defense type
-  const themeAccent = useMemo(() => {
-    switch (sched.type) {
-      case 'proposal':
-        return {
-          border: 'border-blue-150 hover:border-blue-300',
-          badge: 'bg-blue-50 text-blue-800 border-blue-200',
-          indicator: 'bg-blue-600',
-          typeText: 'Proposal Defense'
-        };
-      case 'final':
-        return {
-          border: 'border-emerald-150 hover:border-emerald-300',
-          badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-          indicator: 'bg-emerald-600',
-          typeText: 'Final Capstone Defense'
-        };
-      default:
-        const unhandledType: string = sched.type;
-        return {
-          border: 'border-slate-150 hover:border-slate-300',
-          badge: 'bg-slate-50 text-slate-800 border-slate-200',
-          indicator: 'bg-slate-500',
-          typeText: unhandledType.toUpperCase()
-        };
-    }
-  }, [sched.type]);
-
   return (
-    <div className={`bg-white rounded-2xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden ${
-      isHighlighted 
-        ? 'border-blue-300 ring-1 ring-blue-100 bg-gradient-to-br from-white to-blue-50/5' 
-        : themeAccent.border
-    }`}>
-      {/* Visual Accent ribbon strip on the left margin */}
-      <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${isHighlighted ? 'bg-blue-700' : themeAccent.indicator}`} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-6 items-start pl-2">
-        
-        {/* Left column: Date/Time Slot (col-span-4) */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-xs font-extrabold px-2.5 py-1 rounded-lg border  tracking-normal  ${themeAccent.badge}`}>
-              {themeAccent.typeText}
-            </span>
-
-            {sched.status === 'completed' && (
-              <span className="text-xs bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-lg font-bold ">
-                Completed
-              </span>
-            )}
-            {sched.status === 'cancelled' && (
-              <span className="text-xs bg-rose-50 text-rose-700 border border-rose-150 px-2 py-0.5 rounded-lg font-bold ">
-                Cancelled
-              </span>
-            )}
-            {sched.status === 'scheduled' && (
-              <span className="text-xs bg-emerald-50 text-emerald-800 border border-emerald-150 px-2 py-0.5 rounded-lg font-bold  animate-pulse">
-                Scheduled
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 bg-slate-50/50 p-3 rounded-xl border border-slate-150/40">
-            {/* Date block */}
-            <div className="flex items-center gap-2.5 text-xs text-slate-600 font-medium">
-              <CalendarIcon className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 block   font-bold leading-none">Schedule Date</span>
-                <span className="font-sans text-slate-800 font-bold">{sched.date}</span>
-              </div>
-            </div>
-
-            {/* Time Block */}
-            <div className="flex items-center gap-2.5 text-xs text-slate-600 font-medium">
-              <Clock className="h-4.5 w-4.5 text-slate-500 shrink-0" />
-              <div className="space-y-0.5">
-                <span className="text-xs text-slate-500 block   font-bold leading-none">Time Duration</span>
-                <span className=" text-slate-800 font-bold">{sched.startTime} - {sched.endTime}</span>
-              </div>
-            </div>
-
-            {/* Venue Block */}
-            <div className="flex items-start gap-2.5 text-xs text-slate-600 font-medium">
-              {isOnline ? (
-                <Video className="h-4.5 w-4.5 text-blue-600 shrink-0 mt-0.5" />
-              ) : (
-                <Landmark className="h-4.5 w-4.5 text-slate-500 shrink-0 mt-0.5" />
-              )}
-              <div className="space-y-0.5 min-w-0 flex-1">
-                <span className="text-xs text-slate-500 block   font-bold leading-none">Presentation Venue</span>
-                {isOnline ? (
-                  <a 
-                    href="https://meet.google.com/cit-capstone-session" 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="text-blue-800 hover:underline  text-xs break-all flex items-center gap-0.5 mt-0.5 font-bold"
-                  >
-                    <span>Google Meet Session</span>
-                    <ExternalLink className="h-3 w-3 inline" />
-                  </a>
-                ) : (
-                  <span className="text-slate-800 font-bold block truncate" title={`${getRoomName(sched.roomId)} (${getRoomLocation(sched.roomId)})`}>
-                    {getRoomName(sched.roomId)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Center column: Research Title and Authors (col-span-5) */}
-        <div className="lg:col-span-5 space-y-4 border-t lg:border-t-0 lg:border-l lg:border-r border-slate-100 lg:px-5 pt-4 lg:pt-0">
-          <div className="space-y-1">
-            <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Capstone Manuscript</span>
-            <h4 className="text-xs font-bold text-slate-850 leading-relaxed font-serif " style={{ fontSize: '13px' }}>
-              {getResearchTitle(sched.researchId)}
-            </h4>
-          </div>
-
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-xs  font-bold text-slate-500 block tracking-normal ">Authors / Research Team</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {getStudentNames(sched.researchId).split(', ').map((student, sidx) => (
-                <span key={sidx} className="bg-slate-50 text-slate-650 text-xs font-bold px-2.5 py-0.5 rounded-lg border border-slate-200">
-                  {student}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right column: Adviser and Committee Panelists (col-span-3) */}
-        <div className="lg:col-span-3 space-y-4 pt-4 lg:pt-0">
-          <div className="space-y-1.5">
-            <span className="text-xs  font-bold text-slate-500 block  tracking-normal">Research Adviser</span>
-            <div className="px-3 py-2 bg-slate-50 border border-slate-200/60 rounded-xl flex items-center gap-2">
-              <User className="h-4 w-4 text-slate-500 shrink-0" />
-              <p className="text-xs text-slate-700 font-bold truncate">{getAdviserName(sched.researchId)}</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <span className="text-xs  font-bold text-slate-500 block  tracking-normal">Evaluation Panel jury</span>
-            <div className="px-3 py-2.5 bg-blue-50/10 border border-blue-100/50 rounded-xl space-y-1.5">
-              {getPanelistNames(sched.panelistIds).map((pname, index) => (
-                <div key={index} className="flex items-center gap-2 text-xs text-slate-650 font-semibold min-w-0">
-                  <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
-                  <span className="truncate">{pname}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
+    <Card as="article" className={cx('space-y-5', highlighted && 'border-blue-300 ring-1 ring-blue-100')}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="info">{defenseTypeLabels[sched.type] ?? sched.type}</Badge>
+        <StatusBadge info={scheduleStatus[sched.status]} />
+        {highlighted && <Badge tone="success">Yours</Badge>}
       </div>
-    </div>
+
+      <div>
+        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(sched.researchId)}</h3>
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700">
+          <Users className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+          <span>{getStudentNames(sched.researchId)}</span>
+        </p>
+      </div>
+
+      <dl className="grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+        <div className="flex items-start gap-2.5">
+          <CalendarIcon className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" aria-hidden="true" />
+          <div>
+            <dt className="text-slate-600">Date</dt>
+            <dd className="font-semibold text-slate-900">{formatDateLong(sched.date)}</dd>
+          </div>
+        </div>
+        <div className="flex items-start gap-2.5">
+          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" aria-hidden="true" />
+          <div>
+            <dt className="text-slate-600">Time</dt>
+            <dd className="font-semibold text-slate-900">{formatTime(sched.startTime)} to {formatTime(sched.endTime)}</dd>
+          </div>
+        </div>
+        <div className="flex items-start gap-2.5 min-w-0">
+          {isOnline ? (
+            <Video className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" aria-hidden="true" />
+          ) : (
+            <Landmark className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" aria-hidden="true" />
+          )}
+          <div className="min-w-0">
+            <dt className="text-slate-600">Where</dt>
+            <dd className="font-semibold text-slate-900">
+              {isOnline ? (
+                <a
+                  href="https://meet.google.com/cit-capstone-session"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-blue-800 underline underline-offset-2"
+                >
+                  Join online meeting
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sr-only">(opens in a new tab)</span>
+                </a>
+              ) : (
+                <>
+                  {getRoomName(sched.roomId)}
+                  <span className="block text-xs font-normal text-slate-600">{getRoomLocation(sched.roomId)}</span>
+                </>
+              )}
+            </dd>
+          </div>
+        </div>
+      </dl>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-1.5 text-sm font-bold text-slate-900">Adviser</p>
+          <p className="flex items-center gap-2 text-sm text-slate-800">
+            <User className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+            {getAdviserName(sched.researchId)}
+          </p>
+        </div>
+        <div>
+          <p className="mb-1.5 text-sm font-bold text-slate-900">Panel members</p>
+          <ul className="space-y-1 text-sm text-slate-800">
+            {getPanelistNames(sched.panelistIds).map((pname, index) => (
+              <li key={index} className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-blue-800" aria-hidden="true" />
+                {pname}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Card>
   );
 }
