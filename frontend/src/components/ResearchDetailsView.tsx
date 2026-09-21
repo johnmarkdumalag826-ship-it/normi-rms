@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import {
-  FileText, History, MessageSquare, Send, Upload, Download, Bookmark, Highlighter, ClipboardCheck,
+  FileText, History, MessageSquare, Send, Upload, Download, Bookmark, ClipboardCheck,
 } from 'lucide-react';
-import { Research, ResearchVersion, ResearchComment, User, ChapterStatus } from '../types';
+import { Research, ResearchVersion, ResearchComment, User, ChapterStatus, CommentAnchor } from '../types';
 import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
 import { downloadFile, fileErrorMessage } from '../api/files';
+import { AnnotatedPaper } from './AnnotatedPaper';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, StatusBadge,
-  Textarea, chapterNames, chapterStatus, cx, formatDateLong, formatDateTime, roleLabels,
+  Textarea, chapterNames, chapterStatus, cx, formatDateLong, formatDateTime, roleLabels, type PaperHighlight,
 } from '../ui';
 
 interface ResearchDetailsViewProps {
@@ -35,13 +36,6 @@ const subtitles: Record<string, string> = {
 const chapterFilters = ['all', 'chapter1', 'chapter2', 'chapter3', 'chapter4', 'chapter5', 'general'] as const;
 type ChapterFilter = (typeof chapterFilters)[number];
 
-const markerColors: { value: string; label: string }[] = [
-  { value: 'bg-yellow-100 border-yellow-300', label: 'Yellow' },
-  { value: 'bg-emerald-100 border-emerald-300', label: 'Green' },
-  { value: 'bg-blue-100 border-blue-300', label: 'Blue' },
-  { value: 'bg-rose-100 border-rose-300', label: 'Pink' },
-];
-
 export default function ResearchDetailsView({
   research, versions, comments, user, onBack, onAddComment, onUpdateChapterStatus, onStudentUploadRevision
 }: ResearchDetailsViewProps) {
@@ -64,13 +58,6 @@ export default function ResearchDetailsView({
     downloadFile(storedUrl, name).catch(err => setFileNotice(fileErrorMessage(err)));
   };
 
-  // Notes on phrases (kept on this screen, and also posted to the conversation)
-  const [highlights, setHighlights] = useState<{ id: string; text: string; color: string; comment: string }[]>([]);
-  const [showHighlightForm, setShowHighlightForm] = useState(false);
-  const [selectedTextToHighlight, setSelectedTextToHighlight] = useState('');
-  const [highlightColor, setHighlightColor] = useState(markerColors[0].value);
-  const [highlightComment, setHighlightComment] = useState('');
-
   // Adviser: feedback on one chapter
   const [selectedReviewChapter, setSelectedReviewChapter] = useState<string | null>(null);
   const [reviewStatus, setReviewStatus] = useState<'Approved' | 'Revision Required'>('Approved');
@@ -91,20 +78,43 @@ export default function ResearchDetailsView({
 
   const currentVersion = myVersions[0];
 
+  // Only people who check the paper can highlight text. Students read the highlights and reply in the comments.
+  const canMark = user.role !== 'student';
+  // The comment (and highlight) to jump to. `n` changes on every click so the same one can be shown again.
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
+
+  const highlights = useMemo<PaperHighlight[]>(
+    () => comments
+      .filter(c => c.researchId === research.id && c.anchor && c.versionId === currentVersion?.id)
+      .map(c => ({ id: c.id, anchor: c.anchor as CommentAnchor, resolved: c.resolved })),
+    [comments, research.id, currentVersion?.id],
+  );
+
+  const handleCreateHighlightComment = (text: string, anchor: CommentAnchor) => {
+    if (!currentVersion) return;
+    onAddComment({
+      id: `comm-${Date.now()}`,
+      researchId: research.id,
+      versionId: currentVersion.id,
+      authorId: user.id,
+      authorName: user.name,
+      authorRole: user.role,
+      chapter: 'general',
+      text,
+      anchor,
+      commentAt: new Date().toISOString(),
+      resolved: false,
+    });
+  };
+
+  const showInPaper = (id: string) => {
+    setFocus({ id, n: Date.now() });
+    document.getElementById('paper-viewer')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
   const activeComments = comments.filter(c =>
     c.researchId === research.id &&
     (activeChapterFilter === 'all' || c.chapter === activeChapterFilter)
-  );
-
-  // Short sentences from the real summary, to pick a phrase quickly
-  const summarySentences = useMemo(
-    () =>
-      (research.abstract || '')
-        .split(/(?<=[.!?])\s+/)
-        .map(s => s.trim())
-        .filter(s => s.length > 12)
-        .slice(0, 5),
-    [research.abstract],
   );
 
   // ---- What the student may send, based on where the paper is ----
@@ -166,38 +176,6 @@ export default function ResearchDetailsView({
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const handleCreateHighlight = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTextToHighlight || !highlightComment.trim()) return;
-
-    const newH = {
-      id: `high-${Date.now()}`,
-      text: selectedTextToHighlight,
-      color: highlightColor,
-      comment: highlightComment,
-    };
-
-    setHighlights(prev => [...prev, newH]);
-
-    // Also post to the conversation
-    onAddComment({
-      id: `comm-${Date.now()}`,
-      researchId: research.id,
-      versionId: currentVersion?.id || 'v1',
-      authorId: user.id,
-      authorName: user.name,
-      authorRole: user.role,
-      chapter: 'general',
-      text: `🎨 [HIGHLIGHT ANNOTATION: "${newH.text}"] - ${newH.comment}`,
-      commentAt: new Date().toISOString(),
-      resolved: false
-    });
-
-    setShowHighlightForm(false);
-    setHighlightComment('');
-    setSelectedTextToHighlight('');
   };
 
   const handlePostComment = (e: React.FormEvent) => {
@@ -320,90 +298,29 @@ export default function ResearchDetailsView({
             )}
           </Card>
 
-          {/* Notes on phrases */}
-          <Card as="section" aria-labelledby="notes-title">
-            <CardHeader
-              title="Leave a note on a phrase"
-              description="Pick a sentence from the summary, then write your note. It is also posted to the conversation."
-              icon={<Highlighter className="h-5 w-5" aria-hidden="true" />}
-            />
-            <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="mb-2 text-sm font-bold text-slate-900">Summary of the research paper</p>
-                <p className="select-text text-base leading-relaxed text-slate-800">{research.abstract || 'No summary was written for this paper.'}</p>
-              </div>
-
-              {summarySentences.length > 0 && (
-                <div>
-                  <p className="mb-2 text-sm font-semibold text-slate-800">Choose a sentence to comment on:</p>
-                  <ul className="flex flex-col gap-2">
-                    {summarySentences.map((sentence, idx) => (
-                      <li key={idx}>
-                        <button
-                          type="button"
-                          onClick={() => { setSelectedTextToHighlight(sentence); setShowHighlightForm(true); }}
-                          className="tap-auto w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:border-blue-700 hover:bg-blue-50 cursor-pointer"
-                        >
-                          “{sentence.length > 110 ? `${sentence.slice(0, 110)}…` : sentence}”
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
+          {/* The paper, with the highlights people made */}
+          {currentVersion?.fileUrl && (
+            <section id="paper-viewer" aria-labelledby="paper-title" className="scroll-mt-4 space-y-3">
               <div>
-                <Button variant="secondary" size="sm" icon={Highlighter} onClick={() => { setSelectedTextToHighlight(''); setShowHighlightForm(true); }}>
-                  Write My Own Phrase
-                </Button>
+                <h2 id="paper-title" className="text-base font-bold text-slate-900">
+                  Read the paper (Version {currentVersion.versionNumber})
+                </h2>
+                <p className="text-sm text-slate-600">
+                  {canMark
+                    ? 'Highlight text to leave a comment on that exact spot. Everyone on this paper can read it.'
+                    : 'Highlighted text shows where your adviser or panel left a comment. Press a highlight to read it.'}
+                </p>
               </div>
-
-              {showHighlightForm && (
-                <form onSubmit={handleCreateHighlight} className="space-y-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
-                  <h3 className="text-base font-bold text-slate-900">Add a note</h3>
-                  <Input
-                    label="Phrase you are commenting on"
-                    required
-                    value={selectedTextToHighlight}
-                    onChange={e => setSelectedTextToHighlight(e.target.value)}
-                    placeholder="Type or choose a phrase"
-                  />
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Select label="Marker colour" value={highlightColor} onChange={e => setHighlightColor(e.target.value)}>
-                      {markerColors.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </Select>
-                    <Input
-                      label="Your note"
-                      required
-                      value={highlightComment}
-                      onChange={e => setHighlightComment(e.target.value)}
-                      placeholder="e.g. Please add a source for this"
-                    />
-                  </div>
-                  <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                    <Button variant="secondary" onClick={() => setShowHighlightForm(false)}>Cancel</Button>
-                    <Button type="submit">Save Note</Button>
-                  </div>
-                </form>
-              )}
-
-              <div>
-                <p className="mb-2 text-sm font-bold text-slate-900">Notes you added just now</p>
-                {highlights.length === 0 ? (
-                  <p className="text-sm text-slate-600">You have not added any notes yet.</p>
-                ) : (
-                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {highlights.map(h => (
-                      <li key={h.id} className={cx('space-y-2 rounded-lg border p-3 text-sm', h.color)}>
-                        <p className="font-semibold text-slate-900">“{h.text}”</p>
-                        <p className="text-slate-800"><span className="font-semibold">Note:</span> {h.comment}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </Card>
+              <AnnotatedPaper
+                fileUrl={currentVersion.fileUrl}
+                fileName={currentVersion.fileName}
+                highlights={highlights}
+                focus={focus}
+                onHighlightClick={id => setFocus({ id, n: Date.now() })}
+                onCreateComment={canMark ? handleCreateHighlightComment : undefined}
+              />
+            </section>
+          )}
 
           {/* Files sent with the first form */}
           {research.proposalFiles && research.proposalFiles.length > 0 && (
@@ -505,7 +422,13 @@ export default function ResearchDetailsView({
               </p>
             ) : (
               activeComments.map(comm => (
-                <div key={comm.id} className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div
+                  key={comm.id}
+                  className={cx(
+                    'space-y-1 rounded-lg border p-3',
+                    focus?.id === comm.id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-300' : 'border-slate-200 bg-slate-50',
+                  )}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-x-2 text-sm">
                     <span className="font-bold text-slate-900">
                       {comm.authorName}
@@ -513,7 +436,19 @@ export default function ResearchDetailsView({
                     </span>
                     <span className="text-xs text-slate-600">{formatDateLong(comm.commentAt)}</span>
                   </div>
+                  {comm.anchor && (
+                    <blockquote className="border-l-4 border-yellow-400 bg-yellow-50 px-2 py-1 text-sm italic text-slate-800">
+                      “{comm.anchor.quote}”
+                    </blockquote>
+                  )}
                   <p className="text-sm text-slate-800">{comm.text}</p>
+                  {comm.anchor && (
+                    comm.versionId === currentVersion?.id ? (
+                      <Button variant="secondary" size="sm" onClick={() => showInPaper(comm.id)}>Show in the paper</Button>
+                    ) : (
+                      <p className="text-xs text-slate-600">This comment is about an earlier version of the paper.</p>
+                    )
+                  )}
                 </div>
               ))
             )}

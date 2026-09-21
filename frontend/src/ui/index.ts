@@ -11,4 +11,5 @@ export { Alert, Toast } from './Alert';
 export { Skeleton, SkeletonList } from './Skeleton';
 export { PageHeader } from './PageHeader';
 export { PdfReader } from './PdfReader';
+export { PaperViewer, type PaperHighlight } from './PaperViewer';
 export * from './labels';

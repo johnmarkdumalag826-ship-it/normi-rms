@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import {
   FileText, Download, CheckCircle2, AlertCircle, XCircle, MessageSquare, ExternalLink, Save, FileCheck, Clock,
 } from 'lucide-react';
-import { User as UserType, Research, ResearchVersion, ResearchComment } from '../types';
-import { downloadFile, openFile, useFileLink, fileErrorMessage } from '../api/files';
+import { User as UserType, Research, ResearchVersion, ResearchComment, CommentAnchor } from '../types';
+import { downloadFile, openFile, fileErrorMessage } from '../api/files';
+import { AnnotatedPaper } from './AnnotatedPaper';
 import {
-  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea,
+  Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea, type PaperHighlight,
   chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
 } from '../ui';
 
@@ -77,26 +78,36 @@ export default function DocumentReview({
   const [confirmingDecision, setConfirmingDecision] = useState(false);
   const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
 
-  // A comment saved in the system so the students can read it.
-  const handleAddGeneralComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !selectedResearch) return;
+  // The comment (and highlight) to jump to. `n` changes on every click so the same one can be shown again.
+  const [focus, setFocus] = useState<{ id: string; n: number } | null>(null);
 
-    const newComment: ResearchComment = {
+  // A comment saved in the system so the students can read it. With `anchor` it points at highlighted text.
+  const saveComment = (text: string, anchor?: CommentAnchor) => {
+    if (!text.trim() || !selectedResearch) return;
+    onAddComment({
       id: `comm-${Date.now()}`,
       researchId: selectedResearch.id,
       versionId: currentVersion?.id || 'general',
       authorId: user.id,
       authorName: user.name,
       authorRole: user.role,
-      text: commentText,
+      text: text.trim(),
+      anchor,
       chapter: 'general',
       commentAt: new Date().toISOString(),
-      resolved: false
-    };
+      resolved: false,
+    });
+  };
 
-    onAddComment(newComment);
+  const handleAddGeneralComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveComment(commentText);
     setCommentText('');
+  };
+
+  const showComment = (c: ResearchComment) => {
+    if (c.versionId !== currentVersion?.id) setSelectedVersionId(c.versionId);
+    setFocus({ id: c.id, n: Date.now() });
   };
 
   const handleDecisionSubmit = () => {
@@ -112,11 +123,16 @@ export default function DocumentReview({
     return comments.filter(c => c.researchId === selectedResearchId);
   }, [comments, selectedResearchId]);
 
-  // A short, private link for the file being reviewed
-  const fileLink = useFileLink(currentVersion?.fileUrl);
+  // Highlights of the version on screen (a highlight only fits the file it was made on)
+  const highlights = useMemo<PaperHighlight[]>(
+    () => currentComments
+      .filter(c => c.anchor && c.versionId === currentVersion?.id)
+      .map(c => ({ id: c.id, anchor: c.anchor as CommentAnchor, resolved: c.resolved })),
+    [currentComments, currentVersion?.id],
+  );
+
   const [fileNotice, setFileNotice] = useState<string | null>(null);
   const hasFile = !!currentVersion?.fileUrl;
-  const isPdf = !!currentVersion?.fileName && currentVersion.fileName.toLowerCase().endsWith('.pdf');
   const decisionInfo = decisionOptions.find(d => d.value === decision);
 
   const tabs: { id: typeof activeTab; label: string }[] = [
@@ -209,26 +225,14 @@ export default function DocumentReview({
             {/* The paper itself */}
             {fileNotice && <Alert tone="danger" title="We could not open the file">{fileNotice}</Alert>}
             {currentVersion && hasFile && (
-              isPdf ? (
-                fileLink.loading ? (
-                  <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">Opening the paper…</p>
-                ) : fileLink.error ? (
-                  <Alert tone="danger" title="We could not open the paper">{fileLink.error}</Alert>
-                ) : fileLink.url ? (
-                  <Card padded={false} className="overflow-hidden">
-                    <iframe
-                      key={fileLink.url}
-                      src={fileLink.url}
-                      title={`Paper: ${currentVersion.fileName}`}
-                      className="h-[75vh] min-h-[480px] w-full bg-slate-100"
-                    />
-                  </Card>
-                ) : null
-              ) : (
-                <Alert tone="info" title="This file is a Word document">
-                  Word files cannot be shown on this page. Use “Download File” to read it, then come back to comment and decide.
-                </Alert>
-              )
+              <AnnotatedPaper
+                fileUrl={currentVersion.fileUrl!}
+                fileName={currentVersion.fileName}
+                highlights={highlights}
+                focus={focus}
+                onHighlightClick={id => { setFocus({ id, n: Date.now() }); setActiveTab('comments'); }}
+                onCreateComment={(text, anchor) => { saveComment(text, anchor); setActiveTab('comments'); }}
+              />
             )}
           </div>
 
@@ -328,13 +332,36 @@ export default function DocumentReview({
                         <li className="py-4 text-center text-sm text-slate-600">No comments for this paper yet.</li>
                       ) : (
                         currentComments.map(c => (
-                          <li key={c.id} className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <li
+                            key={c.id}
+                            id={`comment-${c.id}`}
+                            className={cx(
+                              'space-y-1 rounded-lg border p-3',
+                              focus?.id === c.id ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-300' : 'border-slate-200 bg-slate-50',
+                            )}
+                          >
                             <div className="flex flex-wrap items-center justify-between gap-1 text-sm">
                               <span className="font-bold text-slate-900">{c.authorName}</span>
                               <span className="text-xs text-slate-600">{formatDate(c.commentAt)}</span>
                             </div>
-                            <Badge tone="info">{chapterNames[c.chapter] ?? c.chapter}</Badge>
-                            <p className="text-sm text-slate-800">{c.text}</p>
+                            {c.anchor ? (
+                              <>
+                                <blockquote className="border-l-4 border-yellow-400 bg-yellow-50 px-2 py-1 text-sm italic text-slate-800">
+                                  “{c.anchor.quote}”
+                                </blockquote>
+                                <p className="text-sm text-slate-800">{c.text}</p>
+                                <Button variant="secondary" size="sm" onClick={() => showComment(c)}>
+                                  {c.versionId === currentVersion?.id
+                                    ? 'Show in the paper'
+                                    : `Open Version ${versions.find(v => v.id === c.versionId)?.versionNumber ?? ''} to see it`}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Badge tone="info">{chapterNames[c.chapter] ?? c.chapter}</Badge>
+                                <p className="text-sm text-slate-800">{c.text}</p>
+                              </>
+                            )}
                           </li>
                         ))
                       )}

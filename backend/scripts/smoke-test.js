@@ -258,6 +258,25 @@ async function main() {
   assert(attach.status === 201, 'student attaches the file to their paper as a draft');
   const draftFile = uploadResult.body.url.replace('uploads/', '');
 
+  console.log('\n--- Highlighted comments ---');
+  const draftId = attach.body.id;
+  const pdfAnchor = { kind: 'pdf', page: 1, rects: [{ x: 0.1, y: 0.2, w: 0.4, h: 0.02 }], quote: 'a highlighted sentence' };
+  const wordAnchor = { kind: 'docx', start: 10, end: 40, quote: 'another highlighted sentence' };
+  const c1 = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'Add a source here', anchor: pdfAnchor }, adviserToken);
+  assert(c1.status === 201 && c1.body.anchor && c1.body.anchor.page === 1, 'adviser comments on highlighted PDF text -> anchor is saved');
+  const c2 = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'Explain this', anchor: wordAnchor }, adviserToken);
+  assert(c2.status === 201 && c2.body.anchor && c2.body.anchor.kind === 'docx', 'adviser comments on highlighted Word text -> anchor is saved');
+  const c3 = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'A normal comment' }, studentToken);
+  assert(c3.status === 201 && !c3.body.anchor, 'a comment without a highlight still works');
+  const badAnchor = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'x', anchor: { kind: 'pdf', page: 0, rects: [] } }, adviserToken);
+  assert(badAnchor.status === 400, 'a broken highlight is refused -> 400');
+  const hugeAnchor = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'x', anchor: { kind: 'docx', start: 5, end: 2, quote: 'x' } }, adviserToken);
+  assert(hugeAnchor.status === 400, 'a highlight that ends before it starts is refused -> 400');
+  const outsider = await request(server, 'POST', `/api/research/${researchId}/comments`, { versionId: draftId, text: 'hello' }, secondStudent.token);
+  assert(outsider.status === 403, 'a student from another group cannot comment on this paper -> 403');
+  const listed = await request(server, 'GET', `/api/comments?researchId=${researchId}`, null, studentToken);
+  assert(listed.status === 200 && listed.body.filter((c) => c.anchor).length === 2, 'the student can read the highlighted comments');
+
   const openWithoutLink = await request(server, 'GET', `/uploads/${draftFile}`);
   assert(openWithoutLink.status === 401, 'the file address alone (no link) is refused -> 401');
   const openFakeLink = await request(server, 'GET', `/uploads/${draftFile}?ft=not-a-real-link`);

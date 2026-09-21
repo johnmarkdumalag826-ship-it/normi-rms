@@ -98,6 +98,12 @@ export interface ResearchVersion {
   };
 }
 
+// Where a comment points in the paper. Shapes match what the backend accepts (see commentController).
+export interface PdfRect { x: number; y: number; w: number; h: number } // fractions of the page, 0 to 1
+export type CommentAnchor =
+  | { kind: 'pdf'; page: number; rects: PdfRect[]; quote: string }
+  | { kind: 'docx'; start: number; end: number; quote: string };
+
 export interface ResearchComment {
   id: string;
   researchId: string;
@@ -107,6 +113,8 @@ export interface ResearchComment {
   authorRole: UserRole;
   chapter: 'chapter1' | 'chapter2' | 'chapter3' | 'chapter4' | 'chapter5' | 'general';
   text: string;
+  /** The highlighted part of the paper this comment is about (optional). */
+  anchor?: CommentAnchor;
   commentAt: string;
   resolved: boolean;
   resolvedBy?: string;

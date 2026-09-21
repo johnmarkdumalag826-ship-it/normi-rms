@@ -288,7 +288,7 @@ export default function App() {
   // Comments (ResearchDetailsView, DocumentReview)
   const handleAddComment = async (c: ResearchComment) => {
     try {
-      const created = await apiCreateComment(c.researchId, { versionId: c.versionId, chapter: c.chapter, text: c.text });
+      const created = await apiCreateComment(c.researchId, { versionId: c.versionId, chapter: c.chapter, text: c.text, anchor: c.anchor });
       setComments(prev => [created, ...prev]);
     } catch (err) {
       handleApiError(err, 'Could not post comment.');

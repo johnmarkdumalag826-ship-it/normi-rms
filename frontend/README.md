@@ -83,6 +83,7 @@ src/
 │   ├── ResearchInformationForm.tsx          A student's first form
 │   ├── ResearchDetailsView.tsx              A paper's chapters, versions and comments
 │   ├── DocumentReview.tsx                   Adviser's review and decision screen
+│   ├── AnnotatedPaper.tsx                   The paper on screen with highlights and the comment box
 │   ├── RepositoryView.tsx                   Search the finished papers
 │   ├── DefenseSchedulesList.tsx             Everyone's view of defense dates
 │   └── SchedulerCalendar.tsx                Coordinator's calendar for setting defenses

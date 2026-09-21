@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Research, ResearchStatus, ResearchVersion, ResearchComment, ProposalFile } from '../types';
+import { Research, ResearchStatus, ResearchVersion, ResearchComment, ProposalFile, CommentAnchor } from '../types';
 
 export const listResearch = (): Promise<Research[]> => api.get('/research');
 export const getResearch = (id: string): Promise<Research> => api.get(`/research/${id}`);
@@ -64,7 +64,7 @@ export const listCommentsForResearch = (researchId: string): Promise<ResearchCom
 
 export const createComment = (
   researchId: string,
-  input: { versionId?: string; chapter?: ResearchComment['chapter']; text: string },
+  input: { versionId?: string; chapter?: ResearchComment['chapter']; text: string; anchor?: CommentAnchor },
 ): Promise<ResearchComment> => api.post(`/research/${researchId}/comments`, input);
 
 export const resolveComment = (id: string): Promise<ResearchComment> => api.patch(`/comments/${id}`, {});

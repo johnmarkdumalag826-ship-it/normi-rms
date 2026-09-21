@@ -19,6 +19,7 @@ interface PdfReaderProps {
 export function PdfReader({ url, title }: PdfReaderProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const drawQueue = useRef<Promise<void>>(Promise.resolve());
   // The PDF document object from the library (kept loosely typed on purpose).
   const [doc, setDoc] = useState<any>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -44,7 +45,7 @@ export function PdfReader({ url, title }: PdfReaderProps) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = new Uint8Array(await response.arrayBuffer());
 
-        loading = pdfjs.getDocument({ data });
+        loading = pdfjs.getDocument({ data, standardFontDataUrl: `${import.meta.env.BASE_URL}pdfjs/standard_fonts/` });
         const loaded = await loading.promise;
         if (cancelled) return;
         setDoc(loaded);
@@ -76,7 +77,8 @@ export function PdfReader({ url, title }: PdfReaderProps) {
     if (!doc || !canvasRef.current || width === 0) return;
     let cancelled = false;
     let renderTask: any;
-    (async () => {
+    const job = async () => {
+      if (cancelled) return;
       const pdfPage = await doc.getPage(page);
       if (cancelled || !canvasRef.current) return;
       const canvas = canvasRef.current;
@@ -95,7 +97,9 @@ export function PdfReader({ url, title }: PdfReaderProps) {
       } catch {
         // A newer draw replaced this one. Nothing to do.
       }
-    })();
+    };
+    // One canvas can only be drawn on once at a time, so a new draw waits for the one before it to finish or stop.
+    drawQueue.current = drawQueue.current.then(job).catch(() => {});
     return () => {
       cancelled = true;
       renderTask?.cancel?.();

@@ -8,6 +8,8 @@ const researchCommentSchema = new mongoose.Schema({
   authorRole: { type: String, enum: ['student', 'adviser', 'coordinator', 'panelist', 'admin'], required: true },
   chapter: { type: String, enum: ['chapter1', 'chapter2', 'chapter3', 'chapter4', 'chapter5', 'general'], required: true },
   text: { type: String, required: true },
+  // Where in the paper the comment points: a highlighted piece of text (see commentController for the shape)
+  anchor: { type: mongoose.Schema.Types.Mixed },
   resolved: { type: Boolean, default: false },
   resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: { createdAt: 'commentAt', updatedAt: true } });

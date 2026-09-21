@@ -146,3 +146,32 @@
     display: none !important;
   }
 }
+
+/* ---- Paper viewer: highlighted text (PDF text layer and Word documents) ---- */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+.pdf-text-layer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+.pdf-text-layer ::selection { background: rgba(37, 99, 235, 0.35); }
+
+mark.paper-mark {
+  background: rgb(253 224 71 / 0.6);
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+}
+mark.paper-mark-done { background: rgb(134 239 172 / 0.55); }
+mark.paper-mark-pending { background: rgb(147 197 253 / 0.75); outline: 2px solid rgb(37 99 235); }
+mark.paper-mark-active { outline: 3px solid rgb(234 88 12); background: rgb(253 186 116 / 0.75); }
