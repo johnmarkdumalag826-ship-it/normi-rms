@@ -15,7 +15,7 @@ import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
   approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
   updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts, updateProposalFiles as apiUpdateProposalFiles,
-  listAllVersions, listVersionsForResearch, addVersion, updateChapterStatus as apiUpdateChapterStatus,
+  listAllVersions, listVersionsForResearch, addVersion,
   listAllComments, listCommentsForResearch, createComment as apiCreateComment,
 } from './api/research';
 import { listNotifications, markAllNotificationsRead } from './api/notifications';
@@ -230,25 +230,6 @@ export default function App() {
       triggerAlert(isApproved ? "Draft approved successfully!" : "Revisions requested.");
     } catch (err) {
       handleApiError(err, 'Could not update manuscript status.');
-    }
-  };
-
-  // Chapter statuses (Adviser Panel)
-  const handleUpdateChapterStatus = async (
-    researchId: string, versionId: string, chapter: string,
-    status: 'Approved' | 'Revision Required' | 'Pending', feedback: string
-  ) => {
-    try {
-      const updatedVersion = await apiUpdateChapterStatus(versionId, chapter, status, feedback);
-      setVersions(prev => prev.map(v => v.id === versionId ? updatedVersion : v));
-      if (status === 'Revision Required') {
-        setResearchList(prev => prev.map(r => r.id === researchId ? { ...r, status: 'Revision Required' } : r));
-        const researchComments = await listCommentsForResearch(researchId);
-        setComments(prev => [...researchComments, ...prev.filter(c => c.researchId !== researchId)]);
-      }
-      triggerAlert(`Chapter status updated to ${status}.`);
-    } catch (err) {
-      handleApiError(err, 'Could not update chapter status.');
     }
   };
 
@@ -623,7 +604,6 @@ export default function App() {
           user={currentUser!}
           onBack={() => setSelectedResearchId(null)}
           onAddComment={handleAddComment}
-          onUpdateChapterStatus={handleUpdateChapterStatus}
           onStudentUploadRevision={handleStudentUploadRevision}
         />
       );
@@ -787,8 +767,7 @@ export default function App() {
                 user={currentUser}
                 onBack={() => setActiveTab('dashboard')}
                 onAddComment={handleAddComment}
-                onUpdateChapterStatus={handleUpdateChapterStatus}
-                onStudentUploadRevision={handleStudentUploadRevision}
+                      onStudentUploadRevision={handleStudentUploadRevision}
               />
             );
           }

@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import {
-  FileText, History, MessageSquare, Send, Upload, Download, Bookmark, ClipboardCheck,
+  FileText, History, MessageSquare, Send, Upload, Download,
 } from 'lucide-react';
-import { Research, ResearchVersion, ResearchComment, User, ChapterStatus, CommentAnchor } from '../types';
+import { Research, ResearchVersion, ResearchComment, User, CommentAnchor } from '../types';
 import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
 import { downloadFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
 import {
-  Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, StatusBadge,
-  Textarea, chapterNames, chapterStatus, cx, formatDateLong, formatDateTime, roleLabels, type PaperHighlight,
+  Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
+  Textarea, cx, formatDateLong, formatDateTime, roleLabels, type PaperHighlight,
 } from '../ui';
 
 interface ResearchDetailsViewProps {
@@ -18,7 +18,6 @@ interface ResearchDetailsViewProps {
   user: User;
   onBack: () => void;
   onAddComment: (comment: ResearchComment) => void;
-  onUpdateChapterStatus: (researchId: string, versionId: string, chapter: string, status: 'Approved' | 'Revision Required' | 'Pending', feedback: string) => void;
   onStudentUploadRevision: (
     researchId: string, title: string, abstract: string, fileName: string, fileUrl: string,
     type: 'adviser_check' | 'defense_manuscript',
@@ -37,7 +36,7 @@ const chapterFilters = ['all', 'chapter1', 'chapter2', 'chapter3', 'chapter4', '
 type ChapterFilter = (typeof chapterFilters)[number];
 
 export default function ResearchDetailsView({
-  research, versions, comments, user, onBack, onAddComment, onUpdateChapterStatus, onStudentUploadRevision
+  research, versions, comments, user, onBack, onAddComment, onStudentUploadRevision
 }: ResearchDetailsViewProps) {
   const [activeChapterFilter, setActiveChapterFilter] = useState<ChapterFilter>('all');
   const [newCommentText, setNewCommentText] = useState('');
@@ -57,11 +56,6 @@ export default function ResearchDetailsView({
     setFileNotice(null);
     downloadFile(storedUrl, name).catch(err => setFileNotice(fileErrorMessage(err)));
   };
-
-  // Adviser: feedback on one chapter
-  const [selectedReviewChapter, setSelectedReviewChapter] = useState<string | null>(null);
-  const [reviewStatus, setReviewStatus] = useState<'Approved' | 'Revision Required'>('Approved');
-  const [reviewFeedback, setReviewFeedback] = useState('');
 
   // Filter version history based on role:
   // Panelists see the defense manuscripts, advisers see the drafts for adviser checking.
@@ -198,22 +192,6 @@ export default function ResearchDetailsView({
     setNewCommentText('');
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReviewChapter || !currentVersion) return;
-
-    onUpdateChapterStatus(
-      research.id,
-      currentVersion.id,
-      selectedReviewChapter,
-      reviewStatus,
-      reviewFeedback
-    );
-
-    setSelectedReviewChapter(null);
-    setReviewFeedback('');
-  };
-
   const filterLabel = (f: ChapterFilter) => (f === 'all' ? 'All comments' : f === 'general' ? 'General' : `Chapter ${f.slice(-1)}`);
 
   return (
@@ -240,50 +218,8 @@ export default function ResearchDetailsView({
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
-          {/* Chapter by chapter */}
-          <Card as="section" aria-labelledby="chapters-title">
-            <CardHeader
-              title={currentVersion ? `Chapter progress (Version ${currentVersion.versionNumber})` : 'Chapter progress'}
-              description="Each chapter is checked by the adviser."
-              icon={<Bookmark className="h-5 w-5" aria-hidden="true" />}
-            />
-            {currentVersion ? (
-              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {Object.entries(currentVersion.chapters).map(([chapterKey, statusObj]) => {
-                  const st = (statusObj?.status || 'Not Submitted') as ChapterStatus['status'];
-                  const info = chapterStatus[st];
-                  return (
-                    <li key={chapterKey} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <div className="space-y-2">
-                        <p className="text-sm font-bold text-slate-900">{chapterNames[chapterKey] ?? chapterKey}</p>
-                        <StatusBadge info={info} />
-                        {statusObj?.feedback && (
-                          <p className="text-sm text-slate-700">
-                            <span className="font-semibold">Adviser’s feedback:</span> {statusObj.feedback}
-                          </p>
-                        )}
-                      </div>
-
-                      {user.role === 'adviser' && research.adviserId === user.id && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={ClipboardCheck}
-                          className="self-start"
-                          onClick={() => {
-                            setSelectedReviewChapter(chapterKey);
-                            setReviewStatus(st === 'Revision Required' ? 'Revision Required' : 'Approved');
-                            setReviewFeedback(statusObj?.feedback || '');
-                          }}
-                        >
-                          Give Feedback on This Chapter
-                        </Button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
+          {!currentVersion && (
+            <Card padded={false}>
               <EmptyState
                 icon={FileText}
                 title={user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'}
@@ -295,8 +231,8 @@ export default function ResearchDetailsView({
                       : 'The students have not uploaded a file yet.'
                 }
               />
-            )}
-          </Card>
+            </Card>
+          )}
 
           {/* The paper, with the highlights people made */}
           {currentVersion?.fileUrl && (
@@ -529,40 +465,6 @@ export default function ResearchDetailsView({
               </p>
             )}
           </div>
-        </form>
-      </Modal>
-
-      {/* Adviser: feedback on a chapter */}
-      <Modal
-        open={!!selectedReviewChapter}
-        onClose={() => setSelectedReviewChapter(null)}
-        title={`Feedback: ${selectedReviewChapter ? chapterNames[selectedReviewChapter] ?? selectedReviewChapter : ''}`}
-        description="The students will be told what you decide. Fields marked with * are required."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setSelectedReviewChapter(null)}>Cancel</Button>
-            <Button type="submit" form="review-form">Save Chapter Feedback</Button>
-          </>
-        }
-      >
-        <form id="review-form" onSubmit={handleReviewSubmit} className="space-y-5">
-          <Select
-            label="Your decision for this chapter"
-            required
-            value={reviewStatus}
-            onChange={e => setReviewStatus(e.target.value as typeof reviewStatus)}
-          >
-            <option value="Approved">Approved: this chapter is good</option>
-            <option value="Revision Required">Revision needed: the students must fix it</option>
-          </Select>
-          <Textarea
-            label="Your feedback"
-            required
-            rows={5}
-            value={reviewFeedback}
-            onChange={e => setReviewFeedback(e.target.value)}
-            hint="List exactly what the students should fix or keep."
-          />
         </form>
       </Modal>
     </div>
