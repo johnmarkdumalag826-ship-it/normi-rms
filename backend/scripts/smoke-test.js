@@ -44,7 +44,7 @@ async function request(server, method, path, body, token) {
         res.on('end', () => {
           let json;
           try { json = raw ? JSON.parse(raw) : null; } catch { json = raw; }
-          resolve({ status: res.statusCode, body: json });
+          resolve({ status: res.statusCode, body: json, headers: res.headers });
         });
       },
     );
@@ -215,21 +215,83 @@ async function main() {
   assert(noToken.status === 401, 'unauthenticated request -> 401');
 
   console.log('\n--- File upload ---');
-  const boundary = '----smoketestboundary';
-  const fileContent = '%PDF-1.4 fake pdf content for smoke test';
-  const multipartBody =
-    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="manuscript.pdf"\r\nContent-Type: application/pdf\r\n\r\n${fileContent}\r\n--${boundary}--\r\n`;
-  const uploadResult = await new Promise((resolve, reject) => {
-    const req = http.request(
-      { hostname: 'localhost', port: server.address().port, path: '/api/uploads', method: 'POST',
-        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': Buffer.byteLength(multipartBody), Authorization: `Bearer ${studentToken}` } },
-      (res) => { let raw = ''; res.on('data', (c) => (raw += c)); res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(raw) })); },
-    );
-    req.on('error', reject);
-    req.write(multipartBody);
-    req.end();
-  });
+  async function uploadAs(token, fileName, content) {
+    const boundary = '----smoketestboundary';
+    const multipartBody =
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/pdf\r\n\r\n${content}\r\n--${boundary}--\r\n`;
+    return new Promise((resolve, reject) => {
+      const req = http.request(
+        { hostname: 'localhost', port: server.address().port, path: '/api/uploads', method: 'POST',
+          headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': Buffer.byteLength(multipartBody), Authorization: `Bearer ${token}` } },
+        (res) => { let raw = ''; res.on('data', (c) => (raw += c)); res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(raw) })); },
+      );
+      req.on('error', reject);
+      req.write(multipartBody);
+      req.end();
+    });
+  }
+  const uploadResult = await uploadAs(studentToken, 'manuscript.pdf', '%PDF-1.4 the student draft (private)');
   assert(uploadResult.status === 201 && uploadResult.body.url.startsWith('uploads/'), 'real file upload via multer -> 201 + uploads/ url');
+
+  console.log('\n--- Uploaded files are private ---');
+  // Attach the student's file to their paper as a draft for the adviser.
+  const attach = await request(server, 'POST', `/api/research/${researchId}/versions`, {
+    title: 'Draft with file', abstract: 'x', fileName: 'manuscript.pdf', fileUrl: uploadResult.body.url, type: 'adviser_check',
+  }, studentToken);
+  assert(attach.status === 201, 'student attaches the file to their paper as a draft');
+  const draftFile = uploadResult.body.url.replace('uploads/', '');
+
+  const openWithoutLink = await request(server, 'GET', `/uploads/${draftFile}`);
+  assert(openWithoutLink.status === 401, 'the file address alone (no link) is refused -> 401');
+  const openFakeLink = await request(server, 'GET', `/uploads/${draftFile}?ft=not-a-real-link`);
+  assert(openFakeLink.status === 401, 'a made-up link is refused -> 401');
+  const asksNoSignIn = await request(server, 'POST', '/api/uploads/access', { file: draftFile });
+  assert(asksNoSignIn.status === 401, 'asking for a link without signing in -> 401');
+
+  const strangerAsks = await request(server, 'POST', '/api/uploads/access', { file: draftFile }, secondStudent.token);
+  assert(strangerAsks.status === 403, 'a student from another group cannot get a link to the draft -> 403');
+  const strangerPanelist = await request(server, 'POST', '/api/uploads/access', { file: draftFile }, panelistTokens[0].token);
+  assert(strangerPanelist.status === 403, 'a panel member cannot get a link to an adviser draft -> 403');
+
+  const ownerLink = await request(server, 'POST', '/api/uploads/access', { file: draftFile, mode: 'view' }, studentToken);
+  assert(ownerLink.status === 200 && ownerLink.body.path.startsWith(`/uploads/${draftFile}?ft=`), 'the student who uploaded it gets a link -> 200');
+  const ownerOpen = await request(server, 'GET', ownerLink.body.path);
+  assert(ownerOpen.status === 200 && String(ownerOpen.body).includes('the student draft'), 'the link opens the real file -> 200 with the content');
+  assert(String(ownerOpen.headers['cache-control']).includes('no-store'), 'the file is not cached (private, no-store)');
+  assert(String(ownerOpen.headers['content-disposition']) === 'inline', 'a "view" link shows the file inline');
+
+  const adviserLink = await request(server, 'POST', '/api/uploads/access', { file: `http://localhost:5001/${uploadResult.body.url}` }, adviserToken);
+  assert(adviserLink.status === 200, 'the adviser of that group gets a link (even from a full web address) -> 200');
+  const coordLink = await request(server, 'POST', '/api/uploads/access', { file: draftFile }, coordinatorToken);
+  assert(coordLink.status === 200, 'the coordinator gets a link -> 200');
+  const adminLink = await request(server, 'POST', '/api/uploads/access', { file: draftFile, mode: 'download', name: 'My Paper.pdf' }, adminToken);
+  assert(adminLink.status === 200, 'the admin gets a link -> 200');
+  const adminDownload = await request(server, 'GET', adminLink.body.path);
+  assert(String(adminDownload.headers['content-disposition']).startsWith('attachment;'), 'a "download" link downloads the file');
+
+  // A link is for ONE file only.
+  const otherUpload = await uploadAs(adminToken, 'other.pdf', '%PDF-1.4 a different file');
+  const otherFile = otherUpload.body.url.replace('uploads/', '');
+  const wrongFile = await request(server, 'GET', `/uploads/${otherFile}?ft=${ownerLink.body.path.split('ft=')[1]}`);
+  assert(wrongFile.status === 403, 'a link for one file does not open another file -> 403');
+
+  // Tricks with folders must not reach anything outside uploads.
+  const sneaky = await request(server, 'POST', '/api/uploads/access', { file: '../../.env' }, adminToken);
+  assert(sneaky.status === 404 || sneaky.status === 400, 'asking for "../../.env" gets nothing -> ' + sneaky.status);
+  const sneakyGet = await request(server, 'GET', '/uploads/..%2f..%2fpackage.json?ft=x');
+  assert(sneakyGet.status === 404 || sneakyGet.status === 401, 'a folder trick in the address gets nothing -> ' + sneakyGet.status);
+
+  // A PUBLISHED paper's main file is readable by any signed-in person; drafts are not.
+  const publishedWithFile = await request(server, 'POST', '/api/research/archived', {
+    title: 'Published With Real File', abstract: 'Done.', departmentId: dept._id, courseId: course._id, schoolYearId: schoolYear._id,
+    adviserId, keywords: ['x'],
+    proposalFiles: [{ name: 'other.pdf', url: otherUpload.body.url, size: 10, category: 'proposal_document' }],
+  }, adminToken);
+  assert(publishedWithFile.status === 201, 'admin publishes a paper with the second file');
+  const publicRead = await request(server, 'POST', '/api/uploads/access', { file: otherFile }, secondStudent.token);
+  assert(publicRead.status === 200, 'any signed-in student can read a PUBLISHED paper\'s file -> 200');
+  const stillPrivate = await request(server, 'POST', '/api/uploads/access', { file: draftFile }, secondStudent.token);
+  assert(stillPrivate.status === 403, 'the same student still cannot read the private draft -> 403');
 
   server.close();
   await mongoose.disconnect();

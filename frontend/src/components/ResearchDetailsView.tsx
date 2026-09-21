@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Research, ResearchVersion, ResearchComment, User, ChapterStatus } from '../types';
 import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
+import { downloadFile, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, StatusBadge,
   Textarea, chapterNames, chapterStatus, cx, formatDateLong, formatDateTime, roleLabels,
@@ -55,6 +56,13 @@ export default function ResearchDetailsView({
   const [uploadType, setUploadType] = useState<'adviser_check' | 'defense_manuscript'>('adviser_check');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Shown when a file could not be opened (for example: not allowed, or no internet)
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
+
+  const handleDownload = (storedUrl: string, name?: string) => {
+    setFileNotice(null);
+    downloadFile(storedUrl, name).catch(err => setFileNotice(fileErrorMessage(err)));
+  };
 
   // Notes on phrases (kept on this screen, and also posted to the conversation)
   const [highlights, setHighlights] = useState<{ id: string; text: string; color: string; comment: string }[]>([]);
@@ -244,6 +252,8 @@ export default function ResearchDetailsView({
         }
       />
 
+      {fileNotice && <Alert tone="danger" title="We could not open the file">{fileNotice}</Alert>}
+
       {user.role === 'student' && (
         <Card>
           <ResearchStatusBadge status={research.status} explain />
@@ -411,7 +421,7 @@ export default function ResearchDetailsView({
                       <Badge tone="info">{catLabel}</Badge>
                       <p className="truncate text-sm font-semibold text-slate-900" title={file.name}>{file.name}</p>
                       {sizeInKb !== null && <p className="text-xs text-slate-600">Size: {sizeInKb} KB</p>}
-                      <Button variant="secondary" size="sm" icon={Download} className="self-start" onClick={() => window.open(file.url, '_blank')}>
+                      <Button variant="secondary" size="sm" icon={Download} className="self-start" onClick={() => handleDownload(file.url, file.name)}>
                         Download File
                       </Button>
                     </li>
@@ -449,7 +459,7 @@ export default function ResearchDetailsView({
                         icon={Download}
                         disabled={!ver.fileUrl}
                         title={ver.fileUrl ? undefined : 'No file was saved for this version.'}
-                        onClick={() => ver.fileUrl && window.open(resolveFileUrl(ver.fileUrl), '_blank')}
+                        onClick={() => ver.fileUrl && handleDownload(ver.fileUrl, ver.fileName)}
                       >
                         Download File
                       </Button>

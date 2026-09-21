@@ -3,7 +3,7 @@ import {
   FileText, Download, CheckCircle2, AlertCircle, XCircle, MessageSquare, ExternalLink, Save, FileCheck, Clock,
 } from 'lucide-react';
 import { User as UserType, Research, ResearchVersion, ResearchComment } from '../types';
-import { resolveFileUrl } from '../api/client';
+import { downloadFile, openFile, useFileLink, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea,
   chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
@@ -112,7 +112,10 @@ export default function DocumentReview({
     return comments.filter(c => c.researchId === selectedResearchId);
   }, [comments, selectedResearchId]);
 
-  const realFileUrl = currentVersion?.fileUrl ? resolveFileUrl(currentVersion.fileUrl) : undefined;
+  // A short, private link for the file being reviewed
+  const fileLink = useFileLink(currentVersion?.fileUrl);
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
+  const hasFile = !!currentVersion?.fileUrl;
   const isPdf = !!currentVersion?.fileName && currentVersion.fileName.toLowerCase().endsWith('.pdf');
   const decisionInfo = decisionOptions.find(d => d.value === decision);
 
@@ -175,32 +178,27 @@ export default function DocumentReview({
                     <p className="text-sm text-slate-600">Sent {formatDateLong(currentVersion.submittedAt)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <a
-                      href={realFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-disabled={!realFileUrl}
-                      className={cx(
-                        'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-800 bg-blue-800 px-4 text-sm font-semibold text-white hover:bg-blue-900',
-                        !realFileUrl && 'pointer-events-none opacity-50',
-                      )}
+                    <Button
+                      icon={ExternalLink}
+                      disabled={!hasFile}
+                      onClick={() => {
+                        setFileNotice(null);
+                        openFile(currentVersion.fileUrl!).catch(err => setFileNotice(fileErrorMessage(err)));
+                      }}
                     >
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
                       Open in a New Tab
-                      <span className="sr-only">(opens in a new tab)</span>
-                    </a>
-                    <a
-                      href={realFileUrl}
-                      download={currentVersion.fileName}
-                      aria-disabled={!realFileUrl}
-                      className={cx(
-                        'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50',
-                        !realFileUrl && 'pointer-events-none opacity-50',
-                      )}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      icon={Download}
+                      disabled={!hasFile}
+                      onClick={() => {
+                        setFileNotice(null);
+                        downloadFile(currentVersion.fileUrl!, currentVersion.fileName).catch(err => setFileNotice(fileErrorMessage(err)));
+                      }}
                     >
-                      <Download className="h-4 w-4" aria-hidden="true" />
                       Download File
-                    </a>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -209,16 +207,23 @@ export default function DocumentReview({
             </Card>
 
             {/* The paper itself */}
-            {currentVersion && realFileUrl && (
+            {fileNotice && <Alert tone="danger" title="We could not open the file">{fileNotice}</Alert>}
+            {currentVersion && hasFile && (
               isPdf ? (
-                <Card padded={false} className="overflow-hidden">
-                  <iframe
-                    key={currentVersion.id}
-                    src={realFileUrl}
-                    title={`Paper: ${currentVersion.fileName}`}
-                    className="h-[75vh] min-h-[480px] w-full bg-slate-100"
-                  />
-                </Card>
+                fileLink.loading ? (
+                  <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">Opening the paper…</p>
+                ) : fileLink.error ? (
+                  <Alert tone="danger" title="We could not open the paper">{fileLink.error}</Alert>
+                ) : fileLink.url ? (
+                  <Card padded={false} className="overflow-hidden">
+                    <iframe
+                      key={fileLink.url}
+                      src={fileLink.url}
+                      title={`Paper: ${currentVersion.fileName}`}
+                      className="h-[75vh] min-h-[480px] w-full bg-slate-100"
+                    />
+                  </Card>
+                ) : null
               ) : (
                 <Alert tone="info" title="This file is a Word document">
                   Word files cannot be shown on this page. Use “Download File” to read it, then come back to comment and decide.

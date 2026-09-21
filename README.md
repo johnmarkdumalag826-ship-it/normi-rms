@@ -74,3 +74,5 @@ More detail is in each folder's own README: [`frontend/README.md`](frontend/READ
   Both folders already ignore it.
 - Use a strong password for the Admin, and delete any test accounts before real use.
 - Uploaded student files stay on the server in `backend/uploads/` and are not stored in Git.
+- Uploaded files are private: they open only through a short link that the server gives to people who are allowed to see that file
+  (see the security notes in `backend/README.md`). Students can only read published papers and their own files.

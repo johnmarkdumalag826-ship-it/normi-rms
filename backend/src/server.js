@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const AppError = require('./utils/AppError');
+const { serveFile } = require('./controllers/fileAccessController');
 
 if (require.main === module) {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
@@ -20,7 +21,8 @@ app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
-app.use('/uploads', express.static('uploads'));
+// Uploaded files are private: they open only through a short link (see fileAccessController).
+app.get('/uploads/:filename', serveFile);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

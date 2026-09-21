@@ -34,6 +34,8 @@ npm run lint     # type-check only (tsc --noEmit); there is no ESLint and no tes
 - Ask "Are you sure?" (ConfirmDialog) before final or destructive actions.
 - Text is at least 14 px, tap targets at least 44 px, and every field has a label.
 - Do not add demo shortcuts, sample data or invented links to the app.
+- Files are private. Never link to `/uploads/...` directly: use `src/api/files.ts` (`openFile`, `downloadFile`, `useFileLink`),
+  which asks the server for a short link first.
 
 ## Environment
 

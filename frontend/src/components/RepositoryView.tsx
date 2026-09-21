@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { BookOpen, Search, Download, Eye, Tag, Plus, Pencil, Trash2, FileText, ExternalLink } from 'lucide-react';
 import { Research, Department, Course, SchoolYear, User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
+import { downloadFile, openFile, useFileLink, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, PdfReader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
 } from '../ui';
@@ -50,6 +51,8 @@ export default function RepositoryView({
   const [paperFile, setPaperFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Shown when a file could not be opened (for example: not allowed, or no internet)
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
 
   // Everyone sees finished papers. Admins also see papers that are still in progress.
   const repoPapers = useMemo(() => {
@@ -259,8 +262,11 @@ export default function RepositoryView({
   const handleDownload = (paper: Research) => {
     const mainDoc = getMainFile(paper);
     if (!mainDoc) return;
-    onIncrementCounts(paper.id, 'download');
-    window.open(mainDoc.url, '_blank');
+    setFileNotice(null);
+    // The server gives a short download link only to people who may have this file.
+    downloadFile(mainDoc.url, mainDoc.name)
+      .then(() => onIncrementCounts(paper.id, 'download'))
+      .catch(err => setFileNotice(fileErrorMessage(err)));
   };
 
   const closeEdit = () => { setShowEditModal(false); setEditingPaper(null); };
@@ -366,6 +372,8 @@ export default function RepositoryView({
   );
 
   const previewFile = previewingResearch ? getMainFile(previewingResearch) : undefined;
+  // A short, private link for the paper shown in the dialog
+  const previewLink = useFileLink(previewFile?.url);
 
   return (
     <div className="space-y-6">
@@ -394,6 +402,10 @@ export default function RepositoryView({
           ) : undefined
         }
       />
+
+      {fileNotice && (
+        <Alert tone="danger" title="We could not open the file">{fileNotice}</Alert>
+      )}
 
       {/* Search and filters, always visible at the top */}
       <Card as="section" aria-label="Search and filters" className="space-y-4">
@@ -597,30 +609,37 @@ export default function RepositoryView({
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-bold text-slate-900">Read the paper</h3>
                   {canDownload && (
-                    <a
-                      href={previewFile.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-blue-800 underline underline-offset-2"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={ExternalLink}
+                      onClick={() => {
+                        setFileNotice(null);
+                        openFile(previewFile.url).catch(err => setFileNotice(fileErrorMessage(err)));
+                      }}
                     >
-                      <ExternalLink className="h-4 w-4" aria-hidden="true" />
                       Open in a New Tab
-                      <span className="sr-only">(opens in a new tab)</span>
-                    </a>
+                    </Button>
                   )}
                 </div>
                 {previewFile.name.toLowerCase().endsWith('.pdf') ? (
-                  canDownload ? (
-                    <iframe
-                      key={previewFile.url}
-                      src={previewFile.url}
-                      title={`Paper: ${previewFile.name}`}
-                      className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
-                    />
-                  ) : (
-                    // Students get a read-only reader: no download, print, edit or summarize buttons.
-                    <PdfReader key={previewFile.url} url={previewFile.url} title={previewingResearch.title} />
-                  )
+                  previewLink.loading ? (
+                    <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">Opening the paper…</p>
+                  ) : previewLink.error ? (
+                    <Alert tone="danger" title="We could not open the paper">{previewLink.error}</Alert>
+                  ) : previewLink.url ? (
+                    canDownload ? (
+                      <iframe
+                        key={previewLink.url}
+                        src={previewLink.url}
+                        title={`Paper: ${previewFile.name}`}
+                        className="h-[70vh] min-h-[420px] w-full rounded-lg border border-slate-300 bg-slate-100"
+                      />
+                    ) : (
+                      // Students get a read-only reader: no download, print, edit or summarize buttons.
+                      <PdfReader key={previewLink.url} url={previewLink.url} title={previewingResearch.title} />
+                    )
+                  ) : null
                 ) : (
                   <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                     {canDownload

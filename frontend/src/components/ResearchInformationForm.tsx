@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
+import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong,
 } from '../ui';
@@ -138,8 +139,15 @@ export default function ResearchInformationForm({
     setProposalFiles(prev => prev.filter(f => f.id !== id));
   };
 
+  // The server gives a short private link. The person who uploaded a file can always open it.
   const handleFileDownload = (file: ProposalFile) => {
-    window.open(file.url, '_blank');
+    setError(null);
+    downloadFile(file.url, file.name).catch(err => setError(fileErrorMessage(err)));
+  };
+
+  const handleFileOpen = (file: ProposalFile) => {
+    setError(null);
+    openFile(file.url).catch(err => setError(fileErrorMessage(err)));
   };
 
   const titleError = attemptedNext && !title.trim() ? 'Please write your research title.' : undefined;
@@ -418,7 +426,7 @@ export default function ResearchInformationForm({
           <>
             <Button variant="secondary" onClick={() => setPreviewFile(null)}>Close</Button>
             {previewFile && (
-              <Button icon={ExternalLink} onClick={() => handleFileDownload(previewFile)}>Open File</Button>
+              <Button icon={ExternalLink} onClick={() => handleFileOpen(previewFile)}>Open File</Button>
             )}
           </>
         }

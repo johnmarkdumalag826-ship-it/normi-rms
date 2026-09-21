@@ -12,7 +12,7 @@ It stores the data and answers the requests from the web app.
 - Role-based access for students, advisers, coordinators, panel members and admins.
 - Research papers, versions, chapter feedback and comments.
 - Defense scheduling with rooms and panels, and panel scoring.
-- Announcements, notifications, consultations, an audit log, and file uploads (PDF and Word).
+- Announcements, notifications, consultations, an audit log, and private file uploads (PDF and Word).
 
 ## Run it on your computer
 
@@ -95,4 +95,12 @@ All addresses start with `/api`: `auth`, `users`, `departments`, `courses`, `sch
 - `JWT_SECRET` must be a long random text (16 or more characters). The server will not start without it.
 - Public sign-up is closed. Only an Admin can create accounts (`POST /api/users`).
 - Delete any test accounts before real use.
-- Uploaded student files stay on the server in `uploads/` and are not part of this repository.
+- Uploaded files stay on the server in `uploads/` and are not part of this repository.
+- Uploaded files are **private**. The website asks `POST /api/uploads/access` for a short link (valid about 10 minutes, for
+  one file) and only people allowed to see that file get one:
+  - Admin: every file. Coordinator: every paper file and version.
+  - Adviser: the papers and versions of their own student groups.
+  - Student: their own group's files, their own uploads, and **published** papers (status Completed or Archived).
+  - Panel Member: defense copies of papers they are scheduled for, and published papers.
+  - Anyone signed in: the main file of a published paper.
+  The file address on its own (`/uploads/name.pdf`) returns 401. Set `JWT_SECRET` to a strong value: file links are signed with a key made from it.
