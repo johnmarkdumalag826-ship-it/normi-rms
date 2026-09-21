@@ -34,7 +34,6 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import InteractiveERD from './components/InteractiveERD';
 import RepositoryView from './components/RepositoryView';
 import SchedulerCalendar from './components/SchedulerCalendar';
 import DefenseSchedulesList from './components/DefenseSchedulesList';
@@ -599,11 +598,11 @@ export default function App() {
   const renderTabContent = () => {
     // Enforce role-based access control
     const allowedTabs: Record<UserRole, string[]> = {
-      student: ['dashboard', 'research-details', 'repository', 'calendar', 'database-erd'],
-      adviser: ['dashboard', 'assigned-students', 'document-review', 'repository', 'calendar', 'database-erd'],
-      coordinator: ['dashboard', 'coordinator-manuscripts', 'repository', 'calendar', 'database-erd'],
-      panelist: ['dashboard', 'assigned-defenses', 'repository', 'calendar', 'database-erd'],
-      admin: ['dashboard', 'user-management', 'repository', 'calendar', 'database-erd']
+      student: ['dashboard', 'research-details', 'repository', 'calendar'],
+      adviser: ['dashboard', 'assigned-students', 'document-review', 'repository', 'calendar'],
+      coordinator: ['dashboard', 'coordinator-manuscripts', 'repository', 'calendar'],
+      panelist: ['dashboard', 'assigned-defenses', 'repository', 'calendar'],
+      admin: ['dashboard', 'user-management', 'repository', 'calendar']
     };
 
     if (currentUser && !allowedTabs[currentUser.role].includes(activeTab)) {
@@ -779,9 +778,6 @@ export default function App() {
             />
           );
         }
-
-      case 'database-erd':
-        return <InteractiveERD />;
 
       case 'research-details':
         // For students, find their own research details immediately

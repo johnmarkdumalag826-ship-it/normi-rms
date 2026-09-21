@@ -85,8 +85,7 @@ src/
 │   ├── DocumentReview.tsx                   Adviser's review and decision screen
 │   ├── RepositoryView.tsx                   Search the finished papers
 │   ├── DefenseSchedulesList.tsx             Everyone's view of defense dates
-│   ├── SchedulerCalendar.tsx                Coordinator's calendar for setting defenses
-│   └── InteractiveERD.tsx                   Database diagram (for developers)
+│   └── SchedulerCalendar.tsx                Coordinator's calendar for setting defenses
 │
 ├── ui/                  Shared building blocks used by every screen
 │   ├── Button, Field (Input/Select/Textarea), Badge, Card, Table

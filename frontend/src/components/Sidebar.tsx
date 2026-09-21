@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import {
   Landmark, Home, FileText, CalendarDays, BookOpen, ClipboardCheck,
-  Database, LogOut, X, FileSearch, UserCog,
+  LogOut, X, FileSearch, UserCog,
   type LucideIcon,
 } from 'lucide-react';
 import { User, UserRole } from '../types';
@@ -56,8 +56,6 @@ function getNavGroups(role: UserRole): NavGroup[] {
         { id: 'calendar', icon: CalendarDays },
       ],
     },
-    // The database diagram is documentation, so only Admins see it in the menu.
-    ...(role === 'admin' ? [{ heading: 'For developers', items: [{ id: 'database-erd', icon: Database }] }] : []),
   ];
 }
 

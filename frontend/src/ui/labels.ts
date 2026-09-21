@@ -227,7 +227,6 @@ export const pageTitles: Record<string, string> = {
   'user-management': 'Manage Accounts',
   repository: 'Research Repository',
   calendar: 'Defense Schedule',
-  'database-erd': 'Database Diagram',
   'manuscript-details': 'Research Details',
   'automated-scheduling': 'Automatic Scheduling',
   'announcements-board': 'Announcements',
