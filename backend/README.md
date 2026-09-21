@@ -48,6 +48,30 @@ You need [Node.js](https://nodejs.org) and a MongoDB database (a free MongoDB At
 
 Then sign in on the website as the Admin and add everyone else from **Manage Accounts**.
 
+### Using MongoDB Atlas (the permanent, real database)
+
+Atlas keeps your data in the cloud, so it stays when you restart the computer. The free plan is enough for this project.
+
+1. Sign up at [mongodb.com/atlas](https://www.mongodb.com/atlas) and create a free **M0** cluster (choose a region close to you, for example Singapore).
+2. **Database Access** → **Add New Database User**. Choose a user name and a password with **letters and numbers only** (symbols like `@` or `#` break the address). Give it "Read and write to any database".
+3. **Network Access** → **Add IP Address** → **Allow access from anywhere** (fine while testing; use your server's address for real use).
+4. **Database** → **Connect** → **Drivers**. Copy the address. It looks like
+   `mongodb+srv://USER:PASSWORD@cluster0.abcde.mongodb.net/?retryWrites=true&w=majority`.
+5. Open `backend/.env` in Notepad and set `MONGODB_URI` to that address, replacing `USER` and `PASSWORD`, and adding the database name
+   before the `?`: `...mongodb.net/normi_rms?retryWrites=true&w=majority`.
+6. Check it, then add the starting data and the first Admin:
+   ```bash
+   npm run db:check      # shows where it connected and how many records each collection has
+   npm run seed          # departments, courses, school years, rooms
+   npm run create-admin  # your first Admin
+   ```
+
+**Looking at the data**
+- In Atlas: **Database** → **Browse Collections** → choose `normi_rms`. You can read every collection there.
+- On your computer: `npm run db:check` (all collections and counts) and `npm run db:view -- users` (the records of one collection).
+  Passwords are never shown.
+- Optional: [MongoDB Compass](https://www.mongodb.com/products/tools/compass) is a free desktop app for browsing the same data.
+
 ### Testing only
 
 - `npm run test-accounts` creates one account for each role (`test.student@normi.edu.ph` and so on).
@@ -66,6 +90,8 @@ Then sign in on the website as the Admin and add everyone else from **Manage Acc
 | `npm run seed` | Adds departments, courses, school years and rooms (safe to run again) |
 | `npm run create-admin` | Creates the first Admin account |
 | `npm run test-accounts` | Creates one test account per role (testing only) |
+| `npm run db:check` | Shows which database is connected and how many records each collection has |
+| `npm run db:view -- <collection>` | Shows the records of one collection (passwords hidden) |
 | `npm run smoke-test` | Runs a full self-check (sign-in, security, papers, defenses, scoring) on a temporary database |
 
 ## Where things are

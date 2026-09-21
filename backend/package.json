@@ -9,6 +9,8 @@
     "seed": "node scripts/seed.js",
     "create-admin": "node scripts/create-admin.js",
     "test-accounts": "node scripts/create-test-accounts.js",
+    "db:check": "node scripts/db-overview.js",
+    "db:view": "node scripts/db-overview.js",
     "smoke-test": "node scripts/smoke-test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
