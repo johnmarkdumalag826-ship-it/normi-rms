@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users, UserCheck, Shield, Plus, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
-  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw,
+  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw, CheckCircle2,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
@@ -61,6 +61,11 @@ export default function DashboardAdmin({
     activeSection === 'user-management' ? 'user-management' : 'dashboard'
   );
 
+  // The menu can change the section while this page is already open
+  useEffect(() => {
+    setCurrentSection(activeSection === 'user-management' ? 'user-management' : 'dashboard');
+  }, [activeSection]);
+
   // Accounts
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
@@ -103,7 +108,8 @@ export default function DashboardAdmin({
       coordinators: users.filter(u => u.role === 'coordinator').length,
       admins: users.filter(u => u.role === 'admin').length,
       active: users.filter(u => u.status === 'active').length,
-      suspended: users.filter(u => u.status === 'suspended').length
+      suspended: users.filter(u => u.status === 'suspended').length,
+      pending: users.filter(u => u.status === 'pending').length,
     };
   }, [users]);
 
@@ -213,7 +219,7 @@ export default function DashboardAdmin({
 
   const getRoomName = (roomId: string) => rooms.find(r => r.id === roomId)?.name ?? (roomId === 'online' || !roomId ? 'Online meeting' : 'Room not found');
 
-  // The Suspend / Reactivate buttons: suspending asks first, reactivating does not.
+  // The Suspend / Reactivate / Approve buttons: suspending asks first, the others do not.
   const requestToggleStatus = (u: User) => {
     if (u.status === 'active') setUserToSuspend(u);
     else onToggleUserStatus(u.id);
@@ -244,10 +250,10 @@ export default function DashboardAdmin({
             <Button
               variant="secondary"
               size="sm"
-              icon={u.status === 'active' ? Ban : RefreshCw}
+              icon={u.status === 'active' ? Ban : u.status === 'pending' ? CheckCircle2 : RefreshCw}
               onClick={() => requestToggleStatus(u)}
             >
-              {u.status === 'active' ? 'Suspend' : 'Reactivate'}
+              {u.status === 'active' ? 'Suspend' : u.status === 'pending' ? 'Approve' : 'Reactivate'}
             </Button>
             <Button
               variant="danger"
@@ -346,6 +352,14 @@ export default function DashboardAdmin({
       {/* ACCOUNTS */}
       {currentSection === 'user-management' && (
         <div className="space-y-4">
+          {userStats.pending > 0 && (
+            <Alert tone="warning" title={`${userStats.pending} ${userStats.pending === 1 ? 'person is' : 'people are'} waiting for approval`}>
+              <span className="block">
+                They asked for an account and cannot sign in yet. Check that you know them, then press “Approve” next to their name.
+              </span>
+              <Button variant="secondary" size="sm" className="mt-3" onClick={() => setUserStatusFilter('pending')}>Show only these people</Button>
+            </Alert>
+          )}
           <Card className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -375,6 +389,7 @@ export default function DashboardAdmin({
               </Select>
               <Select label="Account status" value={userStatusFilter} onChange={e => setUserStatusFilter(e.target.value)}>
                 <option value="all">All accounts</option>
+                <option value="pending">Waiting for approval</option>
                 <option value="active">Active</option>
                 <option value="suspended">Suspended</option>
               </Select>

@@ -9,7 +9,7 @@ import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
-import { listDirectory, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, setUserPassword } from './api/users';
+import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, setUserPassword } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
@@ -30,7 +30,6 @@ import { listEvaluations, createEvaluation } from './api/evaluations';
 import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs';
 
 // Importing Modular sub-components
-import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -51,7 +50,6 @@ import ResearchInformationForm from './components/ResearchInformationForm';
 export default function App() {
   // Session authentication states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [showPortal, setShowPortal] = useState(false);
   const [authStatus, setAuthStatus] = useState<'checking' | 'ready'>('checking');
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false); // shows a "Try Again" screen if loading fails
@@ -92,8 +90,7 @@ export default function App() {
     triggerAlert(err instanceof ApiError ? err.message : fallback, 'error');
   };
 
-  // Public announcements are visible pre-login (LandingPage shows them), so fetch them
-  // once on mount regardless of auth state.
+  // Announcements are public, so fetch them once on mount.
   useEffect(() => {
     listAnnouncements().then(setAnnouncements).catch(() => {});
   }, []);
@@ -105,7 +102,6 @@ export default function App() {
       const restoredUser = await fetchCurrentUser();
       if (restoredUser) {
         setCurrentUser(restoredUser);
-        setShowPortal(true);
       }
       setAuthStatus('ready');
     })();
@@ -133,7 +129,8 @@ export default function App() {
           research, allVersions, allComments, notifs,
           consultList, availList, schedList, evalList,
         ] = await Promise.all([
-          listDirectory(), listDepartments(), listCourses(), listSchoolYears(), listRooms(),
+          // An Admin needs everyone (also people waiting for approval or suspended); others only see active people
+          (currentUser.role === 'admin' ? listUsers() : listDirectory()), listDepartments(), listCourses(), listSchoolYears(), listRooms(),
           listResearch(), listAllVersions(), listAllComments(), listNotifications(),
           listConsultations(), listPanelAvailability(), listSchedules(), listEvaluations(),
         ]);
@@ -174,14 +171,12 @@ export default function App() {
   // Auth Operations
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
-    setShowPortal(true);
     setActiveTab('dashboard');
   };
 
   const handleLogout = () => {
     logoutRequest();
     setCurrentUser(null);
-    setShowPortal(false);
     setActiveTab('dashboard');
     setSelectedResearchId(null);
   };
@@ -424,7 +419,7 @@ export default function App() {
       const nextStatus = target.status === 'active' ? 'suspended' : 'active';
       const updated = await apiUpdateUser(id, { status: nextStatus });
       setUsers(prev => prev.map(u => u.id === id ? updated : u));
-      triggerAlert("User status updated.");
+      triggerAlert(target.status === 'pending' ? `${target.name}'s account was approved.` : 'User status updated.');
     } catch (err) {
       handleApiError(err, 'Could not update user status.');
     }
@@ -936,8 +931,8 @@ export default function App() {
     }
   };
 
-  // Wait for the silent session-restore check before deciding Landing vs Login vs Portal,
-  // otherwise an already-logged-in user briefly flashes the Landing page on every reload.
+  // Wait for the silent session-restore check before deciding Login vs the app,
+  // otherwise an already-logged-in user briefly flashes the sign-in page on every reload.
   if (authStatus === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50" role="status" aria-live="polite">
@@ -949,32 +944,9 @@ export default function App() {
     );
   }
 
-  // Initial gate checking: Landing -> Login -> Portal Space
-  if (!showPortal && !currentUser) {
-    // Public entrance
-    return (
-      <LandingPage
-        announcements={announcements}
-        onEnterPortal={() => setShowPortal(true)}
-        stats={{
-          archived: researchList.filter(r => r.status === 'Completed' || r.status === 'Archived').length,
-          active: researchList.filter(r => r.status !== 'Completed' && r.status !== 'Archived').length,
-          advisers: users.filter(u => u.role === 'adviser').length,
-          scheduled: schedules.filter(s => s.status === 'scheduled').length
-        }}
-      />
-    );
-  }
-
-  if (showPortal && !currentUser) {
-    // Portal secure entrance page
-    return (
-      <Login
-        onLoginSuccess={handleLoginSuccess}
-        users={users}
-        onBackToLanding={() => setShowPortal(false)}
-      />
-    );
+  // Not signed in: go straight to the sign-in page (it also lets new people ask for an account)
+  if (!currentUser) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   // Once logged in, wait for the bulk data load before rendering dashboards — otherwise

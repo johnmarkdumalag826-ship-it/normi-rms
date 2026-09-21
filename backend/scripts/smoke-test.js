@@ -115,10 +115,27 @@ async function main() {
   assert(me.status === 200 && me.body.user.email === 'student@test.local', 'GET /api/auth/me returns the right user');
 
   console.log('\n--- Security ---');
-  const openSignUp = await request(server, 'POST', '/api/auth/register', { email: 'hacker@test.local', password: 'password123', name: 'Hacker', role: 'admin' });
-  assert(openSignUp.status === 404, 'public sign-up is closed (POST /api/auth/register -> 404)');
-  const noHacker = await User.findOne({ email: 'hacker@test.local' });
-  assert(!noHacker, 'no account was created by the closed sign-up');
+  const adminSignUp = await request(server, 'POST', '/api/auth/register', { email: 'hacker@test.local', password: 'password123', name: 'Hacker', role: 'admin' });
+  assert(adminSignUp.status === 400, 'nobody can sign up as an Admin -> 400');
+  assert(!(await User.findOne({ email: 'hacker@test.local' })), 'no account was created for the Admin sign-up');
+
+  const shortSignUp = await request(server, 'POST', '/api/auth/register', { email: 'short@test.local', password: '123', name: 'Short', role: 'student' });
+  assert(shortSignUp.status === 400, 'sign-up with a short password -> 400');
+
+  const signUp = await request(server, 'POST', '/api/auth/register', { email: 'new.student@test.local', password: 'new-student-1', name: 'New Student', role: 'student' });
+  assert(signUp.status === 201, 'a new student can ask for an account -> 201');
+  const created = await User.findOne({ email: 'new.student@test.local' });
+  assert(created && created.status === 'pending', 'the new account starts as "pending"');
+  const dup = await request(server, 'POST', '/api/auth/register', { email: 'new.student@test.local', password: 'new-student-1', name: 'New Student', role: 'student' });
+  assert(dup.status === 409, 'signing up twice with the same email -> 409');
+  const pendingLogin = await request(server, 'POST', '/api/auth/login', { email: 'new.student@test.local', password: 'new-student-1' });
+  assert(pendingLogin.status === 403, 'a pending account cannot sign in yet -> 403');
+  const pendingDir = await request(server, 'GET', '/api/users/directory', null, studentToken);
+  assert(!JSON.stringify(pendingDir.body).includes('new.student@test.local'), 'a pending account is not listed in the directory');
+  const approveUser = await request(server, 'PATCH', `/api/users/${created._id}`, { status: 'active' }, adminToken);
+  assert(approveUser.status === 200, 'an Admin can approve the account');
+  const afterApprove = await request(server, 'POST', '/api/auth/login', { email: 'new.student@test.local', password: 'new-student-1' });
+  assert(afterApprove.status === 200, 'after approval the person can sign in');
 
   const studentListsUsers = await request(server, 'GET', '/api/users', null, studentToken);
   assert(studentListsUsers.status === 403, 'a student cannot list all accounts -> 403');

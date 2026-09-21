@@ -26,12 +26,40 @@ const login = async (req, res, next) => {
   if (!user || !(await user.comparePassword(password))) {
     return next(new AppError('Invalid email or password', 401));
   }
+  if (user.status === 'pending') {
+    return next(new AppError('Your account is waiting for approval. An Admin needs to approve it before you can sign in.', 403));
+  }
   if (user.status !== 'active') {
-    return next(new AppError('This account has been suspended or is pending approval', 403));
+    return next(new AppError('This account has been suspended. Please contact the research office.', 403));
   }
 
   await logAction(req, 'USER_LOGIN', 'User signed in.', user);
   res.json({ user: sanitize(user), token: signToken(user) });
+};
+
+// Anyone can ask for an account, but it starts as "pending" and cannot sign in until an Admin approves it.
+// The Admin role can never be requested here: Admin accounts are made with the create-admin script.
+const SELF_SERVICE_ROLES = ['student', 'adviser', 'panelist', 'coordinator'];
+
+const register = async (req, res, next) => {
+  const { name, email, password, role } = req.body;
+  if (!name || !email || !password || !role) {
+    return next(new AppError('Please fill in your name, email, password and role.', 400));
+  }
+  if (!SELF_SERVICE_ROLES.includes(role)) return next(new AppError('Please choose a valid role.', 400));
+  if (typeof password !== 'string' || password.length < 8) {
+    return next(new AppError('Your password must be at least 8 characters long.', 400));
+  }
+  if (!/^\S+@\S+\.\S+$/.test(String(email))) return next(new AppError('Please enter a valid email address.', 400));
+
+  const existing = await User.findOne({ email: String(email).toLowerCase() });
+  if (existing) return next(new AppError('An account with this email already exists. Try signing in instead.', 409));
+
+  const user = await User.create({
+    name: String(name).trim(), email, password, role, status: 'pending',
+  });
+  await logAction(req, 'USER_SIGN_UP', `${user.name} (${user.email}) asked for a ${role} account.`, user);
+  res.status(201).json({ message: 'Your account request was sent. You can sign in after an Admin approves it.' });
 };
 
 const me = async (req, res) => {
@@ -43,4 +71,4 @@ const logout = async (req, res) => {
   res.status(204).send();
 };
 
-module.exports = { login, me, logout };
+module.exports = { login, register, me, logout };

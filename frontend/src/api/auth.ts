@@ -32,3 +32,15 @@ export async function logout() {
     clearToken();
   }
 }
+
+export interface SignUpDetails {
+  name: string;
+  email: string;
+  password: string;
+  role: 'student' | 'adviser' | 'panelist' | 'coordinator';
+}
+
+// Asks for a new account. It stays "pending" until an Admin approves it, so no sign-in happens here.
+export async function signUp(details: SignUpDetails): Promise<{ message: string }> {
+  return api.post('/auth/register', details);
+}

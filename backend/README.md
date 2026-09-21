@@ -8,7 +8,7 @@ It stores the data and answers the requests from the web app.
 
 ## What it does
 
-- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). There is no public sign-up: only an Admin creates accounts, and an Admin can set a new password for someone who forgot theirs.
+- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). Anyone can ask for an account (`POST /api/auth/register`), but it starts as "pending" and cannot sign in until an Admin approves it. Nobody can sign up as an Admin. An Admin can also create accounts directly and set a new password for someone who forgot theirs.
 - Role-based access for students, advisers, coordinators, panel members and admins.
 - Research papers, versions, chapter feedback and comments.
 - Defense scheduling with rooms and panels, and panel scoring.
@@ -119,7 +119,7 @@ All addresses start with `/api`: `auth`, `users`, `departments`, `courses`, `sch
 
 - Keep `.env` private. It holds your database address and your secret key.
 - `JWT_SECRET` must be a long random text (16 or more characters). The server will not start without it.
-- Public sign-up is closed. Only an Admin can create accounts (`POST /api/users`).
+- Sign-up only makes a "pending" account (student, adviser, panelist or coordinator, never admin) and is limited to 10 requests per hour per address. An Admin approves it before it can sign in.
 - Delete any test accounts before real use.
 - Uploaded files stay on the server in `uploads/` and are not part of this repository.
 - Uploaded files are **private**. The website asks `POST /api/uploads/access` for a short link (valid about 10 minutes, for
