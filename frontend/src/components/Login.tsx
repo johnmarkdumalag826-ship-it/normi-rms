@@ -47,7 +47,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       if (err instanceof ApiError) {
         setError(
           err.status === 400 || err.status === 401
-            ? 'That email or password is not correct. Please check them and try again. If you do not have an account yet, choose “Create an account”.'
+            ? 'That email or password is not correct. Please check them and try again. If you have not registered yet, choose “Register”.'
             : err.message,
         );
       } else {
@@ -147,9 +147,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               <Button type="submit" className="w-full" loading={isSubmitting}>{isSubmitting ? 'Signing In…' : 'Sign In'}</Button>
 
               <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-700">
-                Do not have an account yet?{' '}
+                Not registered yet?{' '}
                 <button type="button" onClick={() => goTo('sign-up')} className="min-h-11 font-semibold text-blue-800 hover:underline cursor-pointer">
-                  Create an account
+                  Register
                 </button>
               </p>
             </form>
@@ -158,13 +158,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           {screen === 'sign-up' && (
             <form onSubmit={handleSignUp} className="space-y-5">
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Create an account</h1>
+                <h1 className="text-xl font-bold text-slate-900">Register</h1>
                 <p className="mt-1 text-sm text-slate-600">
-                  Fill in your details. An Admin will check your request, and then you can sign in.
+                  Fill in your details. An Admin will check and approve your registration, and then you can sign in.
                 </p>
               </div>
 
-              {error && <Alert tone="danger" title="We could not create your account">{error}</Alert>}
+              {error && <Alert tone="danger" title="We could not register you">{error}</Alert>}
 
               <Input
                 label="Full name"
@@ -211,10 +211,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 autoComplete="new-password"
               />
 
-              <Button type="submit" className="w-full" loading={isSubmitting}>{isSubmitting ? 'Sending…' : 'Create My Account'}</Button>
+              <Button type="submit" className="w-full" loading={isSubmitting}>{isSubmitting ? 'Registering…' : 'Register'}</Button>
 
               <p className="border-t border-slate-200 pt-4 text-center text-sm text-slate-700">
-                Already have an account?{' '}
+                Already registered?{' '}
                 <button type="button" onClick={() => goTo('sign-in')} className="min-h-11 font-semibold text-blue-800 hover:underline cursor-pointer">
                   Sign in
                 </button>
@@ -225,11 +225,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           {screen === 'sent' && (
             <div className="space-y-4">
               <div>
-                <h1 className="text-xl font-bold text-slate-900">Your request was sent</h1>
+                <h1 className="text-xl font-bold text-slate-900">You are registered</h1>
                 <p className="mt-1 text-sm text-slate-600">Thank you, {name.trim() || 'friend'}.</p>
               </div>
               <Alert tone="success" title="What happens next">
-                An Admin will check your request. When it is approved, come back to this page and sign in with
+                An Admin needs to approve your registration first. When it is approved, come back to this page and sign in with
                 the email and password you just chose.
               </Alert>
               <Button className="w-full" onClick={() => goTo('sign-in')}>Go to Sign In</Button>

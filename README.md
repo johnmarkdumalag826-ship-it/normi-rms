@@ -52,7 +52,7 @@ npm run dev             # opens the website on http://localhost:3000
 ```
 
 Open http://localhost:3000 and sign in as the Admin. Add everyone else from **Manage Accounts**.
-New people create an account on the sign-in page (student, adviser, panel member or coordinator). The account waits until an Admin approves it under **Manage Accounts**. Admin accounts can only be made with `npm run create-admin`.
+New people register on the sign-in page (student, adviser, panel member or coordinator). The account waits until an Admin approves it under **Manage Accounts**. Admin accounts can only be made with `npm run create-admin`.
 
 The backend's `CLIENT_URL` setting must be the address you open in the browser, otherwise the browser
 blocks the requests.

@@ -58,8 +58,8 @@ const register = async (req, res, next) => {
   const user = await User.create({
     name: String(name).trim(), email, password, role, status: 'pending',
   });
-  await logAction(req, 'USER_SIGN_UP', `${user.name} (${user.email}) asked for a ${role} account.`, user);
-  res.status(201).json({ message: 'Your account request was sent. You can sign in after an Admin approves it.' });
+  await logAction(req, 'USER_SIGN_UP', `${user.name} (${user.email}) registered as a ${role}.`, user);
+  res.status(201).json({ message: 'You are registered. You can sign in after an Admin approves your registration.' });
 };
 
 const me = async (req, res) => {
