@@ -47,6 +47,9 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
 };
 
 const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator', 'admin'];
+const rolePluralLabels: Record<UserRole, string> = {
+  student: 'Students', adviser: 'Advisers', panelist: 'Panel Members', coordinator: 'Coordinators', admin: 'Admins',
+};
 
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
@@ -65,7 +68,6 @@ export default function DashboardAdmin({
 
   // Accounts
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -103,23 +105,22 @@ export default function DashboardAdmin({
     };
   }, [users]);
 
-  // Pending accounts (waiting for approval) and everyone else are shown as two separate lists,
-  // so an Admin never has to filter to find who needs a decision.
-  const matchesSearchAndRole = (u: User) => {
+  // Pending accounts (waiting for approval) are shown apart from everyone else, and everyone
+  // else is grouped by role, so an Admin never has to filter to find who they are looking for.
+  const matchesSearch = (u: User) => {
     const q = userSearchQuery.toLowerCase();
-    const matchesSearch = u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
-    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
-    return matchesSearch && matchesRole;
+    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
   };
 
   const pendingUsers = useMemo(
-    () => users.filter(u => u.status === 'pending' && matchesSearchAndRole(u)),
-    [users, userSearchQuery, userRoleFilter],
+    () => users.filter(u => u.status === 'pending' && matchesSearch(u)),
+    [users, userSearchQuery],
   );
-  const otherUsers = useMemo(
-    () => users.filter(u => u.status !== 'pending' && matchesSearchAndRole(u)),
-    [users, userSearchQuery, userRoleFilter],
-  );
+  const otherUsersByRole = useMemo(() => {
+    const groups = { student: [], adviser: [], panelist: [], coordinator: [], admin: [] } as Record<UserRole, User[]>;
+    users.filter(u => u.status !== 'pending' && matchesSearch(u)).forEach(u => groups[u.role]?.push(u));
+    return groups;
+  }, [users, userSearchQuery]);
 
   const advisersList = useMemo(() => users.filter(u => u.role === 'adviser'), [users]);
   const panelistsList = useMemo(() => users.filter(u => u.role === 'panelist'), [users]);
@@ -202,8 +203,8 @@ export default function DashboardAdmin({
     },
   ];
 
-  const otherColumns: Column<User>[] = [
-    personColumn, roleColumn, emailColumn,
+  const approvedColumns: Column<User>[] = [
+    personColumn, emailColumn,
     { key: 'status', header: 'Account', render: u => <StatusBadge info={userStatus[u.status] ?? userStatus.active} /> },
     {
       key: 'actions', header: 'What you can do',
@@ -329,7 +330,7 @@ export default function DashboardAdmin({
           <Card className="space-y-4">
             <div>
               <h2 className="text-base font-bold text-slate-900">Search accounts</h2>
-              <p className="text-sm text-slate-600">Applies to both lists below.</p>
+              <p className="text-sm text-slate-600">Applies to every list below.</p>
             </div>
 
             <div className="relative">
@@ -344,11 +345,6 @@ export default function DashboardAdmin({
                 className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
               />
             </div>
-
-            <Select label="Role" value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
-              <option value="all">All roles</option>
-              {roleOptions.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
-            </Select>
           </Card>
 
           {/* Waiting for approval: kept apart so it never gets lost among everyone else */}
@@ -376,30 +372,32 @@ export default function DashboardAdmin({
             />
           </section>
 
-          {/* Everyone already approved (or otherwise not pending) */}
-          <section aria-labelledby="other-accounts-title" className="space-y-3">
-            <div>
-              <h2 id="other-accounts-title" className="text-base font-bold text-slate-900">
-                Approved Accounts ({otherUsers.length})
-              </h2>
-              <p className="text-sm text-slate-600">Use the buttons next to a name to see, edit or delete an account.</p>
-            </div>
-            <Table
-              caption="Approved accounts"
-              columns={otherColumns}
-              rows={otherUsers}
-              rowKey={u => u.id}
-              empty={
-                <Card padded={false}>
-                  <EmptyState
-                    icon={Users}
-                    title="No accounts match your search"
-                    description="Try a shorter search, or choose “All roles”."
-                  />
-                </Card>
-              }
-            />
-          </section>
+          {/* Everyone already approved, one list per role so a long roster stays easy to scan */}
+          {roleOptions.map(role => {
+            const roleUsers = otherUsersByRole[role];
+            return (
+              <section key={role} aria-labelledby={`role-${role}-title`} className="space-y-3">
+                <h2 id={`role-${role}-title`} className="text-base font-bold text-slate-900">
+                  {rolePluralLabels[role]} ({roleUsers.length})
+                </h2>
+                <Table
+                  caption={rolePluralLabels[role]}
+                  columns={approvedColumns}
+                  rows={roleUsers}
+                  rowKey={u => u.id}
+                  empty={
+                    <Card padded={false}>
+                      <EmptyState
+                        icon={Users}
+                        title={`No ${rolePluralLabels[role].toLowerCase()} yet`}
+                        description={userSearchQuery ? 'No one here matches your search.' : `No approved ${rolePluralLabels[role].toLowerCase()} yet.`}
+                      />
+                    </Card>
+                  }
+                />
+              </section>
+            );
+          })}
         </div>
       )}
 
