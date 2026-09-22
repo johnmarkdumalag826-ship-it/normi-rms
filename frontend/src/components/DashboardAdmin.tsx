@@ -232,7 +232,6 @@ export default function DashboardAdmin({
 
   const approvedColumns: Column<User>[] = [
     personColumn, departmentColumn, emailColumn,
-    { key: 'status', header: 'Account', render: u => <StatusBadge info={userStatus[u.status] ?? userStatus.active} /> },
     {
       key: 'actions', header: 'What you can do',
       render: u => {
