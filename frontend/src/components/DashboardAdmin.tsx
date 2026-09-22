@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users, UserCheck, Shield, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
-  Eye, Pencil, Trash2, CheckCircle2, XCircle,
+  Eye, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
@@ -24,6 +24,8 @@ interface DashboardAdminProps {
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
   onRestoreDatabase: () => void;
+  /** Pulls a fresh account list from the server (new registrations sent in by others don't show up on their own). */
+  onRefreshUsers: () => void;
 }
 
 type Section = 'dashboard' | 'user-management' | 'pending-accounts' | 'schedules';
@@ -62,8 +64,16 @@ const rolePluralLabels: Record<UserRole, string> = {
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
   onToggleUserStatus, onUpdateUserRole, onUpdateUser, onDeleteUserAccount,
-  onBackupDatabase, onRestoreDatabase
+  onBackupDatabase, onRestoreDatabase, onRefreshUsers
 }: DashboardAdminProps) {
+
+  // New registrations someone else sends in don't appear until we ask again — do that
+  // every so often while this page is open, so they show up without a browser reload.
+  useEffect(() => {
+    const t = setInterval(onRefreshUsers, 20_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [currentSection, setCurrentSection] = useState<Section>(
     activeSection === 'user-management' ? 'user-management' : 'dashboard'
@@ -322,17 +332,20 @@ export default function DashboardAdmin({
       {currentSection === 'user-management' && (
         <div className="space-y-6">
           <Card className="space-y-4">
-            <div className="relative">
-              <label htmlFor="active-account-search" className="sr-only">Search accounts</label>
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-              <input
-                id="active-account-search"
-                type="search"
-                placeholder="Search by name or email"
-                value={userSearchQuery}
-                onChange={e => setUserSearchQuery(e.target.value)}
-                className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
-              />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <label htmlFor="active-account-search" className="sr-only">Search accounts</label>
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                <input
+                  id="active-account-search"
+                  type="search"
+                  placeholder="Search by name or email"
+                  value={userSearchQuery}
+                  onChange={e => setUserSearchQuery(e.target.value)}
+                  className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+                />
+              </div>
+              <Button variant="secondary" icon={RefreshCw} onClick={onRefreshUsers}>Refresh</Button>
             </div>
           </Card>
 
@@ -376,17 +389,20 @@ export default function DashboardAdmin({
           )}
 
           <Card className="space-y-4">
-            <div className="relative">
-              <label htmlFor="pending-account-search" className="sr-only">Search accounts waiting for approval</label>
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-              <input
-                id="pending-account-search"
-                type="search"
-                placeholder="Search by name or email"
-                value={pendingSearchQuery}
-                onChange={e => setPendingSearchQuery(e.target.value)}
-                className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
-              />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="relative flex-1">
+                <label htmlFor="pending-account-search" className="sr-only">Search accounts waiting for approval</label>
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                <input
+                  id="pending-account-search"
+                  type="search"
+                  placeholder="Search by name or email"
+                  value={pendingSearchQuery}
+                  onChange={e => setPendingSearchQuery(e.target.value)}
+                  className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+                />
+              </div>
+              <Button variant="secondary" icon={RefreshCw} onClick={onRefreshUsers}>Refresh</Button>
             </div>
           </Card>
 

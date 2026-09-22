@@ -395,6 +395,19 @@ export default function App() {
   };
 
   // Admin user directory
+  // The account list is only fetched at sign-in, so it never sees a registration someone
+  // else sent in afterward on their own — this pulls a fresh copy on demand (e.g. before
+  // checking Pending Accounts, or on a timer while that page is open).
+  const refreshUsers = async () => {
+    if (!currentUser) return;
+    try {
+      const fresh = currentUser.role === 'admin' ? await listUsers() : await listDirectory();
+      setUsers(fresh.some(u => u.id === currentUser.id) ? fresh : [...fresh, currentUser]);
+    } catch (err) {
+      handleApiError(err, 'Could not refresh the account list.');
+    }
+  };
+
   const handleToggleUserStatus = async (id: string) => {
     const target = users.find(u => u.id === id);
     if (!target) return;
@@ -690,6 +703,7 @@ export default function App() {
               onUpdateUserRole={handleUpdateUserRole}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
+              onRefreshUsers={refreshUsers}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -875,6 +889,7 @@ export default function App() {
               onUpdateUserRole={handleUpdateUserRole}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
+              onRefreshUsers={refreshUsers}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
