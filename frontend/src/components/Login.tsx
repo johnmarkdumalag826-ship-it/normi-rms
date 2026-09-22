@@ -237,15 +237,17 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           )}
 
           {screen === 'forgot' && (
-            /* There is no automatic email, so we say who can help */
+            /* There is no automatic email, so we say who can help. An Admin cannot see or choose your
+               password — they can only start a reset, which gives them a one-time code to hand you. */
             <div className="space-y-4">
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Forgot your password?</h1>
-                <p className="mt-1 text-sm text-slate-600">An Admin can set a new password for you.</p>
+                <p className="mt-1 text-sm text-slate-600">An Admin can help you get back in.</p>
               </div>
-              <Alert tone="info" title="How to get a new password">
-                Contact the research office or your Admin and ask for a password reset.
-                They will give you a new password, and you can sign in with it right away.
+              <Alert tone="info" title="How to get back in">
+                Contact the research office or your Admin and ask for a password reset. They will give you
+                a one-time code. Sign in with it here, using your usual email — you will then be asked to
+                choose your own new password right away. Nobody else will know it.
               </Alert>
               <Button variant="secondary" icon={ArrowLeft} onClick={() => goTo('sign-in')}>Go Back to Sign In</Button>
             </div>

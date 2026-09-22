@@ -11,6 +11,9 @@ const userSchema = new mongoose.Schema({
   courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
   phone: String,
   status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'pending' },
+  // Set when an Admin starts a password reset for this person (see userController.forcePasswordReset).
+  // The person must set their own new password before they can use the rest of the system.
+  mustChangePassword: { type: Boolean, default: false },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {

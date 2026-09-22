@@ -9,7 +9,7 @@ import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
-import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, setUserPassword } from './api/users';
+import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, forcePasswordReset } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
@@ -31,6 +31,8 @@ import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs'
 
 // Importing Modular sub-components
 import Login from './components/Login';
+import ForcedPasswordChange from './components/ForcedPasswordChange';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import RepositoryView from './components/RepositoryView';
@@ -75,6 +77,7 @@ export default function App() {
   // Navigation tracking
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
 
   // Toast / Status Alerts
@@ -533,17 +536,23 @@ export default function App() {
     }
   };
 
-  // Admin sets a new password for someone who forgot theirs. Returns true if it worked.
-  const handleResetUserPassword = async (id: string, password: string): Promise<boolean> => {
+  // Admin starts a password reset for someone who forgot theirs. Only they ever choose the real
+  // new password (see ForcedPasswordChange): this only hands back a one-time code, or null if it failed.
+  const handleForcePasswordReset = async (id: string): Promise<string | null> => {
     try {
-      await setUserPassword(id, password);
+      const { tempPassword } = await forcePasswordReset(id);
       setAuditLogs(await listAuditLogs());
-      triggerAlert('The new password was saved.');
-      return true;
+      return tempPassword;
     } catch (err) {
-      handleApiError(err, 'Could not save the new password.');
-      return false;
+      handleApiError(err, 'Could not start a password reset.');
+      return null;
     }
+  };
+
+  // Anyone signed in changed their own password (voluntarily, or right after a forced reset).
+  const handlePasswordChanged = (updated: User) => {
+    setCurrentUser(updated);
+    triggerAlert('Your new password was saved.');
   };
 
   const handleCreateTitleProposal = async (data: {
@@ -702,7 +711,7 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
-              onResetUserPassword={handleResetUserPassword}
+              onForcePasswordReset={handleForcePasswordReset}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -889,7 +898,7 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
-              onResetUserPassword={handleResetUserPassword}
+              onForcePasswordReset={handleForcePasswordReset}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -926,6 +935,12 @@ export default function App() {
   // Not signed in: go straight to the sign-in page (it also lets new people ask for an account)
   if (!currentUser) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // An Admin started a password reset for this account: only this person may pick the real new
+  // password, so nothing else in the app is usable until they do.
+  if (currentUser.mustChangePassword) {
+    return <ForcedPasswordChange user={currentUser} onDone={handlePasswordChanged} onSignOut={handleLogout} />;
   }
 
   // Once logged in, wait for the bulk data load before rendering dashboards — otherwise
@@ -986,6 +1001,13 @@ export default function App() {
       {/* Pop-up message ("Saved!", or what went wrong) */}
       {alert && <Toast message={alert.message} type={alert.type} />}
 
+      {/* Change my own password (opened from the header) */}
+      <ChangePasswordModal
+        open={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        onChanged={handlePasswordChanged}
+      />
+
       {/* Menu */}
       <Sidebar
         user={currentUser!}
@@ -1009,6 +1031,7 @@ export default function App() {
           notifications={notifications}
           onMarkNotificationsAsRead={handleMarkNotificationsAsRead}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          onOpenChangePassword={() => setShowChangePassword(true)}
           activeTab={selectedResearchId ? 'manuscript-details' : activeTab}
         />
 

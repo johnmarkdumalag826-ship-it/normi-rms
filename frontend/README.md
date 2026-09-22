@@ -76,7 +76,9 @@ src/
 ├── index.css            Colours, text sizes and other design settings
 │
 ├── components/          The screens
-│   ├── Login.tsx                            Sign in and create an account
+│   ├── Login.tsx                            Sign in and register
+│   ├── ForcedPasswordChange.tsx             Set a new password after an Admin starts a reset
+│   ├── ChangePasswordModal.tsx              Anyone can change their own password, any time
 │   ├── Sidebar.tsx, Header.tsx              The menu and top bar
 │   ├── DashboardStudent / Adviser / Coordinator / Panelist / Admin.tsx
 │   │                                        One home page for each role

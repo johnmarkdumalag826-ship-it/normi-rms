@@ -18,8 +18,10 @@ export const updateUser = (id: string, patch: Partial<{
   departmentId: string; courseId: string; phone: string; email: string;
 }>): Promise<User> => api.patch(`/users/${id}`, patch);
 
-// Admin sets a new password for someone (at least 8 characters).
-export const setUserPassword = (id: string, password: string): Promise<User> =>
-  api.patch(`/users/${id}`, { password });
+// Admin cannot choose someone's password — only that person can (see api/auth.ts changePassword).
+// This starts a reset: the server makes a one-time code and hands it back once. Tell it to the
+// person out of band (in person, by phone); signing in with it forces them to set their own new password.
+export const forcePasswordReset = (id: string): Promise<{ tempPassword: string }> =>
+  api.post(`/users/${id}/force-password-reset`, {});
 
 export const deleteUser = (id: string): Promise<void> => api.del(`/users/${id}`);

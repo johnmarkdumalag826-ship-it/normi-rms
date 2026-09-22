@@ -30,6 +30,8 @@ export interface User {
   phone?: string;
   registeredAt: string;
   status: 'pending' | 'active' | 'suspended';
+  /** True right after an Admin starts a password reset — this person must set their own new password before using anything else. */
+  mustChangePassword?: boolean;
 }
 
 export type ResearchStatus = 

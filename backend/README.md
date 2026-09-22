@@ -8,7 +8,7 @@ It stores the data and answers the requests from the web app.
 
 ## What it does
 
-- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). Anyone can register (`POST /api/auth/register`), but it starts as "pending" and cannot sign in until an Admin approves it. Nobody can sign up as an Admin. An Admin can also create accounts directly and set a new password for someone who forgot theirs.
+- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). Anyone can register (`POST /api/auth/register`), but it starts as "pending" and cannot sign in until an Admin approves it. Nobody can sign up as an Admin. An Admin can also create accounts directly, but can never choose or see someone's password — only that person can. If someone forgets theirs, an Admin starts a reset (`POST /api/users/:id/force-password-reset`) and gets back a one-time code to hand them; signing in with it forces them straight to setting their own new password (`PATCH /api/auth/change-password`).
 - Role-based access for students, advisers, coordinators, panel members and admins.
 - Research papers, versions, chapter feedback and comments.
 - Defense scheduling with rooms and panels, and panel scoring.

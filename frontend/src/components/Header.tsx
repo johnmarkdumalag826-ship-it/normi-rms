@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Clock, Menu, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
+import { Bell, Clock, Menu, CheckCircle2, AlertTriangle, Info, KeyRound } from 'lucide-react';
 import { User, SystemNotification } from '../types';
 import { roleLabels, getPageTitle, formatDateTime, Avatar, Badge, IconButton } from '../ui';
 
@@ -8,11 +8,12 @@ interface HeaderProps {
   notifications: SystemNotification[];
   onMarkNotificationsAsRead: () => void;
   onToggleSidebar: () => void;
+  onOpenChangePassword: () => void;
   activeTab: string;
 }
 
 export default function Header({
-  user, notifications, onMarkNotificationsAsRead, onToggleSidebar, activeTab,
+  user, notifications, onMarkNotificationsAsRead, onToggleSidebar, onOpenChangePassword, activeTab,
 }: HeaderProps) {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -128,13 +129,14 @@ export default function Header({
           )}
         </div>
 
-        {/* Who is signed in */}
-        <div className="flex items-center gap-3 border-l border-slate-200 pl-3 sm:pl-4">
+        {/* Who is signed in, and a button to change your own password */}
+        <div className="flex items-center gap-2 border-l border-slate-200 pl-3 sm:pl-4">
           <div className="hidden sm:block text-right min-w-0">
             <p className="max-w-44 truncate text-sm font-semibold text-slate-900">{user.name}</p>
             <Badge tone="info">{roleLabels[user.role]}</Badge>
           </div>
           <Avatar name={user.name} src={user.avatar} size="md" />
+          <IconButton icon={KeyRound} label="Change my password" onClick={onOpenChangePassword} />
         </div>
       </div>
     </header>

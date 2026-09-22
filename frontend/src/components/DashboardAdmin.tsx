@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users, UserCheck, Shield, Plus, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
-  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw, CheckCircle2,
+  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw, CheckCircle2, Copy,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
+  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, StatusBadge, Table,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column,
 } from '../ui';
 
@@ -25,8 +25,8 @@ interface DashboardAdminProps {
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
   onRestoreDatabase: () => void;
-  /** Sets a new password for someone. Resolves to true when it was saved. */
-  onResetUserPassword: (id: string, password: string) => Promise<boolean>;
+  /** Starts a password reset for someone. Resolves to the one-time code, or null if it failed. */
+  onForcePasswordReset: (id: string) => Promise<string | null>;
 }
 
 type Section = 'dashboard' | 'user-management' | 'schedules';
@@ -54,7 +54,7 @@ const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
   onToggleUserStatus, onUpdateUserRole, onAddUserAccount, onUpdateUser, onDeleteUserAccount,
-  onBackupDatabase, onRestoreDatabase, onResetUserPassword
+  onBackupDatabase, onRestoreDatabase, onForcePasswordReset
 }: DashboardAdminProps) {
 
   const [currentSection, setCurrentSection] = useState<Section>(
@@ -74,9 +74,11 @@ export default function DashboardAdmin({
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  // Starting a password reset: who it's for (confirm step), then the one-time code to show
   const [resetPasswordFor, setResetPasswordFor] = useState<User | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isStartingReset, setIsStartingReset] = useState(false);
+  const [resetPasswordResult, setResetPasswordResult] = useState<{ user: User; code: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
   // "Are you sure?" for risky actions
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToSuspend, setUserToSuspend] = useState<User | null>(null);
@@ -206,15 +208,14 @@ export default function DashboardAdmin({
 
   const closeEdit = () => { setShowEditUserModal(false); setEditingUser(null); };
 
-  const closeResetPassword = () => { setResetPasswordFor(null); setNewPassword(''); };
-
-  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetPasswordFor || newPassword.length < 8) return;
-    setIsSavingPassword(true);
-    const ok = await onResetUserPassword(resetPasswordFor.id, newPassword);
-    setIsSavingPassword(false);
-    if (ok) closeResetPassword();
+  const handleConfirmForcePasswordReset = async () => {
+    const target = resetPasswordFor;
+    if (!target) return;
+    setIsStartingReset(true);
+    const code = await onForcePasswordReset(target.id);
+    setIsStartingReset(false);
+    setResetPasswordFor(null);
+    if (code) setResetPasswordResult({ user: target, code });
   };
 
   const getRoomName = (roomId: string) => rooms.find(r => r.id === roomId)?.name ?? (roomId === 'online' || !roomId ? 'Online meeting' : 'Room not found');
@@ -602,34 +603,45 @@ export default function DashboardAdmin({
         </form>
       </Modal>
 
-      {/* Set a new password for someone */}
-      <Modal
+      {/* Start a password reset: only the person themselves ever sets the real new password */}
+      <ConfirmDialog
         open={!!resetPasswordFor}
-        onClose={() => !isSavingPassword && closeResetPassword()}
-        title={`Set a new password for ${resetPasswordFor?.name ?? ''}`}
-        description="Use this when someone forgot their password. Tell them the new password in person or by phone."
+        onCancel={() => setResetPasswordFor(null)}
+        onConfirm={handleConfirmForcePasswordReset}
+        title={`Start a password reset for ${resetPasswordFor?.name ?? 'this person'}?`}
+        message="Their old password stops working right away. You will get a one-time code to give them — they use it to sign in and are immediately asked to choose their own new password. You will not know what they pick."
+        confirmLabel={isStartingReset ? 'Starting…' : 'Start Password Reset'}
+      />
+
+      {/* The one-time code, shown once */}
+      <Modal
+        open={!!resetPasswordResult}
+        onClose={() => setResetPasswordResult(null)}
+        title={`Give this code to ${resetPasswordResult?.user.name ?? ''}`}
+        description="Tell them this code in person, by phone, or by chat — not written where others can see it. It only works until they set their own new password."
         size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={closeResetPassword} disabled={isSavingPassword}>Cancel</Button>
-            <Button type="submit" form="reset-password-form" loading={isSavingPassword} disabled={newPassword.length < 8}>
-              {isSavingPassword ? 'Saving…' : 'Save New Password'}
-            </Button>
-          </>
-        }
+        footer={<Button onClick={() => setResetPasswordResult(null)}>Done</Button>}
       >
-        <form id="reset-password-form" onSubmit={handleResetPasswordSubmit} className="space-y-5">
-          <Input
-            label="New password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            value={newPassword}
-            onChange={e => setNewPassword(e.target.value)}
-            hint="At least 8 characters. The old password stops working right away."
-          />
-        </form>
+        {resetPasswordResult && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-blue-700 bg-blue-50 px-4 py-3">
+              <span className="font-mono text-xl font-bold tracking-wide text-blue-900 break-all">{resetPasswordResult.code}</span>
+              <IconButton
+                icon={copiedCode ? CheckCircle2 : Copy}
+                label="Copy the code"
+                onClick={() => {
+                  navigator.clipboard?.writeText(resetPasswordResult.code).then(() => {
+                    setCopiedCode(true);
+                    setTimeout(() => setCopiedCode(false), 2000);
+                  });
+                }}
+              />
+            </div>
+            <Alert tone="info" title="This code is shown only once">
+              If you lose it, start another password reset — that makes a new code and the old one stops working.
+            </Alert>
+          </div>
+        )}
       </Modal>
 
       {/* Are you sure? */}

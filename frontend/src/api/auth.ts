@@ -44,3 +44,10 @@ export interface SignUpDetails {
 export async function signUp(details: SignUpDetails): Promise<{ message: string }> {
   return api.post('/auth/register', details);
 }
+
+// Only the signed-in person can change their own password. `currentPassword` can be the one-time
+// code an Admin gave them after a forced reset — it works as a normal password exactly once.
+export async function changePassword(currentPassword: string, newPassword: string): Promise<User> {
+  const res = await api.patch('/auth/change-password', { currentPassword, newPassword });
+  return res.user;
+}

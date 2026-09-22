@@ -15,6 +15,9 @@ const sanitize = (user) => ({
   courseId: user.courseId,
   phone: user.phone,
   status: user.status,
+  // True right after an Admin starts a password reset — the frontend must send them
+  // straight to "Set a new password" before letting them use anything else.
+  mustChangePassword: user.mustChangePassword,
   registeredAt: user.createdAt,
 });
 
@@ -71,4 +74,29 @@ const logout = async (req, res) => {
   res.status(204).send();
 };
 
-module.exports = { login, register, me, logout };
+// Anyone signed in can change their own password this way — including someone who just signed
+// in with a one-time code an Admin gave them (see userController.forcePasswordReset): the code
+// is their "current password" here, and only they ever choose the real new one.
+const changePassword = async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return next(new AppError('Please enter your current password and a new password.', 400));
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return next(new AppError('Your new password must be at least 8 characters long.', 400));
+  }
+
+  const user = await User.findById(req.user._id).select('+password');
+  if (!(await user.comparePassword(currentPassword))) {
+    return next(new AppError('Your current password is not correct.', 401));
+  }
+
+  user.password = newPassword; // hashed automatically when saved
+  user.mustChangePassword = false;
+  await user.save();
+  await logAction(req, 'CHANGE_OWN_PASSWORD', `${user.name} changed their own password.`, user);
+
+  res.json({ user: sanitize(user) });
+};
+
+module.exports = { login, register, me, logout, changePassword };

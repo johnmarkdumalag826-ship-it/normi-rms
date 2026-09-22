@@ -140,17 +140,40 @@ async function main() {
   const studentListsUsers = await request(server, 'GET', '/api/users', null, studentToken);
   assert(studentListsUsers.status === 403, 'a student cannot list all accounts -> 403');
 
-  console.log('\n--- Admin sets a new password ---');
-  const shortPw = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'short' }, adminToken);
-  assert(shortPw.status === 400, 'a password under 8 characters is refused -> 400');
-  const studentTriesReset = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'sneaky-new-pass' }, studentToken);
-  assert(studentTriesReset.status === 403, 'a student cannot reset passwords -> 403');
-  const reset = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'student-pass-2' }, adminToken);
-  assert(reset.status === 200, 'admin can set a new password -> 200');
-  const oldPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-1' });
-  assert(oldPw.status === 401, 'the old password stops working -> 401');
+  console.log('\n--- Only the person can set their own password ---');
+  const adminTriesDirectly = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'sneaky-new-pass' }, adminToken);
+  assert(adminTriesDirectly.status === 200, "PATCH /api/users/:id with a password field is silently ignored, not rejected");
+  const stillOldPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-1' });
+  assert(stillOldPw.status === 200, "the student's real password still works — the admin could not set it directly");
+
+  const studentTriesForceReset = await request(server, 'POST', `/api/users/${student.id}/force-password-reset`, {}, studentToken);
+  assert(studentTriesForceReset.status === 403, 'a student cannot start a password reset for anyone -> 403');
+
+  const forceReset = await request(server, 'POST', `/api/users/${student.id}/force-password-reset`, {}, adminToken);
+  assert(forceReset.status === 200 && typeof forceReset.body.tempPassword === 'string' && forceReset.body.tempPassword.length >= 8, 'admin starts a password reset -> gets a one-time code back');
+  const tempPassword = forceReset.body.tempPassword;
+
+  const oldPwGone = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-1' });
+  assert(oldPwGone.status === 401, 'the old password stops working once the reset starts -> 401');
+
+  const signInWithCode = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: tempPassword });
+  assert(signInWithCode.status === 200 && signInWithCode.body.user.mustChangePassword === true, 'signing in with the one-time code works, and mustChangePassword is true');
+  const tempToken = signInWithCode.body.token;
+
+  const shortNewPw = await request(server, 'PATCH', '/api/auth/change-password', { currentPassword: tempPassword, newPassword: 'short' }, tempToken);
+  assert(shortNewPw.status === 400, 'a new password under 8 characters is refused -> 400');
+
+  const wrongCurrent = await request(server, 'PATCH', '/api/auth/change-password', { currentPassword: 'not-the-code', newPassword: 'student-pass-2' }, tempToken);
+  assert(wrongCurrent.status === 401, 'the wrong current password is refused -> 401');
+
+  const setOwnPassword = await request(server, 'PATCH', '/api/auth/change-password', { currentPassword: tempPassword, newPassword: 'student-pass-2' }, tempToken);
+  assert(setOwnPassword.status === 200 && setOwnPassword.body.user.mustChangePassword === false, 'the student sets their own new password -> mustChangePassword clears');
+
+  const codeNowDead = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: tempPassword });
+  assert(codeNowDead.status === 401, 'the one-time code no longer works once it is replaced -> 401');
+
   const newPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
-  assert(newPw.status === 200 && !!newPw.body.token, 'the new password works -> 200');
+  assert(newPw.status === 200 && !!newPw.body.token, "the student's own new password works -> 200");
 
   console.log('\n--- Admin publishes a finished paper with its PDF ---');
   const published = await request(server, 'POST', '/api/research/archived', {
