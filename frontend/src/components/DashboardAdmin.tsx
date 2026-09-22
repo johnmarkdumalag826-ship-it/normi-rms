@@ -68,6 +68,7 @@ export default function DashboardAdmin({
 
   // Accounts
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [accountsRoleTab, setAccountsRoleTab] = useState<UserRole>('student');
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -372,32 +373,37 @@ export default function DashboardAdmin({
             />
           </section>
 
-          {/* Everyone already approved, one list per role so a long roster stays easy to scan */}
-          {roleOptions.map(role => {
-            const roleUsers = otherUsersByRole[role];
-            return (
-              <section key={role} aria-labelledby={`role-${role}-title`} className="space-y-3">
-                <h2 id={`role-${role}-title`} className="text-base font-bold text-slate-900">
-                  {rolePluralLabels[role]} ({roleUsers.length})
-                </h2>
-                <Table
-                  caption={rolePluralLabels[role]}
-                  columns={approvedColumns}
-                  rows={roleUsers}
-                  rowKey={u => u.id}
-                  empty={
-                    <Card padded={false}>
-                      <EmptyState
-                        icon={Users}
-                        title={`No ${rolePluralLabels[role].toLowerCase()} yet`}
-                        description={userSearchQuery ? 'No one here matches your search.' : `No approved ${rolePluralLabels[role].toLowerCase()} yet.`}
-                      />
-                    </Card>
-                  }
-                />
-              </section>
-            );
-          })}
+          {/* Everyone already approved: choose which group to look at */}
+          <section aria-labelledby="approved-accounts-title" className="space-y-3">
+            <h2 id="approved-accounts-title" className="text-base font-bold text-slate-900">Approved Accounts</h2>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Choose which accounts to view">
+              {roleOptions.map(role => (
+                <Button
+                  key={role}
+                  variant={accountsRoleTab === role ? 'primary' : 'secondary'}
+                  aria-pressed={accountsRoleTab === role}
+                  onClick={() => setAccountsRoleTab(role)}
+                >
+                  {rolePluralLabels[role]} ({otherUsersByRole[role].length})
+                </Button>
+              ))}
+            </div>
+            <Table
+              caption={rolePluralLabels[accountsRoleTab]}
+              columns={approvedColumns}
+              rows={otherUsersByRole[accountsRoleTab]}
+              rowKey={u => u.id}
+              empty={
+                <Card padded={false}>
+                  <EmptyState
+                    icon={Users}
+                    title={`No ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet`}
+                    description={userSearchQuery ? 'No one here matches your search.' : `No approved ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet.`}
+                  />
+                </Card>
+              }
+            />
+          </section>
         </div>
       )}
 
