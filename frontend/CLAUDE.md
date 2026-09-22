@@ -6,7 +6,7 @@ Notes for AI coding assistants working in this folder.
 
 The **frontend** of NORMI RMS (Research Management & Monitoring System) for Northern Mindanao Colleges, Inc.
 React 19 + TypeScript + Vite + Tailwind CSS v4. It talks to the Express/MongoDB backend in `../backend`
-through `src/api/`. Roles: student, adviser, coordinator, panelist, admin. New people can register on the sign-in page; it stays "pending" until an Admin approves it.
+through `src/api/`. Roles: student, adviser, coordinator, panelist, admin. New people can register on the sign-in page; it stays "pending" until an Admin approves or rejects it. Nobody but the account owner can ever set their password, not even an Admin.
 
 ## Commands
 

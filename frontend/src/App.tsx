@@ -9,7 +9,7 @@ import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
-import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser, forcePasswordReset } from './api/users';
+import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
@@ -31,7 +31,6 @@ import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs'
 
 // Importing Modular sub-components
 import Login from './components/Login';
-import ForcedPasswordChange from './components/ForcedPasswordChange';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -536,20 +535,7 @@ export default function App() {
     }
   };
 
-  // Admin starts a password reset for someone who forgot theirs. Only they ever choose the real
-  // new password (see ForcedPasswordChange): this only hands back a one-time code, or null if it failed.
-  const handleForcePasswordReset = async (id: string): Promise<string | null> => {
-    try {
-      const { tempPassword } = await forcePasswordReset(id);
-      setAuditLogs(await listAuditLogs());
-      return tempPassword;
-    } catch (err) {
-      handleApiError(err, 'Could not start a password reset.');
-      return null;
-    }
-  };
-
-  // Anyone signed in changed their own password (voluntarily, or right after a forced reset).
+  // Anyone signed in changed their own password.
   const handlePasswordChanged = (updated: User) => {
     setCurrentUser(updated);
     triggerAlert('Your new password was saved.');
@@ -711,7 +697,6 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
-              onForcePasswordReset={handleForcePasswordReset}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -898,7 +883,6 @@ export default function App() {
               onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
-              onForcePasswordReset={handleForcePasswordReset}
               onBackupDatabase={handleBackupDatabase}
               onRestoreDatabase={handleRestoreDatabase}
             />
@@ -935,12 +919,6 @@ export default function App() {
   // Not signed in: go straight to the sign-in page (it also lets new people ask for an account)
   if (!currentUser) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  // An Admin started a password reset for this account: only this person may pick the real new
-  // password, so nothing else in the app is usable until they do.
-  if (currentUser.mustChangePassword) {
-    return <ForcedPasswordChange user={currentUser} onDone={handlePasswordChanged} onSignOut={handleLogout} />;
   }
 
   // Once logged in, wait for the bulk data load before rendering dashboards — otherwise

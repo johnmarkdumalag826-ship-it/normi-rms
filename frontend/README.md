@@ -18,7 +18,7 @@ adviser feedback, defense scheduling, panel scoring, and a searchable research r
 | **Adviser** | See student groups, read papers, give chapter-by-chapter feedback, approve or ask for changes |
 | **Coordinator** | Set defense dates, rooms and panels (warns about double-booking), post announcements |
 | **Panel Member** | See assigned defenses, read the defense copy, score each defense |
-| **Admin** | Manage accounts and passwords, view all defenses, back up and restore data |
+| **Admin** | Approve, reject, edit or delete accounts, view all defenses, back up and restore data |
 | **Everyone** | Search the Research Repository and see the defense schedule |
 
 ### How a research paper moves through the system
@@ -77,7 +77,6 @@ src/
 │
 ├── components/          The screens
 │   ├── Login.tsx                            Sign in and register
-│   ├── ForcedPasswordChange.tsx             Set a new password after an Admin starts a reset
 │   ├── ChangePasswordModal.tsx              Anyone can change their own password, any time
 │   ├── Sidebar.tsx, Header.tsx              The menu and top bar
 │   ├── DashboardStudent / Adviser / Coordinator / Panelist / Admin.tsx
@@ -113,8 +112,10 @@ src/
 
 ## Good to know
 
-- There is no public sign-up. An Admin creates every account in **Manage Accounts**.
-- If someone forgets their password, an Admin sets a new one from **Manage Accounts → Reset Password**.
-  The website does not send emails yet.
-- **Review Papers** shows the student's uploaded PDF inside the page. Word files are downloaded instead.
+- New people register on the sign-in page; the account stays "pending" until an Admin approves or
+  rejects it in **Manage Accounts** (an Admin can also add an account directly).
+- Nobody but the account owner can ever set their password — not even an Admin. Anyone signed in can
+  change it any time from the key icon next to their name. If someone forgets it, there is no recovery:
+  an Admin deletes the old account so they can register again. The website does not send emails yet.
+- **Review Papers** and the paper page show both PDF and Word files inside the page, with highlighting.
 - Online (video) defenses are not supported yet: every defense needs a room.

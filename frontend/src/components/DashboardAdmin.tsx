@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Users, UserCheck, Shield, Plus, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
-  Eye, KeyRound, Pencil, Trash2, Ban, RefreshCw, CheckCircle2, Copy,
+  Eye, Pencil, Trash2, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, StatusBadge, Table,
+  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column,
 } from '../ui';
 
@@ -25,8 +25,6 @@ interface DashboardAdminProps {
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
   onRestoreDatabase: () => void;
-  /** Starts a password reset for someone. Resolves to the one-time code, or null if it failed. */
-  onForcePasswordReset: (id: string) => Promise<string | null>;
 }
 
 type Section = 'dashboard' | 'user-management' | 'schedules';
@@ -40,7 +38,7 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
   'user-management': {
     label: 'Accounts',
     title: 'Manage Accounts',
-    subtitle: 'Add people, change their details, and suspend or delete accounts.',
+    subtitle: 'Add people, change their details, and approve, reject or delete accounts.',
   },
   schedules: {
     label: 'All Defenses',
@@ -54,7 +52,7 @@ const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
   onToggleUserStatus, onUpdateUserRole, onAddUserAccount, onUpdateUser, onDeleteUserAccount,
-  onBackupDatabase, onRestoreDatabase, onForcePasswordReset
+  onBackupDatabase, onRestoreDatabase
 }: DashboardAdminProps) {
 
   const [currentSection, setCurrentSection] = useState<Section>(
@@ -74,14 +72,9 @@ export default function DashboardAdmin({
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  // Starting a password reset: who it's for (confirm step), then the one-time code to show
-  const [resetPasswordFor, setResetPasswordFor] = useState<User | null>(null);
-  const [isStartingReset, setIsStartingReset] = useState(false);
-  const [resetPasswordResult, setResetPasswordResult] = useState<{ user: User; code: string } | null>(null);
-  const [copiedCode, setCopiedCode] = useState(false);
   // "Are you sure?" for risky actions
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [userToSuspend, setUserToSuspend] = useState<User | null>(null);
+  const [userToReject, setUserToReject] = useState<User | null>(null);
   const [confirmingRestore, setConfirmingRestore] = useState(false);
 
   const [newUserForm, setNewUserForm] = useState({
@@ -110,7 +103,6 @@ export default function DashboardAdmin({
       coordinators: users.filter(u => u.role === 'coordinator').length,
       admins: users.filter(u => u.role === 'admin').length,
       active: users.filter(u => u.status === 'active').length,
-      suspended: users.filter(u => u.status === 'suspended').length,
       pending: users.filter(u => u.status === 'pending').length,
     };
   }, [users]);
@@ -208,23 +200,7 @@ export default function DashboardAdmin({
 
   const closeEdit = () => { setShowEditUserModal(false); setEditingUser(null); };
 
-  const handleConfirmForcePasswordReset = async () => {
-    const target = resetPasswordFor;
-    if (!target) return;
-    setIsStartingReset(true);
-    const code = await onForcePasswordReset(target.id);
-    setIsStartingReset(false);
-    setResetPasswordFor(null);
-    if (code) setResetPasswordResult({ user: target, code });
-  };
-
   const getRoomName = (roomId: string) => rooms.find(r => r.id === roomId)?.name ?? (roomId === 'online' || !roomId ? 'Online meeting' : 'Room not found');
-
-  // The Suspend / Reactivate / Approve buttons: suspending asks first, the others do not.
-  const requestToggleStatus = (u: User) => {
-    if (u.status === 'active') setUserToSuspend(u);
-    else onToggleUserStatus(u.id);
-  };
 
   const userColumns: Column<User>[] = [
     {
@@ -247,25 +223,23 @@ export default function DashboardAdmin({
           <span className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Eye} onClick={() => setSelectedUserDetails(u)}>Details</Button>
             <Button variant="secondary" size="sm" icon={Pencil} onClick={() => handleEditUserClick(u)}>Edit</Button>
-            <Button variant="secondary" size="sm" icon={KeyRound} onClick={() => setResetPasswordFor(u)}>Reset Password</Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={u.status === 'active' ? Ban : u.status === 'pending' ? CheckCircle2 : RefreshCw}
-              onClick={() => requestToggleStatus(u)}
-            >
-              {u.status === 'active' ? 'Suspend' : u.status === 'pending' ? 'Approve' : 'Reactivate'}
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              icon={Trash2}
-              disabled={isMe}
-              title={isMe ? 'You cannot delete your own account.' : undefined}
-              onClick={() => setUserToDelete(u)}
-            >
-              Delete
-            </Button>
+            {u.status === 'pending' ? (
+              <>
+                <Button variant="secondary" size="sm" icon={CheckCircle2} onClick={() => onToggleUserStatus(u.id)}>Approve</Button>
+                <Button variant="danger" size="sm" icon={XCircle} onClick={() => setUserToReject(u)}>Reject</Button>
+              </>
+            ) : (
+              <Button
+                variant="danger"
+                size="sm"
+                icon={Trash2}
+                disabled={isMe}
+                title={isMe ? 'You cannot delete your own account.' : undefined}
+                onClick={() => setUserToDelete(u)}
+              >
+                Delete
+              </Button>
+            )}
           </span>
         );
       },
@@ -392,7 +366,6 @@ export default function DashboardAdmin({
                 <option value="all">All accounts</option>
                 <option value="pending">Waiting for approval</option>
                 <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
               </Select>
             </div>
           </Card>
@@ -603,47 +576,6 @@ export default function DashboardAdmin({
         </form>
       </Modal>
 
-      {/* Start a password reset: only the person themselves ever sets the real new password */}
-      <ConfirmDialog
-        open={!!resetPasswordFor}
-        onCancel={() => setResetPasswordFor(null)}
-        onConfirm={handleConfirmForcePasswordReset}
-        title={`Start a password reset for ${resetPasswordFor?.name ?? 'this person'}?`}
-        message="Their old password stops working right away. You will get a one-time code to give them — they use it to sign in and are immediately asked to choose their own new password. You will not know what they pick."
-        confirmLabel={isStartingReset ? 'Starting…' : 'Start Password Reset'}
-      />
-
-      {/* The one-time code, shown once */}
-      <Modal
-        open={!!resetPasswordResult}
-        onClose={() => setResetPasswordResult(null)}
-        title={`Give this code to ${resetPasswordResult?.user.name ?? ''}`}
-        description="Tell them this code in person, by phone, or by chat — not written where others can see it. It only works until they set their own new password."
-        size="sm"
-        footer={<Button onClick={() => setResetPasswordResult(null)}>Done</Button>}
-      >
-        {resetPasswordResult && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-blue-700 bg-blue-50 px-4 py-3">
-              <span className="font-mono text-xl font-bold tracking-wide text-blue-900 break-all">{resetPasswordResult.code}</span>
-              <IconButton
-                icon={copiedCode ? CheckCircle2 : Copy}
-                label="Copy the code"
-                onClick={() => {
-                  navigator.clipboard?.writeText(resetPasswordResult.code).then(() => {
-                    setCopiedCode(true);
-                    setTimeout(() => setCopiedCode(false), 2000);
-                  });
-                }}
-              />
-            </div>
-            <Alert tone="info" title="This code is shown only once">
-              If you lose it, start another password reset — that makes a new code and the old one stops working.
-            </Alert>
-          </div>
-        )}
-      </Modal>
-
       {/* Are you sure? */}
       <ConfirmDialog
         open={!!userToDelete}
@@ -659,16 +591,17 @@ export default function DashboardAdmin({
         destructive
       />
       <ConfirmDialog
-        open={!!userToSuspend}
-        onCancel={() => setUserToSuspend(null)}
+        open={!!userToReject}
+        onCancel={() => setUserToReject(null)}
         onConfirm={() => {
-          if (userToSuspend) onToggleUserStatus(userToSuspend.id);
-          setUserToSuspend(null);
+          if (userToReject) onDeleteUserAccount(userToReject.id);
+          setUserToReject(null);
         }}
-        title={`Suspend ${userToSuspend?.name ?? 'this account'}?`}
-        message="This person will not be able to sign in until you reactivate the account. Their papers and comments are kept."
-        confirmLabel="Yes, Suspend Account"
-        cancelLabel="No, Keep Active"
+        title={`Reject ${userToReject?.name ?? "this person"}'s registration?`}
+        message="Their request is removed for good. If they still want an account, they will need to register again."
+        confirmLabel="Yes, Reject Registration"
+        cancelLabel="No, Keep Waiting"
+        destructive
       />
       <ConfirmDialog
         open={confirmingRestore}

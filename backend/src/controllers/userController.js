@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const { logAction } = require('../utils/audit');
@@ -13,8 +12,6 @@ const sanitize = (user) => ({
   courseId: user.courseId,
   phone: user.phone,
   status: user.status,
-  // True right after an Admin starts a password reset — the person must set their own new password.
-  mustChangePassword: user.mustChangePassword,
   registeredAt: user.createdAt,
 });
 
@@ -34,8 +31,7 @@ const listDirectory = async (req, res) => {
 };
 
 // Handles handleToggleUserStatus / handleUpdateUserRole / handleUpdateUser (profile fields) in one generic PATCH.
-// An Admin can never set someone's password here — only that person can, via change-password
-// or by using the one-time code from forcePasswordReset below.
+// An Admin can never set someone's password here — only that person can, via PATCH /api/auth/change-password.
 const updateUser = async (req, res, next) => {
   const { status, role, name, avatar, departmentId, courseId, phone, email } = req.body;
   const user = await User.findById(req.params.id);
@@ -89,27 +85,4 @@ const deleteUser = async (req, res, next) => {
   res.status(204).send();
 };
 
-// Letters and numbers only, no easily-confused characters (no 0/O, 1/l/I).
-const randomTempCode = () => {
-  const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from(crypto.randomBytes(10), (b) => letters[b % letters.length]).join('');
-};
-
-// An Admin cannot choose someone's password. Instead this starts a reset: a one-time code is
-// generated and handed back to the Admin (once) to give the person out of band. The code works
-// as their password exactly once — signing in with it forces them straight to "Set a new
-// password", where they choose their own real password (see authController.changePassword).
-const forcePasswordReset = async (req, res, next) => {
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found', 404));
-
-  const tempPassword = randomTempCode();
-  user.password = tempPassword; // hashed automatically when saved
-  user.mustChangePassword = true;
-  await user.save();
-  await logAction(req, 'FORCE_PASSWORD_RESET', `Admin started a password reset for ${user.name}. They must set their own new password at next sign-in.`);
-
-  res.json({ tempPassword });
-};
-
-module.exports = { listUsers, listDirectory, updateUser, createUser, deleteUser, forcePasswordReset };
+module.exports = { listUsers, listDirectory, updateUser, createUser, deleteUser };

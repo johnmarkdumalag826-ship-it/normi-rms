@@ -237,17 +237,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           )}
 
           {screen === 'forgot' && (
-            /* There is no automatic email, so we say who can help. An Admin cannot see or choose your
-               password — they can only start a reset, which gives them a one-time code to hand you. */
+            /* Nobody but you can ever set your password — not even an Admin — so there is no
+               reset to send. The only way back in is a fresh account. */
             <div className="space-y-4">
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Forgot your password?</h1>
-                <p className="mt-1 text-sm text-slate-600">An Admin can help you get back in.</p>
+                <p className="mt-1 text-sm text-slate-600">Only you can set your password, so nobody can send you a new one.</p>
               </div>
               <Alert tone="info" title="How to get back in">
-                Contact the research office or your Admin and ask for a password reset. They will give you
-                a one-time code. Sign in with it here, using your usual email — you will then be asked to
-                choose your own new password right away. Nobody else will know it.
+                Contact the research office or your Admin and ask them to delete your old account.
+                Then come back here and register again with the same email and a new password.
               </Alert>
               <Button variant="secondary" icon={ArrowLeft} onClick={() => goTo('sign-in')}>Go Back to Sign In</Button>
             </div>
