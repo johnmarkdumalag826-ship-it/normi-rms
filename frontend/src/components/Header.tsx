@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Clock, Menu, CheckCircle2, AlertTriangle, Info, KeyRound } from 'lucide-react';
+import { Bell, Menu, CheckCircle2, AlertTriangle, Info, KeyRound } from 'lucide-react';
 import { User, SystemNotification } from '../types';
 import { roleLabels, getPageTitle, formatDateTime, Avatar, Badge, IconButton } from '../ui';
 
@@ -16,17 +16,10 @@ export default function Header({
   user, notifications, onMarkNotificationsAsRead, onToggleSidebar, onOpenChangePassword, activeTab,
 }: HeaderProps) {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-  const [now, setNow] = useState(() => new Date());
   const notifRef = useRef<HTMLDivElement>(null);
 
   const userNotifications = notifications.filter(n => n.userId === user.id);
   const unreadCount = userNotifications.filter(n => !n.read).length;
-
-  // Real clock, refreshed every 30 seconds.
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
 
   // Close the notification list with Esc or a click outside it.
   useEffect(() => {
@@ -63,13 +56,8 @@ export default function Header({
         </p>
       </div>
 
-      {/* Right: date and time, notifications, who is signed in */}
+      {/* Right: notifications, who is signed in */}
       <div className="flex items-center gap-2 sm:gap-4">
-        <div className="hidden md:flex items-center gap-2 text-sm text-slate-600">
-          <Clock className="h-4 w-4" aria-hidden="true" />
-          <time dateTime={now.toISOString()}>{formatDateTime(now)}</time>
-        </div>
-
         <div className="relative" ref={notifRef}>
           <button
             type="button"
