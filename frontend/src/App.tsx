@@ -9,7 +9,7 @@ import { Toast, Button, Card, EmptyState, ErrorState, roleLabels } from './ui';
 
 import { fetchCurrentUser, logout as logoutRequest } from './api/auth';
 import { ApiError } from './api/client';
-import { listDirectory, listUsers, createUser, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
+import { listDirectory, listUsers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
@@ -512,19 +512,6 @@ export default function App() {
     }
   };
 
-  const handleAddUserAccount = async (newUser: User, password: string) => {
-    try {
-      const created = await createUser({
-        email: newUser.email, password, name: newUser.name, role: newUser.role,
-        departmentId: newUser.departmentId, courseId: newUser.courseId, phone: newUser.phone,
-      });
-      setUsers(prev => [...prev, created]);
-      triggerAlert("New user account registered!");
-    } catch (err) {
-      handleApiError(err, 'Could not register user account.');
-    }
-  };
-
   const handleDeleteUserAccount = async (id: string) => {
     try {
       await apiDeleteUser(id);
@@ -694,7 +681,6 @@ export default function App() {
               rooms={rooms}
               onToggleUserStatus={handleToggleUserStatus}
               onUpdateUserRole={handleUpdateUserRole}
-              onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
               onBackupDatabase={handleBackupDatabase}
@@ -880,7 +866,6 @@ export default function App() {
               activeSection="user-management"
               onToggleUserStatus={handleToggleUserStatus}
               onUpdateUserRole={handleUpdateUserRole}
-              onAddUserAccount={handleAddUserAccount}
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
               onBackupDatabase={handleBackupDatabase}

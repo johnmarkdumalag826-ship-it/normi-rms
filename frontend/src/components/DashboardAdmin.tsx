@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Users, UserCheck, Shield, Plus, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
+  Users, UserCheck, Shield, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
   Eye, Pencil, Trash2, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
@@ -20,7 +20,6 @@ interface DashboardAdminProps {
   activeSection?: 'dashboard' | 'user-management';
   onToggleUserStatus: (id: string) => void;
   onUpdateUserRole: (id: string, role: UserRole) => void;
-  onAddUserAccount: (newUser: User, password: string) => void;
   onUpdateUser: (updatedUser: User) => void;
   onDeleteUserAccount: (id: string) => void;
   onBackupDatabase: () => void;
@@ -38,7 +37,7 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
   'user-management': {
     label: 'Accounts',
     title: 'Manage Accounts',
-    subtitle: 'Add people, change their details, and approve, reject or delete accounts.',
+    subtitle: 'Approve or reject new registrations, and edit or delete accounts.',
   },
   schedules: {
     label: 'All Defenses',
@@ -51,7 +50,7 @@ const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'
 
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
-  onToggleUserStatus, onUpdateUserRole, onAddUserAccount, onUpdateUser, onDeleteUserAccount,
+  onToggleUserStatus, onUpdateUserRole, onUpdateUser, onDeleteUserAccount,
   onBackupDatabase, onRestoreDatabase
 }: DashboardAdminProps) {
 
@@ -69,7 +68,6 @@ export default function DashboardAdmin({
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
   const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   // "Are you sure?" for risky actions
@@ -84,7 +82,6 @@ export default function DashboardAdmin({
     departmentId: departments[0]?.id || '',
     courseId: courses[0]?.id || '',
     status: 'active' as User['status'],
-    password: ''
   });
 
   // Defense filters
@@ -136,35 +133,6 @@ export default function DashboardAdmin({
     });
   }, [schedules, researchList, schedDeptFilter, schedDateFilter, schedAdviserFilter, schedPanelFilter, schedRoomFilter, schedStatusFilter]);
 
-  const handleAddUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserForm.name || !newUserForm.email || !newUserForm.password) return;
-
-    const newId = `usr-${Date.now()}`;
-    const userAccount: User = {
-      id: newId,
-      name: newUserForm.name,
-      email: newUserForm.email,
-      role: newUserForm.role,
-      departmentId: newUserForm.departmentId,
-      courseId: newUserForm.courseId,
-      status: newUserForm.status,
-      registeredAt: new Date().toISOString()
-    };
-
-    onAddUserAccount(userAccount, newUserForm.password);
-    setShowAddUserModal(false);
-    setNewUserForm({
-      name: '',
-      email: '',
-      role: 'student',
-      departmentId: departments[0]?.id || '',
-      courseId: courses[0]?.id || '',
-      status: 'active',
-      password: ''
-    });
-  };
-
   const handleEditUserClick = (u: User) => {
     setEditingUser(u);
     setNewUserForm({
@@ -174,7 +142,6 @@ export default function DashboardAdmin({
       departmentId: u.departmentId || departments[0]?.id || '',
       courseId: u.courseId || courses[0]?.id || '',
       status: u.status,
-      password: ''
     });
     setShowEditUserModal(true);
   };
@@ -341,7 +308,6 @@ export default function DashboardAdmin({
                 <h2 className="text-base font-bold text-slate-900">All accounts ({filteredUsers.length})</h2>
                 <p className="text-sm text-slate-600">Search for a person, then use the buttons next to their name.</p>
               </div>
-              <Button icon={Plus} onClick={() => setShowAddUserModal(true)}>Add an Account</Button>
             </div>
 
             <div className="relative">
@@ -498,55 +464,6 @@ export default function DashboardAdmin({
             </dl>
           </div>
         )}
-      </Modal>
-
-      {/* Add an account */}
-      <Modal
-        open={showAddUserModal}
-        onClose={() => setShowAddUserModal(false)}
-        title="Add an account"
-        description="Fields marked with * are required."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowAddUserModal(false)}>Cancel</Button>
-            <Button type="submit" form="add-user-form">Add This Account</Button>
-          </>
-        }
-      >
-        <form id="add-user-form" onSubmit={handleAddUserSubmit} className="space-y-5">
-          <Input
-            label="Full name"
-            required
-            placeholder="e.g. Dr. Arthur Pendelton"
-            value={newUserForm.name}
-            onChange={e => setNewUserForm({ ...newUserForm, name: e.target.value })}
-          />
-          <Input
-            label="Email"
-            type="email"
-            required
-            placeholder="e.g. arthur.pendelton@cit.edu"
-            value={newUserForm.email}
-            onChange={e => setNewUserForm({ ...newUserForm, email: e.target.value })}
-          />
-          <Input
-            label="First password"
-            type="password"
-            required
-            minLength={8}
-            hint="Use at least 8 characters. Give it to the person so they can sign in."
-            value={newUserForm.password}
-            onChange={e => setNewUserForm({ ...newUserForm, password: e.target.value })}
-          />
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Select label="Role" value={newUserForm.role} onChange={e => setNewUserForm({ ...newUserForm, role: e.target.value as UserRole })}>
-              {roleOptions.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
-            </Select>
-            <Select label="Department" value={newUserForm.departmentId} onChange={e => setNewUserForm({ ...newUserForm, departmentId: e.target.value })}>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
-            </Select>
-          </div>
-        </form>
       </Modal>
 
       {/* Edit an account */}

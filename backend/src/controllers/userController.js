@@ -64,20 +64,7 @@ const updateUser = async (req, res, next) => {
   res.json(sanitize(user));
 };
 
-// Admin directly provisioning a new account (handleAddUserAccount)
-const createUser = async (req, res, next) => {
-  const { email, password, name, role, departmentId, courseId, phone } = req.body;
-  if (!email || !password || !name || !role) {
-    return next(new AppError('email, password, name, and role are required', 400));
-  }
-  const existing = await User.findOne({ email: email.toLowerCase() });
-  if (existing) return next(new AppError('An account with this email already exists', 409));
-
-  const user = await User.create({ email, password, name, role, departmentId, courseId, phone, status: 'active' });
-  await logAction(req, 'REGISTER_USER_ACCOUNT', `Academic account registered: ${user.name} (${user.email})`);
-  res.status(201).json(sanitize(user));
-};
-
+// Deleting a pending account also serves as "Reject" for a registration (see DashboardAdmin).
 const deleteUser = async (req, res, next) => {
   const user = await User.findByIdAndDelete(req.params.id);
   if (!user) return next(new AppError('User not found', 404));
@@ -85,4 +72,4 @@ const deleteUser = async (req, res, next) => {
   res.status(204).send();
 };
 
-module.exports = { listUsers, listDirectory, updateUser, createUser, deleteUser };
+module.exports = { listUsers, listDirectory, updateUser, deleteUser };

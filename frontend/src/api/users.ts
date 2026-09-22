@@ -8,10 +8,8 @@ export const listUsers = (): Promise<User[]> => api.get('/users');
 export const listDirectory = (role?: UserRole): Promise<User[]> =>
   api.get(role ? `/users/directory?role=${role}` : '/users/directory');
 
-export const createUser = (input: {
-  email: string; password: string; name: string; role: UserRole;
-  departmentId?: string; courseId?: string; phone?: string;
-}): Promise<User> => api.post('/users', input);
+// There is no admin-created account any more: people register themselves and an Admin
+// approves or rejects the request (see api/auth.ts signUp, and updateUser's status field below).
 
 export const updateUser = (id: string, patch: Partial<{
   status: User['status']; role: UserRole; name: string; avatar: string;

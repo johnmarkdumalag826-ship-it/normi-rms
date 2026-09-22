@@ -80,8 +80,9 @@ async function main() {
   const health = await request(server, 'GET', '/api/health');
   assert(health.status === 200 && health.body.status === 'ok', 'GET /api/health returns ok');
 
-  // There is no public sign-up: an Admin creates accounts. The test makes its users directly,
-  // then signs each one in through the real login route to get a token.
+  // Nobody, not even an Admin, creates accounts directly any more — people register themselves
+  // and get approved. The test makes its users directly (bypassing that), then signs each one
+  // in through the real login route to get a token.
   async function makeUser(fields, password) {
     await User.create({ ...fields, password, status: 'active' });
     const login = await request(server, 'POST', '/api/auth/login', { email: fields.email, password });
@@ -139,6 +140,12 @@ async function main() {
 
   const studentListsUsers = await request(server, 'GET', '/api/users', null, studentToken);
   assert(studentListsUsers.status === 403, 'a student cannot list all accounts -> 403');
+
+  console.log('\n--- Nobody creates accounts directly; only registration + approval ---');
+  const noCreateUser = await request(server, 'POST', '/api/users', { email: 'direct@test.local', password: 'password123', name: 'Direct', role: 'student' }, adminToken);
+  assert(noCreateUser.status === 404, 'even an Admin cannot create an account directly -> 404');
+  const noDirectAccount = await User.findOne({ email: 'direct@test.local' });
+  assert(!noDirectAccount, 'no account was created by that attempt');
 
   console.log('\n--- Only the person can set their own password ---');
   const adminTriesDirectly = await request(server, 'PATCH', `/api/users/${student.id}`, { password: 'sneaky-new-pass' }, adminToken);

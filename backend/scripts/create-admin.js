@@ -6,7 +6,7 @@
 // stored only as a hash. You can also skip the questions by setting ADMIN_NAME, ADMIN_EMAIL and
 // ADMIN_PASSWORD in the environment.
 //
-// After that, sign in on the website and add everyone else from "Manage Accounts".
+// After that, everyone else registers themselves on the sign-in page, and you approve or reject them in "Manage Accounts".
 require('dotenv').config();
 const readline = require('readline');
 const mongoose = require('mongoose');
@@ -45,7 +45,7 @@ async function main() {
 
   await User.create({ name, email, password, role: 'admin', status: 'active' });
   console.log(`\nDone. Admin account created for ${email}.`);
-  console.log('Sign in on the website, then add everyone else from "Manage Accounts".');
+  console.log('Sign in on the website. Everyone else registers themselves; approve or reject them in "Manage Accounts".');
   await mongoose.disconnect();
   process.exit(0);
 }
