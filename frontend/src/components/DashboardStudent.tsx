@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
-  Landmark, Plus, Compass, Wrench,
+  Landmark, Compass, Wrench,
 } from 'lucide-react';
-import { User, Research, ResearchVersion, ResearchComment, Schedule, Room, ProposalFile } from '../types';
+import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
@@ -21,22 +21,12 @@ interface DashboardStudentProps {
   users: User[];
   onNavigateToTimeline: () => void;
   onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
-  onUpdateProposalFiles?: (researchId: string, files: ProposalFile[]) => void;
   onUpdateResearchDetails?: (updated: Research) => void;
-  onCreateTitleProposal?: (data: {
-    title: string;
-    abstract: string;
-    keywords: string[];
-    adviserId: string;
-    members: string[];
-    fileName: string;
-    proposalFiles?: ProposalFile[];
-  }) => void;
 }
 
 export default function DashboardStudent({
   user, research, currentVersion, versions, comments, schedules, rooms, users, 
-  onNavigateToTimeline, onStudentUploadRevision, onUpdateProposalFiles, onUpdateResearchDetails, onCreateTitleProposal
+  onNavigateToTimeline, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -47,23 +37,8 @@ export default function DashboardStudent({
   const [selectedJourneyStage, setSelectedJourneyStage] = useState<number>(2); // Active stage (index 2: Proposal Defense) by default
   const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
 
-  // Proposal attachment states
-  const [dashboardPreviewFile, setDashboardPreviewFile] = useState<ProposalFile | null>(null);
-  const [dashboardUploadCategory, setDashboardUploadCategory] = useState<'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments'>('proposal_document');
-  const [dashboardReplaceId, setDashboardReplaceId] = useState<string | null>(null);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
-
   // Modals
   const [showEditDetailsModal, setShowEditDetailsModal] = useState(false);
-  const [showFormulationModal, setShowFormulationModal] = useState(false);
-
-  // Formulation fields (for students with research === null)
-  const [propTitle, setPropTitle] = useState('');
-  const [propAbstract, setPropAbstract] = useState('');
-  const [propKeywords, setPropKeywords] = useState('');
-  const [propAdviser, setPropAdviser] = useState('');
-  const [propMembers, setPropMembers] = useState('');
-  const [propFilename, setPropFilename] = useState('Research_Proposal_Draft.docx');
 
   // Edit Details fields
   const [editTitle, setEditTitle] = useState(research?.title || '');
@@ -88,75 +63,6 @@ export default function DashboardStudent({
     }
   }, [research, user.id, users]);
 
-  const handleDashboardAddFile = (name: string, size: number) => {
-    if (!research || !onUpdateProposalFiles) return;
-    const isPdfOrDocx = name.endsWith('.pdf') || name.endsWith('.docx');
-    if (!isPdfOrDocx) {
-      setDashboardError("Please choose a PDF or Word (DOCX) file.");
-      return;
-    }
-
-    const currentFiles = research.proposalFiles || [];
-
-    if (dashboardReplaceId) {
-      const updated = currentFiles.map(f => f.id === dashboardReplaceId ? {
-        ...f,
-        name,
-        size,
-        uploadedAt: new Date().toISOString()
-      } : f);
-      onUpdateProposalFiles(research.id, updated);
-      setDashboardReplaceId(null);
-      setDashboardError(null);
-      return;
-    }
-
-    const isSingleCategory = dashboardUploadCategory === 'proposal_document' || dashboardUploadCategory === 'research_summary';
-    const existing = currentFiles.find(f => f.category === dashboardUploadCategory);
-
-    if (isSingleCategory && existing) {
-      const updated = currentFiles.map(f => f.category === dashboardUploadCategory ? {
-        ...f,
-        name,
-        size,
-        uploadedAt: new Date().toISOString()
-      } : f);
-      onUpdateProposalFiles(research.id, updated);
-      setDashboardError(null);
-      return;
-    }
-
-    const newFile: ProposalFile = {
-      id: `prop-file-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      name,
-      url: `manuscripts/${name}`,
-      size,
-      uploadedAt: new Date().toISOString(),
-      category: dashboardUploadCategory
-    };
-
-    onUpdateProposalFiles(research.id, [...currentFiles, newFile]);
-    setDashboardError(null);
-  };
-
-  const handleDashboardFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      handleDashboardAddFile(file.name, file.size);
-      e.target.value = '';
-    }
-  };
-
-  const triggerDashboardReplace = (id: string) => {
-    setDashboardReplaceId(id);
-    document.getElementById('dashboard-file-picker')?.click();
-  };
-
-  const handleDashboardDeleteFile = (id: string) => {
-    if (!research || !onUpdateProposalFiles) return;
-    const currentFiles = research.proposalFiles || [];
-    onUpdateProposalFiles(research.id, currentFiles.filter(f => f.id !== id));
-  };
 
   const getAdviserName = () => {
     if (!research) return 'Not Assigned';
@@ -278,25 +184,6 @@ export default function DashboardStudent({
 
     onUpdateResearchDetails(updated);
     setShowEditDetailsModal(false);
-  };
-
-  const handleCreateProposalSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!onCreateTitleProposal) return;
-
-    const keywordsArray = propKeywords.split(',').map(s => s.trim()).filter(Boolean);
-    const membersArray = propMembers.split(',').map(s => s.trim()).filter(Boolean);
-
-    onCreateTitleProposal({
-      title: propTitle,
-      abstract: propAbstract,
-      keywords: keywordsArray,
-      adviserId: propAdviser,
-      members: membersArray,
-      fileName: propFilename
-    });
-
-    setShowFormulationModal(false);
   };
 
   // The 7 steps of a research paper's journey, in plain words.
@@ -422,107 +309,6 @@ export default function DashboardStudent({
         return [];
     }
   };
-
-  // ---------- Screen for a student who has no research paper yet ----------
-  if (!research) {
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title={`Welcome, ${user.name}`}
-          subtitle="You have not sent in a research paper yet. Start by telling us your research title."
-          action={<Button icon={Plus} onClick={() => setShowFormulationModal(true)}>Start My Research Paper</Button>}
-        />
-
-        <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            ['1', 'Send your title', 'Write your research title, a short summary and a few keywords, then choose your adviser.'],
-            ['2', 'Meet your adviser', 'Upload your chapters. Your adviser will read them and write feedback for you to fix.'],
-            ['3', 'Defend your paper', 'After your adviser approves, the coordinator sets your defense date, room and panel.'],
-          ].map(([num, title, text]) => (
-            <li key={num}>
-              <Card className="h-full space-y-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-800 text-base font-bold text-white" aria-hidden="true">{num}</span>
-                <h2 className="text-base font-bold text-slate-900">Step {num}: {title}</h2>
-                <p className="text-sm text-slate-600">{text}</p>
-              </Card>
-            </li>
-          ))}
-        </ol>
-
-        <Modal
-          open={showFormulationModal}
-          onClose={() => setShowFormulationModal(false)}
-          title="Start your research paper"
-          description="Fill in the details below. Fields marked with * are required."
-          size="lg"
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setShowFormulationModal(false)}>Cancel</Button>
-              <Button type="submit" form="formulation-form">Send My Research Title</Button>
-            </>
-          }
-        >
-          <form id="formulation-form" onSubmit={handleCreateProposalSubmit} className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <Input
-                label="Research title"
-                required
-                value={propTitle}
-                onChange={e => setPropTitle(e.target.value)}
-                hint="The name of your research paper."
-                placeholder="e.g. Web-Based Research Management System"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Textarea
-                label="Short summary (abstract)"
-                required
-                rows={4}
-                value={propAbstract}
-                onChange={e => setPropAbstract(e.target.value)}
-                hint="Explain the problem you want to solve and how."
-              />
-            </div>
-            <Input
-              label="Keywords"
-              required
-              value={propKeywords}
-              onChange={e => setPropKeywords(e.target.value)}
-              hint="Separate each keyword with a comma."
-              placeholder="React, Database, Normalization"
-            />
-            <Select
-              label="Preferred adviser"
-              required
-              value={propAdviser}
-              onChange={e => setPropAdviser(e.target.value)}
-              hint="The teacher who will guide your group."
-            >
-              <option value="">Choose an adviser…</option>
-              {users.filter(u => u.role === 'adviser').map(adv => (
-                <option key={adv.id} value={adv.id}>{adv.name}</option>
-              ))}
-            </Select>
-            <Input
-              label="Group members"
-              required
-              value={propMembers}
-              onChange={e => setPropMembers(e.target.value)}
-              hint="Type the names of your teammates, separated by commas."
-              placeholder="John Doe, Mary Ann Smith"
-            />
-            <Input
-              label="Name of your first file"
-              required
-              value={propFilename}
-              onChange={e => setPropFilename(e.target.value)}
-              hint="The file name of your first draft."
-            />
-          </form>
-        </Modal>
-      </div>
-    );
-  }
 
   // ---------- Main home page for a student ----------
   const progress = getProgressPercentage();
@@ -861,26 +647,6 @@ export default function DashboardStudent({
             hint="Group members are set when you first send your paper, or by the coordinator."
           />
         </form>
-      </Modal>
-
-      {/* File preview pop-up */}
-      <Modal
-        open={!!dashboardPreviewFile}
-        onClose={() => setDashboardPreviewFile(null)}
-        title={dashboardPreviewFile?.name ?? 'File preview'}
-        footer={<Button variant="secondary" onClick={() => setDashboardPreviewFile(null)}>Close Preview</Button>}
-      >
-        {dashboardPreviewFile && (
-          <div className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">{research.title}</h3>
-            <p className="text-sm italic text-slate-700">
-              {research.abstract || 'No summary was written for this research paper.'}
-            </p>
-            <p className="text-xs text-slate-600">
-              Sent on {formatDateLong(dashboardPreviewFile.uploadedAt)}
-            </p>
-          </div>
-        )}
       </Modal>
     </div>
   );

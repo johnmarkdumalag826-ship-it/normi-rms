@@ -49,9 +49,12 @@ const createResearch = async (req, res, next) => {
     proposalFiles: proposalFiles || [],
   });
 
+  // Version 1's file is the same real, already-uploaded main document — never a fabricated
+  // path built from just a name (that file would never exist on the server).
+  const mainDoc = (proposalFiles || []).find((f) => f.category === 'proposal_document');
   await ResearchVersion.create({
     researchId: research._id, versionNumber: 1, title, abstract,
-    fileUrl: fileName ? `manuscripts/${fileName}` : undefined, fileName,
+    fileUrl: mainDoc?.url, fileName: mainDoc?.name || fileName,
     submittedBy: user._id, chapters: blankChapters(),
   });
 

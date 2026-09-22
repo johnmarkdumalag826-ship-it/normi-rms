@@ -293,6 +293,24 @@ async function main() {
   const uploadResult = await uploadAs(studentToken, 'manuscript.pdf', '%PDF-1.4 the student draft (private)');
   assert(uploadResult.status === 201 && uploadResult.body.url.startsWith('uploads/'), 'real file upload via multer -> 201 + uploads/ url');
 
+  console.log('\n--- A new title proposal\'s Version 1 uses the real uploaded file ---');
+  const mainDocUpload = await uploadAs(secondStudent.token, 'real-main-doc.pdf', '%PDF-1.4 a real main document');
+  assert(mainDocUpload.status === 201, 'the main document is uploaded before submitting the title -> 201');
+  const proposalWithFile = await request(server, 'POST', '/api/research', {
+    title: 'Real File Test', abstract: 'Checks Version 1 points at the real upload, not a fabricated path.', adviserId,
+    fileName: 'real-main-doc.pdf',
+    proposalFiles: [{
+      id: 'pf-1', name: 'real-main-doc.pdf', url: mainDocUpload.body.url, size: mainDocUpload.body.size,
+      uploadedAt: new Date().toISOString(), category: 'proposal_document',
+    }],
+  }, secondStudent.token);
+  assert(proposalWithFile.status === 201, 'student submits a title with a real uploaded main document -> 201');
+  const proposalVersions = await request(server, 'GET', `/api/research/${proposalWithFile.body.id}/versions`, null, secondStudent.token);
+  const v1 = proposalVersions.body[0];
+  assert(v1 && v1.fileUrl === mainDocUpload.body.url, "Version 1's fileUrl is the real uploaded file's url, not a fabricated 'manuscripts/' path");
+  const v1Access = await request(server, 'POST', '/api/uploads/access', { file: v1.fileUrl }, secondStudent.token);
+  assert(v1Access.status === 200, 'that file is actually openable, end to end -> 200');
+
   console.log('\n--- Uploaded files are private ---');
   // Attach the student's file to their paper as a draft for the adviser.
   const attach = await request(server, 'POST', `/api/research/${researchId}/versions`, {

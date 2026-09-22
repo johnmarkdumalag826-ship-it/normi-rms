@@ -14,7 +14,7 @@ import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/
 import {
   listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
   approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
-  updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts, updateProposalFiles as apiUpdateProposalFiles,
+  updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts,
   listAllVersions, listVersionsForResearch, addVersion,
   listAllComments, listCommentsForResearch, createComment as apiCreateComment,
 } from './api/research';
@@ -468,16 +468,6 @@ export default function App() {
     }
   };
 
-  const handleUpdateProposalFiles = async (researchId: string, files: ProposalFile[]) => {
-    try {
-      const updated = await apiUpdateProposalFiles(researchId, files);
-      setResearchList(prev => prev.map(r => r.id === researchId ? updated : r));
-      triggerAlert("Proposal attachments updated successfully!");
-    } catch (err) {
-      handleApiError(err, 'Could not update proposal attachments.');
-    }
-  };
-
   // Coordinator state flows Kanban board
   const handleUpdateResearchStatus = async (id: string, status: ResearchStatus) => {
     try {
@@ -630,7 +620,6 @@ export default function App() {
                 if (res) setSelectedResearchId(res.id);
               }}
               onStudentUploadRevision={handleStudentUploadRevision}
-              onUpdateProposalFiles={handleUpdateProposalFiles}
               onUpdateResearchDetails={async (updated: Research) => {
                 try {
                   const { id, ...patch } = updated;
@@ -641,7 +630,6 @@ export default function App() {
                   handleApiError(err, 'Could not update research details.');
                 }
               }}
-              onCreateTitleProposal={handleCreateTitleProposal}
             />
           );
         } else if (currentUser?.role === 'adviser') {
