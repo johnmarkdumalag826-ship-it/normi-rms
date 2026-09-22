@@ -207,6 +207,13 @@ export default function DashboardAdmin({
   };
   const roleColumn: Column<User> = { key: 'role', header: 'Role', render: u => <Badge tone="info">{roleLabels[u.role]}</Badge> };
   const emailColumn: Column<User> = { key: 'email', header: 'Email', render: u => <span className="break-all">{u.email}</span> };
+  const departmentColumn: Column<User> = {
+    key: 'department', header: 'Department',
+    render: u => {
+      const name = departments.find(d => d.id === u.departmentId)?.name;
+      return name ? <span>{name}</span> : <span className="text-slate-500">—</span>;
+    },
+  };
 
   const pendingColumns: Column<User>[] = [
     personColumn, roleColumn, emailColumn,
@@ -224,7 +231,7 @@ export default function DashboardAdmin({
   ];
 
   const approvedColumns: Column<User>[] = [
-    personColumn, emailColumn,
+    personColumn, departmentColumn, emailColumn,
     { key: 'status', header: 'Account', render: u => <StatusBadge info={userStatus[u.status] ?? userStatus.active} /> },
     {
       key: 'actions', header: 'What you can do',
