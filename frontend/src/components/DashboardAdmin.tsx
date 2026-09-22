@@ -373,9 +373,9 @@ export default function DashboardAdmin({
             />
           </section>
 
-          {/* Everyone already approved: choose which group to look at */}
-          <section aria-labelledby="approved-accounts-title" className="space-y-3">
-            <h2 id="approved-accounts-title" className="text-base font-bold text-slate-900">Approved Accounts</h2>
+          {/* Everyone not pending: choose which group to look at */}
+          <section aria-labelledby="active-accounts-title" className="space-y-3">
+            <h2 id="active-accounts-title" className="text-base font-bold text-slate-900">Active Accounts</h2>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Choose which accounts to view">
               {roleOptions.map(role => (
                 <Button
@@ -384,7 +384,7 @@ export default function DashboardAdmin({
                   aria-pressed={accountsRoleTab === role}
                   onClick={() => setAccountsRoleTab(role)}
                 >
-                  {rolePluralLabels[role]} ({otherUsersByRole[role].length})
+                  {rolePluralLabels[role]}
                 </Button>
               ))}
             </div>
@@ -398,7 +398,7 @@ export default function DashboardAdmin({
                   <EmptyState
                     icon={Users}
                     title={`No ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet`}
-                    description={userSearchQuery ? 'No one here matches your search.' : `No approved ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet.`}
+                    description={userSearchQuery ? 'No one here matches your search.' : `No active ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet.`}
                   />
                 </Card>
               }
