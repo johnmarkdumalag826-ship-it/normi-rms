@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Menu, CheckCircle2, AlertTriangle, Info, KeyRound } from 'lucide-react';
+import { Bell, Menu, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { User, SystemNotification } from '../types';
 import { roleLabels, getPageTitle, formatDateTime, Avatar, Badge, IconButton } from '../ui';
 
@@ -8,12 +8,12 @@ interface HeaderProps {
   notifications: SystemNotification[];
   onMarkNotificationsAsRead: () => void;
   onToggleSidebar: () => void;
-  onOpenChangePassword: () => void;
+  onOpenProfile: () => void;
   activeTab: string;
 }
 
 export default function Header({
-  user, notifications, onMarkNotificationsAsRead, onToggleSidebar, onOpenChangePassword, activeTab,
+  user, notifications, onMarkNotificationsAsRead, onToggleSidebar, onOpenProfile, activeTab,
 }: HeaderProps) {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -117,15 +117,20 @@ export default function Header({
           )}
         </div>
 
-        {/* Who is signed in, and a button to change your own password */}
-        <div className="flex items-center gap-2 border-l border-slate-200 pl-3 sm:pl-4">
-          <div className="hidden sm:block text-right min-w-0">
-            <p className="max-w-44 truncate text-sm font-semibold text-slate-900">{user.name}</p>
+        {/* Who is signed in — the only control here. Press it for your profile and settings
+            (including changing your password). */}
+        <button
+          type="button"
+          onClick={onOpenProfile}
+          className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg border-l border-slate-200 py-1 pl-3 pr-1 hover:bg-slate-100 cursor-pointer sm:pl-4"
+          aria-label={`Open your profile and settings (${user.name}, ${roleLabels[user.role]})`}
+        >
+          <div className="hidden sm:block min-w-0 text-right">
+            <p className="max-w-32 truncate text-sm font-semibold text-slate-900 md:max-w-44">{user.name}</p>
             <Badge tone="info">{roleLabels[user.role]}</Badge>
           </div>
           <Avatar name={user.name} src={user.avatar} size="md" />
-          <IconButton icon={KeyRound} label="Change my password" onClick={onOpenChangePassword} />
-        </div>
+        </button>
       </div>
     </header>
   );

@@ -31,7 +31,7 @@ import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs'
 
 // Importing Modular sub-components
 import Login from './components/Login';
-import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { MyProfileModal } from './components/MyProfileModal';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import RepositoryView from './components/RepositoryView';
@@ -76,7 +76,7 @@ export default function App() {
   // Navigation tracking
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showMyProfile, setShowMyProfile] = useState(false);
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
 
   // Toast / Status Alerts
@@ -964,12 +964,18 @@ export default function App() {
       {/* Pop-up message ("Saved!", or what went wrong) */}
       {alert && <Toast message={alert.message} type={alert.type} />}
 
-      {/* Change my own password (opened from the header) */}
-      <ChangePasswordModal
-        open={showChangePassword}
-        onClose={() => setShowChangePassword(false)}
-        onChanged={handlePasswordChanged}
-      />
+      {/* Profile and settings (opened from the header) — every role can see and use this,
+          including changing their own password. */}
+      {currentUser && (
+        <MyProfileModal
+          open={showMyProfile}
+          onClose={() => setShowMyProfile(false)}
+          user={currentUser}
+          departments={departments}
+          courses={courses}
+          onPasswordChanged={handlePasswordChanged}
+        />
+      )}
 
       {/* Menu */}
       <Sidebar
@@ -994,7 +1000,7 @@ export default function App() {
           notifications={notifications}
           onMarkNotificationsAsRead={handleMarkNotificationsAsRead}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          onOpenChangePassword={() => setShowChangePassword(true)}
+          onOpenProfile={() => setShowMyProfile(true)}
           activeTab={selectedResearchId ? 'manuscript-details' : activeTab}
         />
 
