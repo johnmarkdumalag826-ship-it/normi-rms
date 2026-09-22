@@ -94,4 +94,22 @@ const changePassword = async (req, res, next) => {
   res.json({ user: sanitize(user) });
 };
 
-module.exports = { login, register, me, logout, changePassword };
+// Anyone signed in can edit their own name and phone number this way — nothing that affects
+// who they are in the system (email, role, department, course, account status) is changeable
+// here; an Admin still handles those from Manage Accounts.
+const updateMe = async (req, res, next) => {
+  const { name, phone } = req.body;
+  if (name !== undefined && !String(name).trim()) {
+    return next(new AppError('Please enter your name.', 400));
+  }
+
+  const user = req.user;
+  if (name !== undefined) user.name = String(name).trim();
+  if (phone !== undefined) user.phone = String(phone).trim();
+  await user.save();
+  await logAction(req, 'UPDATE_OWN_PROFILE', `${user.name} updated their own profile.`, user);
+
+  res.json({ user: sanitize(user) });
+};
+
+module.exports = { login, register, me, logout, changePassword, updateMe };

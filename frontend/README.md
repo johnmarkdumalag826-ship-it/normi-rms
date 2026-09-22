@@ -77,7 +77,7 @@ src/
 │
 ├── components/          The screens
 │   ├── Login.tsx                            Sign in and register
-│   ├── ChangePasswordModal.tsx              Anyone can change their own password, any time
+│   ├── MyProfileModal.tsx                   Anyone can see, edit, and change the password of their own account
 │   ├── Sidebar.tsx, Header.tsx              The menu and top bar
 │   ├── DashboardStudent / Adviser / Coordinator / Panelist / Admin.tsx
 │   │                                        One home page for each role

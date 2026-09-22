@@ -6,7 +6,7 @@ import { User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong,
+  Alert, Avatar, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
 } from '../ui';
 
 interface ResearchInformationFormProps {
@@ -22,6 +22,7 @@ interface ResearchInformationFormProps {
     proposalFiles?: ProposalFile[];
   }) => void;
   onLogout: () => void;
+  onOpenProfile: () => void;
 }
 
 const categoryLabels: Record<ProposalFile['category'], string> = {
@@ -32,7 +33,7 @@ const categoryLabels: Record<ProposalFile['category'], string> = {
 };
 
 export default function ResearchInformationForm({
-  user, advisers, onSubmit, onLogout
+  user, advisers, onSubmit, onLogout, onOpenProfile
 }: ResearchInformationFormProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState('');
@@ -221,7 +222,21 @@ export default function ResearchInformationForm({
               <p className="text-xs text-slate-600">Research Management System</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout}>Sign Out</Button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className="flex min-h-11 items-center gap-2 rounded-lg p-1 hover:bg-slate-100 cursor-pointer"
+              aria-label={`Open your profile and settings (${user.name}, ${roleLabels[user.role]})`}
+            >
+              <div className="hidden sm:block text-right min-w-0">
+                <p className="max-w-32 truncate text-sm font-semibold text-slate-900">{user.name}</p>
+                <Badge tone="info">{roleLabels[user.role]}</Badge>
+              </div>
+              <Avatar name={user.name} src={user.avatar} size="md" />
+            </button>
+            <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout}>Sign Out</Button>
+          </div>
         </div>
       </header>
 

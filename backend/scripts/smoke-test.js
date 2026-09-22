@@ -171,6 +171,17 @@ async function main() {
   const newPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
   assert(newPw.status === 200 && !!newPw.body.token, "the student's own new password works -> 200");
 
+  console.log('\n--- A signed-in person can edit their own name and phone ---');
+  const noAuthEdit = await request(server, 'PATCH', '/api/auth/me', { name: 'Nope' });
+  assert(noAuthEdit.status === 401, 'editing your own profile requires signing in -> 401');
+  const emptyName = await request(server, 'PATCH', '/api/auth/me', { name: '   ' }, studentToken);
+  assert(emptyName.status === 400, 'an empty name is refused -> 400');
+  const editedMe = await request(server, 'PATCH', '/api/auth/me', { name: 'Renamed Student', phone: '0917-555-0000' }, studentToken);
+  assert(editedMe.status === 200 && editedMe.body.user.name === 'Renamed Student' && editedMe.body.user.phone === '0917-555-0000', 'name and phone are saved -> 200');
+  assert(editedMe.body.user.role === 'student' && editedMe.body.user.email === 'student@test.local', "this does not touch role or email");
+  const meAfter = await request(server, 'GET', '/api/auth/me', null, studentToken);
+  assert(meAfter.body.user.name === 'Renamed Student', 'the new name sticks on the next request');
+
   console.log('\n--- Admin publishes a finished paper with its PDF ---');
   const published = await request(server, 'POST', '/api/research/archived', {
     title: 'A Finished Paper', abstract: 'Already defended.', departmentId: dept._id, courseId: course._id,

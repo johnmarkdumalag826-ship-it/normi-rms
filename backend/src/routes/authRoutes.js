@@ -1,5 +1,5 @@
 const express = require('express');
-const { login, register, me, logout, changePassword } = require('../controllers/authController');
+const { login, register, me, logout, changePassword, updateMe } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
@@ -19,6 +19,7 @@ const limitSignUps = (req, res, next) => {
 router.post('/login', login);
 router.post('/register', limitSignUps, register);
 router.get('/me', protect, me);
+router.patch('/me', protect, updateMe);
 router.post('/logout', protect, logout);
 router.patch('/change-password', protect, changePassword);
 

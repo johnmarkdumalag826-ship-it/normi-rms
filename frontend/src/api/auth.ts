@@ -45,9 +45,15 @@ export async function signUp(details: SignUpDetails): Promise<{ message: string 
   return api.post('/auth/register', details);
 }
 
-// Only the signed-in person can change their own password. `currentPassword` can be the one-time
-// code an Admin gave them after a forced reset — it works as a normal password exactly once.
+// Only the signed-in person can change their own password — nobody else, not even an Admin.
 export async function changePassword(currentPassword: string, newPassword: string): Promise<User> {
   const res = await api.patch('/auth/change-password', { currentPassword, newPassword });
+  return res.user;
+}
+
+// Anyone signed in can edit their own name and phone number. Email, role, department, course
+// and account status are not changeable here — an Admin handles those from Manage Accounts.
+export async function updateMyProfile(patch: { name?: string; phone?: string }): Promise<User> {
+  const res = await api.patch('/auth/me', patch);
   return res.user;
 }

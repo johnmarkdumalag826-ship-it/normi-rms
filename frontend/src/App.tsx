@@ -528,6 +528,13 @@ export default function App() {
     triggerAlert('Your new password was saved.');
   };
 
+  // Anyone signed in edited their own name and/or phone.
+  const handleProfileUpdated = (updated: User) => {
+    setCurrentUser(updated);
+    setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+    triggerAlert('Your profile was saved.');
+  };
+
   const handleCreateTitleProposal = async (data: {
     title: string;
     abstract: string;
@@ -941,12 +948,25 @@ export default function App() {
     const hasResearch = researchList.some(r => r.studentIds.includes(currentUser.id));
     if (!hasResearch) {
       return (
-        <ResearchInformationForm
-          user={currentUser}
-          advisers={users.filter(u => u.role === 'adviser')}
-          onSubmit={handleCreateTitleProposal}
-          onLogout={handleLogout}
-        />
+        <>
+          {alert && <Toast message={alert.message} type={alert.type} />}
+          <ResearchInformationForm
+            user={currentUser}
+            advisers={users.filter(u => u.role === 'adviser')}
+            onSubmit={handleCreateTitleProposal}
+            onLogout={handleLogout}
+            onOpenProfile={() => setShowMyProfile(true)}
+          />
+          <MyProfileModal
+            open={showMyProfile}
+            onClose={() => setShowMyProfile(false)}
+            user={currentUser}
+            departments={departments}
+            courses={courses}
+            onProfileUpdated={handleProfileUpdated}
+            onPasswordChanged={handlePasswordChanged}
+          />
+        </>
       );
     }
   }
@@ -973,6 +993,7 @@ export default function App() {
           user={currentUser}
           departments={departments}
           courses={courses}
+          onProfileUpdated={handleProfileUpdated}
           onPasswordChanged={handlePasswordChanged}
         />
       )}
