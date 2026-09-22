@@ -66,7 +66,6 @@ export default function DashboardAdmin({
   // Accounts
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('all');
-  const [userStatusFilter, setUserStatusFilter] = useState<string>('all');
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -104,16 +103,23 @@ export default function DashboardAdmin({
     };
   }, [users]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                            u.email.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-                            u.id.toLowerCase().includes(userSearchQuery.toLowerCase());
-      const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
-      const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [users, userSearchQuery, userRoleFilter, userStatusFilter]);
+  // Pending accounts (waiting for approval) and everyone else are shown as two separate lists,
+  // so an Admin never has to filter to find who needs a decision.
+  const matchesSearchAndRole = (u: User) => {
+    const q = userSearchQuery.toLowerCase();
+    const matchesSearch = u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
+    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+    return matchesSearch && matchesRole;
+  };
+
+  const pendingUsers = useMemo(
+    () => users.filter(u => u.status === 'pending' && matchesSearchAndRole(u)),
+    [users, userSearchQuery, userRoleFilter],
+  );
+  const otherUsers = useMemo(
+    () => users.filter(u => u.status !== 'pending' && matchesSearchAndRole(u)),
+    [users, userSearchQuery, userRoleFilter],
+  );
 
   const advisersList = useMemo(() => users.filter(u => u.role === 'adviser'), [users]);
   const panelistsList = useMemo(() => users.filter(u => u.role === 'panelist'), [users]);
@@ -169,18 +175,35 @@ export default function DashboardAdmin({
 
   const getRoomName = (roomId: string) => rooms.find(r => r.id === roomId)?.name ?? (roomId === 'online' || !roomId ? 'Online meeting' : 'Room not found');
 
-  const userColumns: Column<User>[] = [
+  const personColumn: Column<User> = {
+    key: 'person', header: 'Person', primary: true,
+    render: u => (
+      <span className="flex items-center gap-3">
+        <Avatar name={u.name} src={u.avatar} size="sm" />
+        <span className="font-semibold text-slate-900">{u.name}</span>
+      </span>
+    ),
+  };
+  const roleColumn: Column<User> = { key: 'role', header: 'Role', render: u => <Badge tone="info">{roleLabels[u.role]}</Badge> };
+  const emailColumn: Column<User> = { key: 'email', header: 'Email', render: u => <span className="break-all">{u.email}</span> };
+
+  const pendingColumns: Column<User>[] = [
+    personColumn, roleColumn, emailColumn,
     {
-      key: 'person', header: 'Person', primary: true,
+      key: 'actions', header: 'What you can do',
       render: u => (
-        <span className="flex items-center gap-3">
-          <Avatar name={u.name} src={u.avatar} size="sm" />
-          <span className="font-semibold text-slate-900">{u.name}</span>
+        <span className="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" icon={Eye} onClick={() => setSelectedUserDetails(u)}>Details</Button>
+          <Button variant="secondary" size="sm" icon={Pencil} onClick={() => handleEditUserClick(u)}>Edit</Button>
+          <Button variant="secondary" size="sm" icon={CheckCircle2} onClick={() => onToggleUserStatus(u.id)}>Approve</Button>
+          <Button variant="danger" size="sm" icon={XCircle} onClick={() => setUserToReject(u)}>Reject</Button>
         </span>
       ),
     },
-    { key: 'role', header: 'Role', render: u => <Badge tone="info">{roleLabels[u.role]}</Badge> },
-    { key: 'email', header: 'Email', render: u => <span className="break-all">{u.email}</span> },
+  ];
+
+  const otherColumns: Column<User>[] = [
+    personColumn, roleColumn, emailColumn,
     { key: 'status', header: 'Account', render: u => <StatusBadge info={userStatus[u.status] ?? userStatus.active} /> },
     {
       key: 'actions', header: 'What you can do',
@@ -190,23 +213,16 @@ export default function DashboardAdmin({
           <span className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={Eye} onClick={() => setSelectedUserDetails(u)}>Details</Button>
             <Button variant="secondary" size="sm" icon={Pencil} onClick={() => handleEditUserClick(u)}>Edit</Button>
-            {u.status === 'pending' ? (
-              <>
-                <Button variant="secondary" size="sm" icon={CheckCircle2} onClick={() => onToggleUserStatus(u.id)}>Approve</Button>
-                <Button variant="danger" size="sm" icon={XCircle} onClick={() => setUserToReject(u)}>Reject</Button>
-              </>
-            ) : (
-              <Button
-                variant="danger"
-                size="sm"
-                icon={Trash2}
-                disabled={isMe}
-                title={isMe ? 'You cannot delete your own account.' : undefined}
-                onClick={() => setUserToDelete(u)}
-              >
-                Delete
-              </Button>
-            )}
+            <Button
+              variant="danger"
+              size="sm"
+              icon={Trash2}
+              disabled={isMe}
+              title={isMe ? 'You cannot delete your own account.' : undefined}
+              onClick={() => setUserToDelete(u)}
+            >
+              Delete
+            </Button>
           </span>
         );
       },
@@ -293,21 +309,27 @@ export default function DashboardAdmin({
 
       {/* ACCOUNTS */}
       {currentSection === 'user-management' && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {userStats.pending > 0 && (
             <Alert tone="warning" title={`${userStats.pending} ${userStats.pending === 1 ? 'person is' : 'people are'} waiting for approval`}>
               <span className="block">
                 They asked for an account and cannot sign in yet. Check that you know them, then press “Approve” next to their name.
               </span>
-              <Button variant="secondary" size="sm" className="mt-3" onClick={() => setUserStatusFilter('pending')}>Show only these people</Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={() => document.getElementById('pending-accounts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Go to the list
+              </Button>
             </Alert>
           )}
+
           <Card className="space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">All accounts ({filteredUsers.length})</h2>
-                <p className="text-sm text-slate-600">Search for a person, then use the buttons next to their name.</p>
-              </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Search accounts</h2>
+              <p className="text-sm text-slate-600">Applies to both lists below.</p>
             </div>
 
             <div className="relative">
@@ -323,34 +345,61 @@ export default function DashboardAdmin({
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Select label="Role" value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
-                <option value="all">All roles</option>
-                {roleOptions.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
-              </Select>
-              <Select label="Account status" value={userStatusFilter} onChange={e => setUserStatusFilter(e.target.value)}>
-                <option value="all">All accounts</option>
-                <option value="pending">Waiting for approval</option>
-                <option value="active">Active</option>
-              </Select>
-            </div>
+            <Select label="Role" value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
+              <option value="all">All roles</option>
+              {roleOptions.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
+            </Select>
           </Card>
 
-          <Table
-            caption="Accounts"
-            columns={userColumns}
-            rows={filteredUsers}
-            rowKey={u => u.id}
-            empty={
-              <Card padded={false}>
-                <EmptyState
-                  icon={Users}
-                  title="No accounts match your search"
-                  description="Try a shorter search, or choose “All roles” and “All accounts”."
-                />
-              </Card>
-            }
-          />
+          {/* Waiting for approval: kept apart so it never gets lost among everyone else */}
+          <section id="pending-accounts" aria-labelledby="pending-accounts-title" className="scroll-mt-4 space-y-3">
+            <div>
+              <h2 id="pending-accounts-title" className="text-base font-bold text-slate-900">
+                Waiting for Approval ({pendingUsers.length})
+              </h2>
+              <p className="text-sm text-slate-600">New registrations. Approve someone you know, or reject the request.</p>
+            </div>
+            <Table
+              caption="Accounts waiting for approval"
+              columns={pendingColumns}
+              rows={pendingUsers}
+              rowKey={u => u.id}
+              empty={
+                <Card padded={false}>
+                  <EmptyState
+                    icon={Users}
+                    title="Nobody is waiting"
+                    description={userStats.pending === 0 ? 'No one has registered yet.' : 'No pending registration matches your search.'}
+                  />
+                </Card>
+              }
+            />
+          </section>
+
+          {/* Everyone already approved (or otherwise not pending) */}
+          <section aria-labelledby="other-accounts-title" className="space-y-3">
+            <div>
+              <h2 id="other-accounts-title" className="text-base font-bold text-slate-900">
+                Approved Accounts ({otherUsers.length})
+              </h2>
+              <p className="text-sm text-slate-600">Use the buttons next to a name to see, edit or delete an account.</p>
+            </div>
+            <Table
+              caption="Approved accounts"
+              columns={otherColumns}
+              rows={otherUsers}
+              rowKey={u => u.id}
+              empty={
+                <Card padded={false}>
+                  <EmptyState
+                    icon={Users}
+                    title="No accounts match your search"
+                    description="Try a shorter search, or choose “All roles”."
+                  />
+                </Card>
+              }
+            />
+          </section>
         </div>
       )}
 

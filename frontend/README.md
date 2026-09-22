@@ -113,7 +113,8 @@ src/
 ## Good to know
 
 - New people register on the sign-in page; the account stays "pending" until an Admin approves or
-  rejects it in **Manage Accounts** (an Admin can also add an account directly).
+  rejects it in **Manage Accounts**, which lists them separately from everyone already approved.
+  There is no other way to create an account.
 - Nobody but the account owner can ever set their password — not even an Admin. Anyone signed in can
   change it any time from the key icon next to their name. If someone forgets it, there is no recovery:
   an Admin deletes the old account so they can register again. The website does not send emails yet.
