@@ -38,6 +38,9 @@ export interface SignUpDetails {
   email: string;
   password: string;
   role: 'student' | 'adviser' | 'panelist' | 'coordinator';
+  /** Required when role is 'student'. */
+  departmentId?: string;
+  courseId?: string;
 }
 
 // Asks for a new account. It stays "pending" until an Admin approves it, so no sign-in happens here.

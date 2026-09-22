@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Landmark, ArrowLeft, Eye, EyeOff } from 'lucide-react';
-import { User, UserRole } from '../types';
+import { User, UserRole, Department, Course } from '../types';
 import { login as loginRequest, signUp } from '../api/auth';
+import { listDepartments, listCourses } from '../api/lookups';
 import { ApiError } from '../api/client';
 import { Alert, Button, Card, IconButton, Input, Select, roleDescriptions, roleLabels } from '../ui';
 
@@ -25,6 +26,29 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // A student also picks their department and course.
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [departmentId, setDepartmentId] = useState('');
+  const [courseId, setCourseId] = useState('');
+
+  useEffect(() => {
+    listDepartments().then(setDepartments).catch(() => {});
+  }, []);
+
+  // The course list follows the chosen department; picking a new department clears the old course.
+  useEffect(() => {
+    if (!departmentId) {
+      setCourses([]);
+      setCourseId('');
+      return;
+    }
+    let cancelled = false;
+    listCourses(departmentId).then(list => { if (!cancelled) setCourses(list); }).catch(() => {});
+    setCourseId('');
+    return () => { cancelled = true; };
+  }, [departmentId]);
 
   const goTo = (next: Screen) => {
     setScreen(next);
@@ -61,6 +85,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (role === 'student' && (!departmentId || !courseId)) {
+      setError('Please choose your department and course.');
+      return;
+    }
     if (password.length < 8) {
       setError('Your password must be at least 8 characters long.');
       return;
@@ -71,7 +99,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
     setIsSubmitting(true);
     try {
-      await signUp({ name: name.trim(), email: email.trim().toLowerCase(), password, role });
+      await signUp({
+        name: name.trim(), email: email.trim().toLowerCase(), password, role,
+        ...(role === 'student' ? { departmentId, courseId } : {}),
+      });
       setScreen('sent');
       setPassword('');
       setConfirmPassword('');
@@ -191,6 +222,30 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               >
                 {signUpRoles.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
               </Select>
+              {role === 'student' && (
+                <>
+                  <Select
+                    label="Department"
+                    required
+                    value={departmentId}
+                    onChange={e => setDepartmentId(e.target.value)}
+                  >
+                    <option value="" disabled>Choose your department…</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </Select>
+                  <Select
+                    label="Course"
+                    required
+                    value={courseId}
+                    onChange={e => setCourseId(e.target.value)}
+                    disabled={!departmentId}
+                    hint={!departmentId ? 'Choose a department first.' : undefined}
+                  >
+                    <option value="" disabled>Choose your course…</option>
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+                </>
+              )}
               <Input
                 label="Password"
                 type={showPassword ? 'text' : 'password'}

@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Department = require('../models/Department');
+const Course = require('../models/Course');
 const AppError = require('../utils/AppError');
 const { logAction } = require('../utils/audit');
 
@@ -42,7 +44,7 @@ const login = async (req, res, next) => {
 const SELF_SERVICE_ROLES = ['student', 'adviser', 'panelist', 'coordinator'];
 
 const register = async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, departmentId, courseId } = req.body;
   if (!name || !email || !password || !role) {
     return next(new AppError('Please fill in your name, email, password and role.', 400));
   }
@@ -55,8 +57,22 @@ const register = async (req, res, next) => {
   const existing = await User.findOne({ email: String(email).toLowerCase() });
   if (existing) return next(new AppError('An account with this email already exists. Try signing in instead.', 409));
 
+  // A student also picks their department and course when they register.
+  if (role === 'student') {
+    if (!departmentId || !courseId) {
+      return next(new AppError('Please choose your department and course.', 400));
+    }
+    const department = await Department.findById(departmentId).catch(() => null);
+    if (!department) return next(new AppError('Please choose a valid department.', 400));
+    const course = await Course.findById(courseId).catch(() => null);
+    if (!course || String(course.departmentId) !== String(departmentId)) {
+      return next(new AppError('Please choose a course that belongs to your department.', 400));
+    }
+  }
+
   const user = await User.create({
     name: String(name).trim(), email, password, role, status: 'pending',
+    ...(role === 'student' ? { departmentId, courseId } : {}),
   });
   await logAction(req, 'USER_SIGN_UP', `${user.name} (${user.email}) registered as a ${role}.`, user);
   res.status(201).json({ message: 'You are registered. You can sign in after an Admin approves your registration.' });

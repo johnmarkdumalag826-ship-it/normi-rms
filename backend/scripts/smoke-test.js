@@ -123,10 +123,23 @@ async function main() {
   const shortSignUp = await request(server, 'POST', '/api/auth/register', { email: 'short@test.local', password: '123', name: 'Short', role: 'student' });
   assert(shortSignUp.status === 400, 'sign-up with a short password -> 400');
 
-  const signUp = await request(server, 'POST', '/api/auth/register', { email: 'new.student@test.local', password: 'new-student-1', name: 'New Student', role: 'student' });
-  assert(signUp.status === 201, 'a new student can ask for an account -> 201');
+  const signUpNoDept = await request(server, 'POST', '/api/auth/register', { email: 'nodept@test.local', password: 'new-student-1', name: 'No Dept', role: 'student' });
+  assert(signUpNoDept.status === 400, 'a student cannot register without a department and course -> 400');
+
+  const otherDept = await Department.create({ name: 'College of Business', code: 'CB' });
+  const wrongCourse = await Course.create({ departmentId: otherDept._id, name: 'BS Accountancy', code: 'BSA' });
+  const signUpMismatch = await request(server, 'POST', '/api/auth/register', {
+    email: 'mismatch@test.local', password: 'new-student-1', name: 'Mismatch', role: 'student', departmentId: dept._id, courseId: wrongCourse._id,
+  });
+  assert(signUpMismatch.status === 400, "a course from a different department is refused -> 400");
+
+  const signUp = await request(server, 'POST', '/api/auth/register', {
+    email: 'new.student@test.local', password: 'new-student-1', name: 'New Student', role: 'student', departmentId: dept._id, courseId: course._id,
+  });
+  assert(signUp.status === 201, 'a new student can ask for an account, with a department and course -> 201');
   const created = await User.findOne({ email: 'new.student@test.local' });
   assert(created && created.status === 'pending', 'the new account starts as "pending"');
+  assert(String(created.departmentId) === String(dept._id) && String(created.courseId) === String(course._id), "their department and course are saved");
   const dup = await request(server, 'POST', '/api/auth/register', { email: 'new.student@test.local', password: 'new-student-1', name: 'New Student', role: 'student' });
   assert(dup.status === 409, 'signing up twice with the same email -> 409');
   const pendingLogin = await request(server, 'POST', '/api/auth/login', { email: 'new.student@test.local', password: 'new-student-1' });
