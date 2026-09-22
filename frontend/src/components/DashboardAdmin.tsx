@@ -56,7 +56,7 @@ const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'
 // one signed-in Admin, so it added nothing to see it listed as a group.
 const accountRoleTabs: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'];
 const rolePluralLabels: Record<UserRole, string> = {
-  student: 'Students', adviser: 'Advisers', panelist: 'Panel Members', coordinator: 'Coordinators', admin: 'Admins',
+  student: 'Students', adviser: 'Advisers', panelist: 'Panels', coordinator: 'Coordinators', admin: 'Admins',
 };
 
 export default function DashboardAdmin({
