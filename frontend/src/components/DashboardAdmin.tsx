@@ -26,7 +26,7 @@ interface DashboardAdminProps {
   onRestoreDatabase: () => void;
 }
 
-type Section = 'dashboard' | 'user-management' | 'schedules';
+type Section = 'dashboard' | 'user-management' | 'pending-accounts' | 'schedules';
 
 const sectionInfo: Record<Section, { label: string; title: string; subtitle: string }> = {
   dashboard: {
@@ -35,9 +35,14 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
     subtitle: 'See how many accounts and defenses there are, and keep the system’s data safe.',
   },
   'user-management': {
-    label: 'Accounts',
-    title: 'Manage Accounts',
-    subtitle: 'Approve or reject new registrations, and edit or delete accounts.',
+    label: 'Active Accounts',
+    title: 'Active Accounts',
+    subtitle: 'Choose a role to see, edit or delete an account.',
+  },
+  'pending-accounts': {
+    label: 'Pending Accounts',
+    title: 'Pending Accounts',
+    subtitle: 'New registrations. Approve someone you know, or reject the request.',
   },
   schedules: {
     label: 'All Defenses',
@@ -47,6 +52,9 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
 };
 
 const roleOptions: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator', 'admin'];
+// Admin accounts aren't shown as their own tab on Active Accounts — there is usually only the
+// one signed-in Admin, so it added nothing to see it listed as a group.
+const accountRoleTabs: UserRole[] = ['student', 'adviser', 'panelist', 'coordinator'];
 const rolePluralLabels: Record<UserRole, string> = {
   student: 'Students', adviser: 'Advisers', panelist: 'Panel Members', coordinator: 'Coordinators', admin: 'Admins',
 };
@@ -68,6 +76,7 @@ export default function DashboardAdmin({
 
   // Accounts
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [pendingSearchQuery, setPendingSearchQuery] = useState('');
   const [accountsRoleTab, setAccountsRoleTab] = useState<UserRole>('student');
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -106,20 +115,20 @@ export default function DashboardAdmin({
     };
   }, [users]);
 
-  // Pending accounts (waiting for approval) are shown apart from everyone else, and everyone
-  // else is grouped by role, so an Admin never has to filter to find who they are looking for.
-  const matchesSearch = (u: User) => {
-    const q = userSearchQuery.toLowerCase();
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q);
+  // Pending accounts (waiting for approval) are their own page, apart from everyone else, and
+  // everyone else is grouped by role — each page has its own search box.
+  const search = (q: string) => (u: User) => {
+    const needle = q.toLowerCase();
+    return u.name.toLowerCase().includes(needle) || u.email.toLowerCase().includes(needle) || u.id.toLowerCase().includes(needle);
   };
 
   const pendingUsers = useMemo(
-    () => users.filter(u => u.status === 'pending' && matchesSearch(u)),
-    [users, userSearchQuery],
+    () => users.filter(u => u.status === 'pending').filter(search(pendingSearchQuery)),
+    [users, pendingSearchQuery],
   );
   const otherUsersByRole = useMemo(() => {
     const groups = { student: [], adviser: [], panelist: [], coordinator: [], admin: [] } as Record<UserRole, User[]>;
-    users.filter(u => u.status !== 'pending' && matchesSearch(u)).forEach(u => groups[u.role]?.push(u));
+    users.filter(u => u.status !== 'pending').filter(search(userSearchQuery)).forEach(u => groups[u.role]?.push(u));
     return groups;
   }, [users, userSearchQuery]);
 
@@ -309,36 +318,15 @@ export default function DashboardAdmin({
         </div>
       )}
 
-      {/* ACCOUNTS */}
+      {/* ACTIVE ACCOUNTS */}
       {currentSection === 'user-management' && (
         <div className="space-y-6">
-          {userStats.pending > 0 && (
-            <Alert tone="warning" title={`${userStats.pending} ${userStats.pending === 1 ? 'person is' : 'people are'} waiting for approval`}>
-              <span className="block">
-                They asked for an account and cannot sign in yet. Check that you know them, then press “Approve” next to their name.
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-3"
-                onClick={() => document.getElementById('pending-accounts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              >
-                Go to the list
-              </Button>
-            </Alert>
-          )}
-
           <Card className="space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Search accounts</h2>
-              <p className="text-sm text-slate-600">Applies to every list below.</p>
-            </div>
-
             <div className="relative">
-              <label htmlFor="user-search" className="sr-only">Search accounts</label>
+              <label htmlFor="active-account-search" className="sr-only">Search accounts</label>
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
               <input
-                id="user-search"
+                id="active-account-search"
                 type="search"
                 placeholder="Search by name or email"
                 value={userSearchQuery}
@@ -348,62 +336,75 @@ export default function DashboardAdmin({
             </div>
           </Card>
 
-          {/* Waiting for approval: kept apart so it never gets lost among everyone else */}
-          <section id="pending-accounts" aria-labelledby="pending-accounts-title" className="scroll-mt-4 space-y-3">
-            <div>
-              <h2 id="pending-accounts-title" className="text-base font-bold text-slate-900">
-                Waiting for Approval ({pendingUsers.length})
-              </h2>
-              <p className="text-sm text-slate-600">New registrations. Approve someone you know, or reject the request.</p>
-            </div>
-            <Table
-              caption="Accounts waiting for approval"
-              columns={pendingColumns}
-              rows={pendingUsers}
-              rowKey={u => u.id}
-              empty={
-                <Card padded={false}>
-                  <EmptyState
-                    icon={Users}
-                    title="Nobody is waiting"
-                    description={userStats.pending === 0 ? 'No one has registered yet.' : 'No pending registration matches your search.'}
-                  />
-                </Card>
-              }
-            />
-          </section>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Choose which accounts to view">
+            {accountRoleTabs.map(role => (
+              <Button
+                key={role}
+                variant={accountsRoleTab === role ? 'primary' : 'secondary'}
+                aria-pressed={accountsRoleTab === role}
+                onClick={() => setAccountsRoleTab(role)}
+              >
+                {rolePluralLabels[role]}
+              </Button>
+            ))}
+          </div>
+          <Table
+            caption={rolePluralLabels[accountsRoleTab]}
+            columns={approvedColumns}
+            rows={otherUsersByRole[accountsRoleTab]}
+            rowKey={u => u.id}
+            empty={
+              <Card padded={false}>
+                <EmptyState
+                  icon={Users}
+                  title={`No ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet`}
+                  description={userSearchQuery ? 'No one here matches your search.' : `No active ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet.`}
+                />
+              </Card>
+            }
+          />
+        </div>
+      )}
 
-          {/* Everyone not pending: choose which group to look at */}
-          <section aria-labelledby="active-accounts-title" className="space-y-3">
-            <h2 id="active-accounts-title" className="text-base font-bold text-slate-900">Active Accounts</h2>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Choose which accounts to view">
-              {roleOptions.map(role => (
-                <Button
-                  key={role}
-                  variant={accountsRoleTab === role ? 'primary' : 'secondary'}
-                  aria-pressed={accountsRoleTab === role}
-                  onClick={() => setAccountsRoleTab(role)}
-                >
-                  {rolePluralLabels[role]}
-                </Button>
-              ))}
+      {/* PENDING ACCOUNTS */}
+      {currentSection === 'pending-accounts' && (
+        <div className="space-y-6">
+          {userStats.pending > 0 && (
+            <Alert tone="warning" title={`${userStats.pending} ${userStats.pending === 1 ? 'person is' : 'people are'} waiting for approval`}>
+              They asked for an account and cannot sign in yet. Check that you know them, then press “Approve” next to their name.
+            </Alert>
+          )}
+
+          <Card className="space-y-4">
+            <div className="relative">
+              <label htmlFor="pending-account-search" className="sr-only">Search accounts waiting for approval</label>
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+              <input
+                id="pending-account-search"
+                type="search"
+                placeholder="Search by name or email"
+                value={pendingSearchQuery}
+                onChange={e => setPendingSearchQuery(e.target.value)}
+                className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+              />
             </div>
-            <Table
-              caption={rolePluralLabels[accountsRoleTab]}
-              columns={approvedColumns}
-              rows={otherUsersByRole[accountsRoleTab]}
-              rowKey={u => u.id}
-              empty={
-                <Card padded={false}>
-                  <EmptyState
-                    icon={Users}
-                    title={`No ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet`}
-                    description={userSearchQuery ? 'No one here matches your search.' : `No active ${rolePluralLabels[accountsRoleTab].toLowerCase()} yet.`}
-                  />
-                </Card>
-              }
-            />
-          </section>
+          </Card>
+
+          <Table
+            caption="Accounts waiting for approval"
+            columns={pendingColumns}
+            rows={pendingUsers}
+            rowKey={u => u.id}
+            empty={
+              <Card padded={false}>
+                <EmptyState
+                  icon={Users}
+                  title="Nobody is waiting"
+                  description={userStats.pending === 0 ? 'No one has registered yet.' : 'No pending registration matches your search.'}
+                />
+              </Card>
+            }
+          />
         </div>
       )}
 
