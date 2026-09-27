@@ -380,7 +380,7 @@ export default function DashboardAdviser({
                   <ResearchStatusBadge status={selectedGroup.status} />
                 </div>
                 <p className="text-sm text-slate-700">
-                  Course: <strong className="text-slate-900">{selectedGroupCourseName}</strong>
+                  Program: <strong className="text-slate-900">{selectedGroupCourseName}</strong>
                   <span aria-hidden="true"> · </span>
                   Department: <strong className="text-slate-900">{selectedGroupDepartmentName}</strong>
                 </p>

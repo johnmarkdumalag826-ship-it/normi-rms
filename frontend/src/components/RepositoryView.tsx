@@ -304,7 +304,7 @@ export default function RepositoryView({
           <option key={d.id} value={d.id}>{d.name}</option>
         ))}
       </Select>
-      <Select label="Course" required value={courseId} onChange={e => setCourseId(e.target.value)}>
+      <Select label="Program" required value={courseId} onChange={e => setCourseId(e.target.value)}>
         {courses.filter(c => c.departmentId === departmentId).map(c => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
@@ -433,8 +433,8 @@ export default function RepositoryView({
               <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
             ))}
           </Select>
-          <Select label="Course" value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
-            <option value="all">All courses</option>
+          <Select label="Program" value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
+            <option value="all">All programs</option>
             {courses
               .filter(c => selectedDept === 'all' || c.departmentId === selectedDept)
               .map(c => (
@@ -654,7 +654,7 @@ export default function RepositoryView({
               <h3 className="mb-2 text-base font-bold text-slate-900">Details</h3>
               <dl className="divide-y divide-slate-100 rounded-lg border border-slate-200 text-sm">
                 {[
-                  ['Course', getCourseName(previewingResearch.courseId)],
+                  ['Program', getCourseName(previewingResearch.courseId)],
                   ['Department', getDepartmentName(previewingResearch.departmentId)],
                   ['Adviser', getAdviserName(previewingResearch.adviserId)],
                   ['School year', getSchoolYearName(previewingResearch.schoolYearId)],

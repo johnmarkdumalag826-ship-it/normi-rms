@@ -234,14 +234,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </Select>
                   <Select
-                    label="Course"
+                    label="Program"
                     required
                     value={courseId}
                     onChange={e => setCourseId(e.target.value)}
                     disabled={!departmentId}
                     hint={!departmentId ? 'Choose a department first.' : undefined}
                   >
-                    <option value="" disabled>Choose your course…</option>
+                    <option value="" disabled>Choose your program…</option>
                     {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </Select>
                 </>

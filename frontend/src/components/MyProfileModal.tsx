@@ -44,7 +44,7 @@ export function MyProfileModal({
   const rows: [string, React.ReactNode][] = [
     ['Role', <Badge key="role" tone="info">{roleLabels[user.role]}</Badge>],
     ...(department ? ([['Department', department]] as [string, React.ReactNode][]) : []),
-    ...(course ? ([['Course', course]] as [string, React.ReactNode][]) : []),
+    ...(course ? ([['Program', course]] as [string, React.ReactNode][]) : []),
     ...(user.phone ? ([['Phone', user.phone]] as [string, React.ReactNode][]) : []),
     ['Account', <StatusBadge key="status" info={userStatus[user.status] ?? userStatus.active} />],
   ];
