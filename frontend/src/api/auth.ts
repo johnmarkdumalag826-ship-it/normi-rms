@@ -60,3 +60,14 @@ export async function updateMyProfile(patch: { name?: string; phone?: string }):
   const res = await api.patch('/auth/me', patch);
   return res.user;
 }
+
+// "Forgot password": emails a 6-digit code to the address, if it belongs to an account.
+// The response is the same either way, so it cannot be used to check who has an account.
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return api.post('/auth/forgot-password', { email });
+}
+
+// Uses the emailed code to set a new password, without needing the old one.
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<{ message: string }> {
+  return api.post('/auth/reset-password', { email, code, newPassword });
+}

@@ -8,7 +8,7 @@ It stores the data and answers the requests from the web app.
 
 ## What it does
 
-- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). Anyone can register (`POST /api/auth/register`), but it starts as "pending" until an Admin approves or rejects it (rejecting deletes the request); this is the only way an account is created — an Admin cannot add one directly. A student also picks their department and course when they register; the course must belong to the chosen department. An Admin can never choose, see, or reset someone's password — only that person can, any time, with their current password (`PATCH /api/auth/change-password`). If someone forgets theirs, there is no recovery: an Admin deletes the old account so they can register again. Anyone signed in can also edit their own name and phone number (`PATCH /api/auth/me`) — email, role, department, course and account status stay Admin-only after registration.
+- Sign-in with email and password (passwords are stored hashed; sessions use signed tokens). Anyone can register (`POST /api/auth/register`), but it starts as "pending" until an Admin approves or rejects it (rejecting deletes the request); this is the only way an account is created — an Admin cannot add one directly. A student also picks their department and course when they register; the course must belong to the chosen department. An Admin can never choose, see, or reset someone's password — only that person can. While signed in, they use their current password (`PATCH /api/auth/change-password`); if they forget it, `POST /api/auth/forgot-password` emails a 6-digit code (valid 15 minutes, locked after 5 wrong tries) that `POST /api/auth/reset-password` uses to set a new one, all without an Admin's involvement. Anyone signed in can also edit their own name and phone number (`PATCH /api/auth/me`) — email, role, department, course and account status stay Admin-only after registration.
 - Role-based access for students, advisers, coordinators, panel members and admins.
 - Research papers, versions, chapter feedback and comments.
 - Defense scheduling with rooms and panels, and panel scoring.
@@ -30,8 +30,10 @@ You need [Node.js](https://nodejs.org) and a MongoDB database (a free MongoDB At
    | `JWT_SECRET` | A long random text that only you know |
    | `PORT` | The port for this server (default `5000`) |
    | `CLIENT_URL` | The address of the web app, for example `http://localhost:3000` |
+   | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS` | Used to send "forgot password" codes. With Gmail: turn on 2-Step Verification, then create an [App Password](https://myaccount.google.com/apppasswords) and use it as `EMAIL_PASS` (not your normal Gmail password) |
+   | `EMAIL_FROM` | Optional; the "from" address for those emails. Defaults to `EMAIL_USER` |
 
-   Never share or upload the `.env` file. It is already listed in `.gitignore`.
+   Never share or upload the `.env` file. It is already listed in `.gitignore`. Until the `EMAIL_*` settings are filled in, "Forgot your password?" will show an error instead of sending a code — everything else works without them.
 3. **Add the school's starting data** (departments, courses, school years and rooms):
    ```bash
    npm run seed

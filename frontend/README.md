@@ -116,7 +116,8 @@ src/
   rejects it in **Manage Accounts**, which lists them separately from everyone already approved.
   There is no other way to create an account.
 - Nobody but the account owner can ever set their password — not even an Admin. Anyone signed in can
-  change it any time from the key icon next to their name. If someone forgets it, there is no recovery:
-  an Admin deletes the old account so they can register again. The website does not send emails yet.
+  change it any time from **Profile & Settings** (click your name in the header). If someone forgets
+  it, "Forgot your password?" on the sign-in page emails them a 6-digit code to set a new one — still
+  without an Admin's involvement.
 - **Review Papers** and the paper page show both PDF and Word files inside the page, with highlighting.
 - Online (video) defenses are not supported yet: every defense needs a room.

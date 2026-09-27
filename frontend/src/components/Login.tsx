@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Landmark, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { User, UserRole, Department, Course } from '../types';
-import { login as loginRequest, signUp } from '../api/auth';
+import { login as loginRequest, signUp, forgotPassword, resetPassword } from '../api/auth';
 import { listDepartments, listCourses } from '../api/lookups';
 import { ApiError } from '../api/client';
 import { Alert, Button, Card, IconButton, Input, Select, roleDescriptions, roleLabels } from '../ui';
@@ -33,6 +33,15 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [departmentId, setDepartmentId] = useState('');
   const [courseId, setCourseId] = useState('');
 
+  // Forgot password: step 1 emails a code to the address, step 2 uses it to set a new password.
+  const [forgotStep, setForgotStep] = useState<'request' | 'reset'>('request');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotInfo, setForgotInfo] = useState<string | null>(null);
+  const [resetCode, setResetCode] = useState('');
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [postResetMessage, setPostResetMessage] = useState<string | null>(null);
+
   useEffect(() => {
     listDepartments().then(setDepartments).catch(() => {});
   }, []);
@@ -56,6 +65,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setPassword('');
     setConfirmPassword('');
     setShowPassword(false);
+    setForgotStep('request');
+    setForgotEmail('');
+    setForgotInfo(null);
+    setResetCode('');
+    setResetPasswordValue('');
+    setResetConfirmPassword('');
+    setPostResetMessage(null);
   };
 
   const networkMessage = 'We could not reach the server. Please check your internet connection and try again.';
@@ -113,6 +129,44 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     }
   };
 
+  const handleForgotRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const { message } = await forgotPassword(forgotEmail.trim().toLowerCase());
+      setForgotInfo(message);
+      setForgotStep('reset');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : networkMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (resetPasswordValue.length < 8) {
+      setError('Your new password must be at least 8 characters long.');
+      return;
+    }
+    if (resetPasswordValue !== resetConfirmPassword) {
+      setError('The two new passwords are not the same. Please type them again.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const { message } = await resetPassword(forgotEmail.trim().toLowerCase(), resetCode.trim(), resetPasswordValue);
+      goTo('sign-in');
+      setPostResetMessage(message);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : networkMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const passwordToggle = (
     <IconButton
       icon={showPassword ? EyeOff : Eye}
@@ -145,6 +199,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               </div>
 
               {error && <Alert tone="danger" title="We could not sign you in">{error}</Alert>}
+              {!error && postResetMessage && <Alert tone="success" title="Password changed">{postResetMessage}</Alert>}
 
               <Input
                 label="Email"
@@ -291,20 +346,85 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
           )}
 
-          {screen === 'forgot' && (
-            /* Nobody but you can ever set your password — not even an Admin — so there is no
-               reset to send. The only way back in is a fresh account. */
-            <div className="space-y-4">
+          {screen === 'forgot' && forgotStep === 'request' && (
+            /* Only you can ever set your password — not even an Admin — so getting back in
+               starts with proving you control your own inbox. */
+            <form onSubmit={handleForgotRequest} className="space-y-5">
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Forgot your password?</h1>
-                <p className="mt-1 text-sm text-slate-600">Only you can set your password, so nobody can send you a new one.</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Type your email and we will send a 6-digit code to it. Only you can use it to set a new password.
+                </p>
               </div>
-              <Alert tone="info" title="How to get back in">
-                Contact the research office or your Admin and ask them to delete your old account.
-                Then come back here and register again with the same email and a new password.
-              </Alert>
-              <Button variant="secondary" icon={ArrowLeft} onClick={() => goTo('sign-in')}>Go Back to Sign In</Button>
-            </div>
+
+              {error && <Alert tone="danger" title="We could not send the code">{error}</Alert>}
+
+              <Input
+                label="Email"
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={e => setForgotEmail(e.target.value)}
+                placeholder="name@example.com"
+                autoComplete="username"
+              />
+
+              <Button type="submit" className="w-full" loading={isSubmitting}>{isSubmitting ? 'Sending…' : 'Send Code'}</Button>
+              <Button type="button" variant="secondary" icon={ArrowLeft} fullWidth onClick={() => goTo('sign-in')}>
+                Go Back to Sign In
+              </Button>
+            </form>
+          )}
+
+          {screen === 'forgot' && forgotStep === 'reset' && (
+            <form onSubmit={handleForgotReset} className="space-y-5">
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">Enter your code</h1>
+                <p className="mt-1 text-sm text-slate-600">{forgotInfo}</p>
+              </div>
+
+              {error && <Alert tone="danger" title="We could not change your password">{error}</Alert>}
+
+              <Input
+                label="6-digit code"
+                required
+                inputMode="numeric"
+                maxLength={6}
+                value={resetCode}
+                onChange={e => setResetCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="123456"
+              />
+              <Input
+                label="New password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={resetPasswordValue}
+                onChange={e => setResetPasswordValue(e.target.value)}
+                hint="At least 8 characters."
+                autoComplete="new-password"
+                adornment={passwordToggle}
+              />
+              <Input
+                label="Confirm Password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={resetConfirmPassword}
+                onChange={e => setResetConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+
+              <Button type="submit" className="w-full" loading={isSubmitting}>{isSubmitting ? 'Changing…' : 'Change Password'}</Button>
+              <p className="text-center text-sm text-slate-700">
+                Did not get a code, or did it expire?{' '}
+                <button type="button" onClick={() => { setForgotStep('request'); setError(null); }} className="min-h-11 font-semibold text-blue-800 hover:underline cursor-pointer">
+                  Send it again
+                </button>
+              </p>
+              <Button type="button" variant="secondary" icon={ArrowLeft} fullWidth onClick={() => goTo('sign-in')}>
+                Go Back to Sign In
+              </Button>
+            </form>
           )}
         </Card>
       </div>

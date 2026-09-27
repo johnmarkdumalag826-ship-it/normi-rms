@@ -10,6 +10,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const mongoose = require('mongoose');
 const http = require('http');
 const User = require('../src/models/User');
+const mailer = require('../src/utils/mailer');
 
 let failures = 0;
 
@@ -64,6 +65,10 @@ async function main() {
   const server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
   console.log('App server listening on port', server.address().port);
+
+  // No real SMTP server in this test environment: capture what would have been emailed instead.
+  const sentEmails = [];
+  mailer.sendMail = async (opts) => { sentEmails.push(opts); };
 
   // Seed lookup data
   const Department = require('../src/models/Department');
@@ -183,6 +188,56 @@ async function main() {
 
   const newPw = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
   assert(newPw.status === 200 && !!newPw.body.token, "the student's own new password works -> 200");
+
+  console.log('\n--- Forgot password: a 6-digit code emailed to the account owner ---');
+  const missingEmail = await request(server, 'POST', '/api/auth/forgot-password', {});
+  assert(missingEmail.status === 400, 'asking with no email is refused -> 400');
+
+  const unknownEmail = await request(server, 'POST', '/api/auth/forgot-password', { email: 'nobody-here@test.local' });
+  assert(unknownEmail.status === 200, 'an email with no account still gets a 200 (not a 404)');
+  assert(sentEmails.length === 0, 'no email is actually sent for an unknown address');
+
+  const knownEmail = await request(server, 'POST', '/api/auth/forgot-password', { email: 'student@test.local' });
+  assert(knownEmail.status === 200, 'an email with an account gets a 200');
+  assert(knownEmail.body.message === unknownEmail.body.message, 'the response is worded the same either way, so it cannot be used to check who has an account');
+  assert(sentEmails.length === 1 && sentEmails[0].to === 'student@test.local', 'exactly one email goes out, to the account owner');
+
+  const firstCode = sentEmails[0].text.match(/\d{6}/)[0];
+
+  const wrongCode = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: '000000', newPassword: 'brand-new-pass' });
+  assert(wrongCode.status === 400, 'the wrong code is refused -> 400');
+
+  const shortAfterCode = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: firstCode, newPassword: 'short' });
+  assert(shortAfterCode.status === 400, 'a new password under 8 characters is refused even with the right code -> 400');
+
+  const doReset = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: firstCode, newPassword: 'student-pass-3' });
+  assert(doReset.status === 200, 'the right code sets a new password -> 200');
+
+  const oldPwGoneAfterReset = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-2' });
+  assert(oldPwGoneAfterReset.status === 401, 'the old password stops working once reset');
+  const newPwFromReset = await request(server, 'POST', '/api/auth/login', { email: 'student@test.local', password: 'student-pass-3' });
+  assert(newPwFromReset.status === 200, 'signing in with the emailed-code password works');
+
+  const reuseCode = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: firstCode, newPassword: 'another-pass-1' });
+  assert(reuseCode.status === 400, 'a code cannot be used twice -> 400');
+
+  sentEmails.length = 0;
+  await request(server, 'POST', '/api/auth/forgot-password', { email: 'student@test.local' });
+  const expiredCode = sentEmails[0].text.match(/\d{6}/)[0];
+  const expiredUser = await User.findOne({ email: 'student@test.local' });
+  expiredUser.resetCodeExpires = new Date(Date.now() - 1000);
+  await expiredUser.save({ validateBeforeSave: false });
+  const useExpired = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: expiredCode, newPassword: 'student-pass-4' });
+  assert(useExpired.status === 400, 'an expired code is refused, even if correct -> 400');
+
+  sentEmails.length = 0;
+  await request(server, 'POST', '/api/auth/forgot-password', { email: 'student@test.local' });
+  const lockoutCode = sentEmails[0].text.match(/\d{6}/)[0];
+  for (let i = 0; i < 5; i++) {
+    await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: '111111', newPassword: 'student-pass-5' });
+  }
+  const lockedOut = await request(server, 'POST', '/api/auth/reset-password', { email: 'student@test.local', code: lockoutCode, newPassword: 'student-pass-5' });
+  assert(lockedOut.status === 429, 'after enough wrong tries, even the right code is refused until a fresh one is sent -> 429');
 
   console.log('\n--- A signed-in person can edit their own name and phone ---');
   const noAuthEdit = await request(server, 'PATCH', '/api/auth/me', { name: 'Nope' });

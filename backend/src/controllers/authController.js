@@ -1,9 +1,12 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Course = require('../models/Course');
 const AppError = require('../utils/AppError');
 const { logAction } = require('../utils/audit');
+const mailer = require('../utils/mailer');
 
 const signToken = (user) => jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
@@ -128,4 +131,78 @@ const updateMe = async (req, res, next) => {
   res.json({ user: sanitize(user) });
 };
 
-module.exports = { login, register, me, logout, changePassword, updateMe };
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const MAX_RESET_ATTEMPTS = 5;
+
+const generateResetCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+
+// Only the account owner can ever set their password (see changePassword above) — this is how
+// they do it without knowing their old one: a 6-digit code emailed to the address on file, which
+// proves they control that inbox. The response is the same whether or not the email is registered,
+// so this cannot be used to check who has an account.
+const forgotPassword = async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) return next(new AppError('Please enter your email address.', 400));
+
+  const genericMessage = 'If that email has an account, we sent a 6-digit code to it. The code expires in 15 minutes.';
+  const user = await User.findOne({ email: String(email).toLowerCase() });
+
+  if (user) {
+    const code = generateResetCode();
+    user.resetCodeHash = await bcrypt.hash(code, 10);
+    user.resetCodeExpires = new Date(Date.now() + RESET_CODE_TTL_MS);
+    user.resetCodeAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      await mailer.sendMail({
+        to: user.email,
+        subject: 'Your NORMI RMS password reset code',
+        text: `Hi ${user.name},\n\nYour password reset code is ${code}. It expires in 15 minutes.\n\nIf you did not ask for this, you can ignore this email — your password will not change.`,
+      });
+    } catch (err) {
+      console.error('Failed to send password reset email:', err);
+      return next(new AppError('We could not send the email right now. Please try again later.', 500));
+    }
+    await logAction(req, 'FORGOT_PASSWORD_REQUEST', `${user.name} asked for a password reset code.`, user);
+  }
+
+  res.json({ message: genericMessage });
+};
+
+const resetPassword = async (req, res, next) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) {
+    return next(new AppError('Please enter your email, the code, and a new password.', 400));
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return next(new AppError('Your new password must be at least 8 characters long.', 400));
+  }
+
+  const user = await User.findOne({ email: String(email).toLowerCase() })
+    .select('+resetCodeHash +resetCodeExpires +resetCodeAttempts');
+  if (!user || !user.resetCodeHash || !user.resetCodeExpires || user.resetCodeExpires < new Date()) {
+    return next(new AppError('That code is not valid or has expired. Please ask for a new one.', 400));
+  }
+  if (user.resetCodeAttempts >= MAX_RESET_ATTEMPTS) {
+    return next(new AppError('Too many wrong attempts. Please ask for a new code.', 429));
+  }
+
+  const matches = await bcrypt.compare(String(code), user.resetCodeHash);
+  if (!matches) {
+    user.resetCodeAttempts += 1;
+    await user.save({ validateBeforeSave: false });
+    return next(new AppError('That code is not correct.', 400));
+  }
+
+  user.password = newPassword; // hashed automatically when saved
+  user.resetCodeHash = undefined;
+  user.resetCodeExpires = undefined;
+  user.resetCodeAttempts = 0;
+  await user.save();
+  await logAction(req, 'RESET_OWN_PASSWORD', `${user.name} reset their own password using an emailed code.`, user);
+
+  res.json({ message: 'Your password has been changed. You can now sign in.' });
+};
+
+module.exports = { login, register, me, logout, changePassword, updateMe, forgotPassword, resetPassword };

@@ -11,6 +11,11 @@ const userSchema = new mongoose.Schema({
   courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course' },
   phone: String,
   status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'pending' },
+  // "Forgot password" support: a short-lived, hashed code emailed to the account owner.
+  // Nobody but the code's recipient can use it, and it expires on its own.
+  resetCodeHash: { type: String, select: false },
+  resetCodeExpires: { type: Date, select: false },
+  resetCodeAttempts: { type: Number, default: 0, select: false },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {
