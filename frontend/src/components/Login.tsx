@@ -258,7 +258,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                 adornment={passwordToggle}
               />
               <Input
-                label="Type the password again"
+                label="Confirm Password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={confirmPassword}
