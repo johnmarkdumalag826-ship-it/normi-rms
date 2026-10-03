@@ -4,7 +4,6 @@ import {
   CheckCircle2, Layers, Compass, Wrench, ArrowRight, Inbox,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedule, Room } from '../types';
-import { GroupJourneyCard } from './GroupJourneyCard';
 import { TitleListReview } from './TitleListReview';
 import {
   Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
@@ -261,8 +260,6 @@ export default function DashboardAdviser({
         subtitle="Read your students’ papers, give feedback, and approve them when they are ready."
         action={<Button icon={Calendar} onClick={() => setShowConsultModal(true)}>Schedule a Meeting</Button>}
       />
-
-      <GroupJourneyCard researchList={assignedResearchList} schedules={schedules} users={users} />
 
       {/* What should I do next? */}
       <section aria-labelledby="adviser-next">
