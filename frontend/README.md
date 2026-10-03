@@ -92,7 +92,7 @@ src/
 │
 ├── ui/                  Shared building blocks used by every screen
 │   ├── Button, Field (Input/Select/Textarea), Badge, Card, Table
-│   ├── BrandLogo        The school seal (the picture is public/normi-logo.png (the picture) and public/normi-icon.png (the round tab icon))
+│   ├── BrandLogo        The school seal (public/normi-logo.png; the round browser-tab icon is public/normi-icon.png)
 │   ├── Modal (with ConfirmDialog), Alert (with Toast), EmptyState, Skeleton, PageHeader
 │   └── labels.ts        Plain-English names for statuses and roles, and readable dates
 │
