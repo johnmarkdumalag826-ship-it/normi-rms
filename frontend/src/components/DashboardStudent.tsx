@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
   Landmark, Compass, Wrench, UploadCloud, Download, ExternalLink, RefreshCw, Send,
@@ -82,14 +82,6 @@ export default function DashboardStudent({
   const hearingDone = myBookings.some(s => s.type === 'title_hearing' && s.status === 'completed');
   const mySchedule = myDefense ?? myHearing ?? null;
   const activeComments = comments.filter(c => c.researchId === research?.id && !c.resolved);
-
-  // Filter versions specifically for this student's research project
-  const myVersions = useMemo(() => {
-    if (!research) return [];
-    return versions
-      .filter(v => v.researchId === research.id)
-      .sort((a, b) => b.versionNumber - a.versionNumber); // Newest first
-  }, [versions, research]);
 
   // Calculate progress percent
   const getProgressPercentage = () => {
@@ -269,40 +261,6 @@ export default function DashboardStudent({
   const { phases, activeIdx } = getJourneyPhases();
   const shownStage = selectedJourneyStage ?? Math.min(activeIdx, phases.length - 1);
 
-  // What has been done at each step (a checklist shown when a step is opened)
-  const getStageChecklist = (stageIndex: number) => {
-    if (!research) return [];
-    const pastEarlySteps = !earlyStatuses.includes(research.status);
-
-    switch (stageIndex) {
-      case 0:
-        return [
-          { label: 'Send the file with your prepared titles', met: !!titleFile || hearingDone || pastEarlySteps },
-          { label: 'Your adviser approves your titles', met: (!!titleFile && titleReviewStatus === 'Approved') || hearingDone || pastEarlySteps },
-          { label: 'You have a title hearing date and time', met: !!myHearing || hearingDone || pastEarlySteps },
-          { label: 'You have a room and 3 panel members', met: (!!myHearing && !!myHearing.roomId && myHearing.panelistIds.length === 3) || hearingDone || pastEarlySteps },
-          { label: 'Finish your title hearing', met: hearingDone || pastEarlySteps },
-        ];
-      case 1:
-        return [
-          { label: 'Send your title, summary and at least one keyword', met: !!research.title && !!research.abstract && research.keywords.length > 0 },
-          { label: 'An adviser is assigned to you', met: !!research.adviserId },
-          { label: 'Chapters 1 to 3 approved by your adviser', met: ['chapter1', 'chapter2', 'chapter3'].every(c => currentVersion?.chapters?.[c as 'chapter1']?.status === 'Approved') },
-          { label: 'Fix all comments from your adviser', met: activeComments.length === 0 },
-          { label: 'Get your adviser’s approval', met: ['Approved by Adviser', 'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'].includes(research.status) },
-        ];
-      case 2:
-        return [
-          { label: 'You have a final defense date, room and 3 panel members', met: !!myDefense && !!myDefense.roomId && myDefense.panelistIds.length === 3 },
-          { label: 'Finish your final defense', met: ['Completed', 'Archived'].includes(research.status) },
-          { label: 'Upload your final paper', met: myVersions.some(v => v.type === 'defense_manuscript') },
-          { label: 'Fix the panel’s corrections and get final clearance', met: research.status === 'Archived' },
-        ];
-      default:
-        return [];
-    }
-  };
-
   // ---------- Main home page for a student ----------
   const progress = getProgressPercentage();
   const roomName = mySchedule ? rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online meeting room' : '';
@@ -455,8 +413,8 @@ export default function DashboardStudent({
         </ol>
 
         {shownStage !== null && (
-          <div className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
-            <div className="space-y-3">
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
+            <div className="max-w-3xl space-y-3">
               <h3 className="text-base font-bold text-slate-900">
                 Step {shownStage + 1}: {phases[shownStage].title}
               </h3>
@@ -465,30 +423,6 @@ export default function DashboardStudent({
                 <p className="text-xs font-bold text-blue-900">What to do</p>
                 <p className="mt-1 text-sm text-slate-800">{phases[shownStage].guide}</p>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
-                <span>Checklist for this step</span>
-                <Badge tone="neutral">
-                  {getStageChecklist(shownStage).filter(x => x.met).length} of {getStageChecklist(shownStage).length} done
-                </Badge>
-              </h3>
-              <ul className="mt-3 space-y-2.5">
-                {getStageChecklist(shownStage).map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-sm">
-                    {item.met ? (
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-                    ) : (
-                      <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-400" aria-hidden="true" />
-                    )}
-                    <span className={item.met ? 'text-slate-700' : 'font-semibold text-slate-900'}>
-                      {item.label}
-                      <span className="sr-only">{item.met ? ' (done)' : ' (not done yet)'}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         )}
