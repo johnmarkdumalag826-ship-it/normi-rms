@@ -442,6 +442,15 @@ async function main() {
   assert(panelOpens.status === 200, 'a panel member booked for the hearing can open the titles file -> 200');
   const groupAfterHearing = await request(server, 'GET', `/api/research/${group.body.id}`, null, leader.token);
   assert(groupAfterHearing.body.status === 'Group Registered', 'booking the hearing keeps the group "Group Registered"');
+  // A panel member scoring the title hearing must not mark the paper's defense as finished
+  const hearingScore = await request(server, 'POST', '/api/evaluations', {
+    scheduleId: hearingForGroup.body.id, score1: 20, score2: 20, score3: 20, score4: 20, recommendation: 'Passed',
+  }, panelistTokens[0].token);
+  assert(hearingScore.status === 201, 'a panel member scores the title hearing -> 201');
+  const hearingAfterScore = await request(server, 'GET', `/api/schedules?researchId=${group.body.id}`, null, leader.token);
+  assert(hearingAfterScore.body.some((s) => s.id === hearingForGroup.body.id && s.status === 'completed'), 'the title hearing is marked completed');
+  const paperAfterHearingScore = await request(server, 'GET', `/api/research/${group.body.id}`, null, leader.token);
+  assert(paperAfterHearingScore.body.status === 'Group Registered', 'scoring a title hearing does NOT mark the paper "Completed"');
   const approveEmpty = await request(server, 'POST', `/api/research/${group.body.id}/approve`, { decision: 'Approve' }, adviserToken);
   assert(approveEmpty.status === 409, 'an adviser cannot approve a group that has not sent its title proposal -> 409');
 

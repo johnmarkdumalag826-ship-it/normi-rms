@@ -364,7 +364,8 @@ export default function App() {
       setEvaluations(prev => [created, ...prev]);
       setSchedules(prev => prev.map(s => s.id === evalObj.scheduleId ? { ...s, status: 'completed' } : s));
       const sched = schedules.find(s => s.id === evalObj.scheduleId);
-      if (sched) {
+      // Scoring a title hearing only completes the hearing; the paper's own status does not change.
+      if (sched && sched.type !== 'title_hearing') {
         setResearchList(prev => prev.map(r => r.id === sched.researchId ? {
           ...r, status: created.recommendation === 'Passed' ? 'Completed' : 'Revision Required',
         } : r));
