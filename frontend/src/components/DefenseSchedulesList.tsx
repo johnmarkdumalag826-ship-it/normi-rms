@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
   Calendar as CalendarIcon, Clock, Landmark, Users, User, ShieldCheck, Video, Search,
-  LayoutGrid, List, ExternalLink, CheckCircle2, CalendarCheck, UserCheck, Compass,
+  LayoutGrid, List, Compass,
 } from 'lucide-react';
 import { Schedule, Room, User as UserType, Research } from '../types';
 import {
   Badge, Button, Card, EmptyState, PageHeader, Select, StatusBadge, Table, cx, defenseTypeLabels, formatDate, formatDateLong,
-  formatDateAndTime, formatTime, scheduleStatus, noResearchYetLabel, scheduleSubjectId, subjectStudentId, type Column,
+  formatTime, scheduleStatus, scheduleSubjectId, subjectStudentId, type Column, type Tone,
 } from '../ui';
 
 interface DefenseSchedulesListProps {
@@ -18,11 +18,42 @@ interface DefenseSchedulesListProps {
 }
 
 const subtitles: Record<string, string> = {
-  student: 'See when and where your defense will be, and who your panel members are.',
-  adviser: 'See the defense dates of your student groups.',
-  panelist: 'See the defenses you will attend as a panel member.',
-  coordinator: 'See every defense that is scheduled.',
-  admin: 'See every defense that is scheduled.',
+  student: 'When and where your defense is, and who is on your panel.',
+  adviser: 'The defense dates of your student groups.',
+  panelist: 'The defenses you will attend as a panel member.',
+  coordinator: 'Every defense that is scheduled.',
+  admin: 'Every defense that is scheduled.',
+};
+
+type Tab = Schedule['status'];
+
+const tabLabels: Record<Tab, string> = {
+  scheduled: 'Coming up',
+  completed: 'Finished',
+  cancelled: 'Cancelled',
+};
+
+// 'YYYY-MM-DD' in the person's own time zone (not UTC, which can be the day before in the morning)
+const localIso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const daysFromToday = (iso: string): number => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const today = new Date();
+  const a = new Date(y, m - 1, d).getTime();
+  const b = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return Math.round((a - b) / 86_400_000);
+};
+
+/** "Today", "Tomorrow", "In 5 days" for a defense that is still coming up. */
+const whenLabel = (sched: Schedule): { text: string; tone: Tone } => {
+  if (sched.status === 'completed') return { text: 'Finished', tone: 'success' };
+  if (sched.status === 'cancelled') return { text: 'Cancelled', tone: 'danger' };
+  const days = daysFromToday(sched.date);
+  if (days === 0) return { text: 'Today', tone: 'warning' };
+  if (days === 1) return { text: 'Tomorrow', tone: 'warning' };
+  if (days > 1) return { text: `In ${days} days`, tone: 'info' };
+  return { text: 'Date has passed', tone: 'neutral' };
 };
 
 export default function DefenseSchedulesList({
@@ -30,24 +61,18 @@ export default function DefenseSchedulesList({
 }: DefenseSchedulesListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [tab, setTab] = useState<Tab>('scheduled');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  const seesEverything = currentUser.role === 'coordinator' || currentUser.role === 'admin';
 
   const getRoomName = (roomId: string) => rooms.find(x => x.id === roomId)?.name ?? 'Online meeting';
   const getRoomLocation = (roomId: string) => rooms.find(x => x.id === roomId)?.location ?? 'Online';
-  // "subject" = a research paper's id, or a student with no research yet (see scheduleSubjectId)
-  const getResearchTitle = (subject: string) =>
-    subjectStudentId(subject) ? noResearchYetLabel : researchList.find(x => x.id === subject)?.title ?? 'Research paper';
-
-  const getAdviserName = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
-    if (!res) return 'No adviser yet';
-    return users.find(x => x.id === res.adviserId)?.name ?? 'No adviser yet';
-  };
 
   const getPanelistNames = (panelistIds: string[]) =>
     panelistIds.map(pid => users.find(x => x.id === pid)?.name ?? 'Panel Member');
 
+  // "subject" = a research paper's id, or a student with no research yet (see scheduleSubjectId)
   const getStudentNames = (subject: string) => {
     const alone = subjectStudentId(subject);
     if (alone) return users.find(x => x.id === alone)?.name ?? 'Student';
@@ -56,10 +81,28 @@ export default function DefenseSchedulesList({
     return res.studentIds.map(sid => users.find(x => x.id === sid)?.name ?? 'Student').join(', ');
   };
 
+  const getAdviserName = (subject: string) => {
+    const res = researchList.find(x => x.id === subject);
+    if (!res) return 'No adviser yet';
+    return users.find(x => x.id === res.adviserId)?.name ?? 'No adviser yet';
+  };
+
+  // The big line of a defense: the paper's title, or who a paper-less title hearing is for
+  const getHeading = (sched: Schedule) => {
+    const subject = scheduleSubjectId(sched);
+    if (subjectStudentId(subject)) return `Title hearing for ${getStudentNames(subject)}`;
+    return researchList.find(x => x.id === subject)?.title ?? 'Research paper';
+  };
+
+  // The small line under it: the group, or why there is no paper
+  const getSubheading = (sched: Schedule) => {
+    const subject = scheduleSubjectId(sched);
+    return subjectStudentId(subject) ? 'Has not added research yet' : getStudentNames(subject);
+  };
+
   // Is this defense connected to the person who is signed in?
   const isMySchedule = (sched: Schedule) => {
-    if (currentUser.role === 'coordinator' || currentUser.role === 'admin') return true;
-
+    if (seesEverything) return true;
     if (sched.studentId) return currentUser.role === 'student' && sched.studentId === currentUser.id;
 
     const res = researchList.find(r => r.id === sched.researchId);
@@ -71,54 +114,50 @@ export default function DefenseSchedulesList({
     return false;
   };
 
-  const seesEverything = currentUser.role === 'coordinator' || currentUser.role === 'admin';
-
-  const filteredSchedules = useMemo(() => {
-    return schedules
-      .filter(sched => {
-        const title = getResearchTitle(scheduleSubjectId(sched)).toLowerCase();
-        const students = getStudentNames(scheduleSubjectId(sched)).toLowerCase();
-        const adviser = getAdviserName(scheduleSubjectId(sched)).toLowerCase();
-        const roomName = getRoomName(sched.roomId).toLowerCase();
-        const roomLoc = getRoomLocation(sched.roomId).toLowerCase();
-        const query = searchQuery.toLowerCase();
-        const matchQuery = title.includes(query) || students.includes(query) || adviser.includes(query) || roomName.includes(query) || roomLoc.includes(query);
-
-        const matchType = typeFilter === 'all' || sched.type === typeFilter;
-        const matchStatus = statusFilter === 'all' || sched.status === statusFilter;
-
-        return matchQuery && matchType && matchStatus;
-      })
-      .sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date);
-        return a.startTime.localeCompare(b.startTime);
-      });
-  }, [schedules, searchQuery, typeFilter, statusFilter, researchList, users, rooms]);
-
-  const mySchedules = useMemo(() => filteredSchedules.filter(isMySchedule), [filteredSchedules, currentUser, researchList]);
-  const otherSchedules = useMemo(() => filteredSchedules.filter(s => !isMySchedule(s)), [filteredSchedules, currentUser, researchList]);
-
-  const stats = useMemo(() => {
-    const active = schedules.filter(s => s.status === 'scheduled').length;
-    const completed = schedules.filter(s => s.status === 'completed').length;
-    const myCount = schedules.filter(isMySchedule).length;
-    return { active, completed, myCount, total: schedules.length };
-  }, [schedules, currentUser, researchList]);
-
-  // The next defense that is still coming up for this person
-  const today = new Date().toISOString().slice(0, 10);
-  const nextDefense = useMemo(
-    () =>
-      schedules
-        .filter(s => s.status === 'scheduled' && s.date >= today && isMySchedule(s))
-        .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0],
-    [schedules, currentUser, researchList, today],
+  // Everyone except the coordinator and admin only sees their own defenses
+  const visible = useMemo(
+    () => schedules.filter(isMySchedule),
+    [schedules, currentUser, researchList],
   );
 
-  const hasFilters = searchQuery !== '' || typeFilter !== 'all' || statusFilter !== 'all';
-  const clearFilters = () => { setSearchQuery(''); setTypeFilter('all'); setStatusFilter('all'); };
+  const counts = useMemo(() => ({
+    scheduled: visible.filter(s => s.status === 'scheduled').length,
+    completed: visible.filter(s => s.status === 'completed').length,
+    cancelled: visible.filter(s => s.status === 'cancelled').length,
+  }), [visible]);
 
-  const cardProps = { getRoomName, getRoomLocation, getResearchTitle, getAdviserName, getPanelistNames, getStudentNames };
+  const byTime = (a: Schedule, b: Schedule) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime);
+
+  const shown = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    const list = visible.filter(sched => {
+      if (sched.status !== tab) return false;
+      if (typeFilter !== 'all' && sched.type !== typeFilter) return false;
+      if (!query) return true;
+      const subject = scheduleSubjectId(sched);
+      return [getHeading(sched), getStudentNames(subject), getAdviserName(subject), getRoomName(sched.roomId), getRoomLocation(sched.roomId)]
+        .some(text => text.toLowerCase().includes(query));
+    });
+    // soonest first for what is coming; most recent first for what is done
+    return list.sort((a, b) => (tab === 'scheduled' ? byTime(a, b) : byTime(b, a)));
+  }, [visible, tab, typeFilter, searchQuery, researchList, users, rooms]);
+
+  // The next defense that is still coming up for this person
+  const today = localIso(new Date());
+  const nextDefense = useMemo(
+    () => visible.filter(s => s.status === 'scheduled' && s.date >= today).sort(byTime)[0],
+    [visible, today],
+  );
+
+  const hasFilters = searchQuery !== '' || typeFilter !== 'all';
+  const clearFilters = () => { setSearchQuery(''); setTypeFilter('all'); };
+  // Search and filters only help when there are many defenses to look through
+  const showSearch = seesEverything || visible.length > 4;
+
+  const cardProps = {
+    getRoomName, getRoomLocation, getHeading, getSubheading, getAdviserName, getPanelistNames,
+    subjectOf: scheduleSubjectId,
+  };
 
   const columns: Column<Schedule>[] = [
     {
@@ -135,8 +174,8 @@ export default function DefenseSchedulesList({
       key: 'paper', header: 'Research paper and group',
       render: s => (
         <span className="block max-w-sm space-y-0.5">
-          <span className="block font-semibold text-slate-900">{getResearchTitle(scheduleSubjectId(s))}</span>
-          <span className="block text-sm text-slate-600">{getStudentNames(scheduleSubjectId(s))}</span>
+          <span className="block font-semibold text-slate-900">{getHeading(s)}</span>
+          <span className="block text-sm text-slate-600">{getSubheading(s)}</span>
         </span>
       ),
     },
@@ -150,23 +189,26 @@ export default function DefenseSchedulesList({
         </span>
       ),
     },
-    {
-      key: 'status', header: 'Status',
-      render: s => (
-        <span className="flex flex-wrap gap-1.5">
-          <StatusBadge info={scheduleStatus[s.status]} />
-          {!seesEverything && isMySchedule(s) && <Badge tone="success">Yours</Badge>}
-        </span>
-      ),
-    },
+    { key: 'status', header: 'Status', render: s => <StatusBadge info={scheduleStatus[s.status]} /> },
   ];
+
+  const emptyText: Record<Tab, { title: string; description: string }> = {
+    scheduled: {
+      title: 'Nothing is coming up',
+      description: seesEverything
+        ? 'Use Schedule Defenses to set a date for a group.'
+        : 'When the coordinator sets a date for you, it will show here and you will get a notification.',
+    },
+    completed: { title: 'Nothing is finished yet', description: 'Defenses that were held will show here.' },
+    cancelled: { title: 'Nothing was cancelled', description: 'Cancelled defenses will show here.' },
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader title="Defense Schedule" subtitle={subtitles[currentUser.role]} />
 
-      {/* Your next defense */}
-      {!seesEverything && (
+      {/* Your next defense (with only one coming up, the list below already shows it) */}
+      {!seesEverything && counts.scheduled !== 1 && (
         <section aria-labelledby="next-defense">
           <Card className={cx(nextDefense ? 'border-blue-200 bg-blue-50' : '')}>
             <p id="next-defense" className="flex items-center gap-2 text-sm font-bold text-blue-900">
@@ -174,16 +216,28 @@ export default function DefenseSchedulesList({
               Your next defense
             </p>
             {nextDefense ? (
-              <div className="mt-2 space-y-1">
-                <h2 className="text-xl font-bold text-slate-900">{formatDateAndTime(nextDefense.date, nextDefense.startTime)}</h2>
-                <p className="text-base text-slate-700">
-                  {getResearchTitle(scheduleSubjectId(nextDefense))} · {getRoomName(nextDefense.roomId)}
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="info">{defenseTypeLabels[nextDefense.type] ?? nextDefense.type}</Badge>
+                  <Badge tone={whenLabel(nextDefense).tone}>{whenLabel(nextDefense).text}</Badge>
+                </div>
+                <h2 className="text-2xl font-bold leading-snug text-slate-900">{formatDateLong(nextDefense.date)}</h2>
+                <p className="flex flex-wrap items-center gap-x-5 gap-y-1 text-base text-slate-800">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                    {formatTime(nextDefense.startTime)} to {formatTime(nextDefense.endTime)}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Landmark className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                    {nextDefense.roomId === 'online' ? 'Online meeting' : `${getRoomName(nextDefense.roomId)}, ${getRoomLocation(nextDefense.roomId)}`}
+                  </span>
                 </p>
+                <p className="text-sm text-slate-700">{getHeading(nextDefense)}</p>
               </div>
             ) : (
               <p className="mt-2 text-base text-slate-700">
                 {currentUser.role === 'student'
-                  ? 'Your defense date is not set yet. After your adviser approves your paper, the coordinator will set it and you will get a notification.'
+                  ? 'No defense date is set for you yet. The coordinator will set it and you will get a notification.'
                   : 'You have no defense coming up right now.'}
               </p>
             )}
@@ -191,55 +245,22 @@ export default function DefenseSchedulesList({
         </section>
       )}
 
-      {/* Numbers */}
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          { icon: CalendarIcon, tone: 'text-blue-800', label: 'All defenses', value: stats.total },
-          { icon: CheckCircle2, tone: 'text-emerald-700', label: 'Finished', value: stats.completed },
-          { icon: CalendarCheck, tone: 'text-amber-700', label: 'Coming up', value: stats.active },
-          ...(seesEverything ? [] : [{ icon: UserCheck, tone: 'text-indigo-700', label: 'Yours', value: stats.myCount }]),
-        ].map(({ icon: Icon, tone, label, value }) => (
-          <Card key={label} className="flex items-start gap-3 !p-4">
-            <Icon className={cx('mt-0.5 h-6 w-6 shrink-0', tone)} aria-hidden="true" />
-            <div>
-              <dd className="text-2xl font-bold text-slate-900">{value}</dd>
-              <dt className="text-sm text-slate-600">{label}</dt>
-            </div>
-          </Card>
-        ))}
-      </dl>
-
-      {/* Search and filters */}
-      <Card as="section" aria-label="Search and filters" className="space-y-4">
-        <div className="relative">
-          <label htmlFor="defense-search" className="sr-only">Search defenses</label>
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-          <input
-            id="defense-search"
-            type="search"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search by paper title, student, adviser or room"
-            className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
-          />
+      {/* Which defenses to show */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Which defenses to show">
+          {(Object.keys(tabLabels) as Tab[]).map(key => (
+            <Button
+              key={key}
+              variant={tab === key ? 'primary' : 'secondary'}
+              size="sm"
+              aria-pressed={tab === key}
+              onClick={() => setTab(key)}
+            >
+              {tabLabels[key]} ({counts[key]})
+            </Button>
+          ))}
         </div>
-
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-          <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select label="Type of defense" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-              <option value="all">All types</option>
-              <option value="title_hearing">Title Hearing</option>
-              <option value="proposal">Proposal Defense</option>
-              <option value="final">Final Defense</option>
-            </Select>
-            <Select label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="all">All statuses</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </Select>
-          </div>
-
+        {seesEverything && (
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="How to show the list">
             <Button variant={viewMode === 'grid' ? 'primary' : 'secondary'} size="sm" icon={LayoutGrid} aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
               Cards
@@ -247,59 +268,61 @@ export default function DefenseSchedulesList({
             <Button variant={viewMode === 'table' ? 'primary' : 'secondary'} size="sm" icon={List} aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
               Table
             </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Search and filters */}
+      {showSearch && (
+        <Card as="section" aria-label="Search and filters" className="space-y-4">
+          <div className="relative">
+            <label htmlFor="defense-search" className="sr-only">Search defenses</label>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input
+              id="defense-search"
+              type="search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by paper title, student, adviser or room"
+              className="min-h-12 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-4 text-base text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-700/30"
+            />
+          </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="sm:w-72">
+              <Select label="Type of defense" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                <option value="all">All types</option>
+                <option value="title_hearing">Title Hearing</option>
+                <option value="proposal">Proposal Defense</option>
+                <option value="final">Final Defense</option>
+              </Select>
+            </div>
             {hasFilters && <Button variant="ghost" size="sm" onClick={clearFilters}>Clear Search and Filters</Button>}
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* List */}
-      {filteredSchedules.length === 0 ? (
+      {shown.length === 0 ? (
         <Card padded={false}>
-          {schedules.length === 0 ? (
-            <EmptyState
-              icon={CalendarIcon}
-              title="No defenses are scheduled yet"
-              description="When the coordinator sets a defense date, it will show here."
-            />
-          ) : (
+          {hasFilters ? (
             <EmptyState
               icon={Search}
               title="No defenses match your search"
-              description="Try a shorter search, or clear the filters to see every defense."
+              description="Try a shorter search, or clear the filters."
               action={<Button variant="secondary" onClick={clearFilters}>Clear Search and Filters</Button>}
             />
+          ) : (
+            <EmptyState icon={CalendarIcon} title={emptyText[tab].title} description={emptyText[tab].description} />
           )}
         </Card>
-      ) : viewMode === 'grid' ? (
-        <div className="space-y-8">
-          {mySchedules.length > 0 && (
-            <section className="space-y-4" aria-labelledby="mine-title">
-              <h2 id="mine-title" className="text-lg font-bold text-slate-900">
-                {seesEverything ? `All defenses (${mySchedules.length})` : `Your defenses (${mySchedules.length})`}
-              </h2>
-              <ul className="space-y-4">
-                {mySchedules.map(sched => (
-                  <li key={sched.id}><ScheduleCard sched={sched} highlighted={!seesEverything} {...cardProps} /></li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {otherSchedules.length > 0 && (
-            <section className="space-y-4" aria-labelledby="others-title">
-              <h2 id="others-title" className="text-lg font-bold text-slate-900">
-                {mySchedules.length > 0 ? `Other defenses (${otherSchedules.length})` : `All defenses (${otherSchedules.length})`}
-              </h2>
-              <ul className="space-y-4">
-                {otherSchedules.map(sched => (
-                  <li key={sched.id}><ScheduleCard sched={sched} highlighted={false} {...cardProps} /></li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </div>
+      ) : viewMode === 'grid' || !seesEverything ? (
+        <ul className="space-y-4">
+          {shown.map(sched => (
+            <li key={sched.id}><ScheduleCard sched={sched} {...cardProps} /></li>
+          ))}
+        </ul>
       ) : (
-        <Table caption="Defense schedules" columns={columns} rows={filteredSchedules} rowKey={s => s.id} />
+        <Table caption="Defense schedules" columns={columns} rows={shown} rowKey={s => s.id} />
       )}
     </div>
   );
@@ -307,33 +330,35 @@ export default function DefenseSchedulesList({
 
 interface ScheduleCardProps {
   sched: Schedule;
-  highlighted: boolean;
+  subjectOf: (s: Schedule) => string;
   getRoomName: (roomId: string) => string;
   getRoomLocation: (roomId: string) => string;
-  getResearchTitle: (subject: string) => string;
+  getHeading: (s: Schedule) => string;
+  getSubheading: (s: Schedule) => string;
   getAdviserName: (subject: string) => string;
   getPanelistNames: (panelistIds: string[]) => string[];
-  getStudentNames: (subject: string) => string;
 }
 
 function ScheduleCard({
-  sched, highlighted, getRoomName, getRoomLocation, getResearchTitle, getAdviserName, getPanelistNames, getStudentNames,
+  sched, subjectOf, getRoomName, getRoomLocation, getHeading, getSubheading, getAdviserName, getPanelistNames,
 }: ScheduleCardProps) {
   const isOnline = sched.roomId === 'online' || !sched.roomId;
+  const when = whenLabel(sched);
+  const subject = subjectOf(sched);
+  const noPaper = !!subjectStudentId(subject);
 
   return (
-    <Card as="article" className={cx('space-y-5', highlighted && 'border-blue-300 ring-1 ring-blue-100')}>
-      <div className="flex flex-wrap items-center gap-2">
+    <Card as="article" className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge tone="info">{defenseTypeLabels[sched.type] ?? sched.type}</Badge>
-        <StatusBadge info={scheduleStatus[sched.status]} />
-        {highlighted && <Badge tone="success">Yours</Badge>}
+        <Badge tone={when.tone}>{when.text}</Badge>
       </div>
 
       <div>
-        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(scheduleSubjectId(sched))}</h3>
+        <h3 className="text-lg font-bold leading-snug text-slate-900">{getHeading(sched)}</h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700">
           <Users className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-          <span>{getStudentNames(scheduleSubjectId(sched))}</span>
+          <span>{getSubheading(sched)}</span>
         </p>
       </div>
 
@@ -352,7 +377,7 @@ function ScheduleCard({
             <dd className="font-semibold text-slate-900">{formatTime(sched.startTime)} to {formatTime(sched.endTime)}</dd>
           </div>
         </div>
-        <div className="flex items-start gap-2.5 min-w-0">
+        <div className="flex min-w-0 items-start gap-2.5">
           {isOnline ? (
             <Video className="mt-0.5 h-5 w-5 shrink-0 text-blue-800" aria-hidden="true" />
           ) : (
@@ -379,7 +404,7 @@ function ScheduleCard({
           <p className="mb-1.5 text-sm font-bold text-slate-900">Adviser</p>
           <p className="flex items-center gap-2 text-sm text-slate-800">
             <User className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-            {getAdviserName(scheduleSubjectId(sched))}
+            {noPaper ? 'Chosen when the student adds research' : getAdviserName(subject)}
           </p>
         </div>
         <div>
