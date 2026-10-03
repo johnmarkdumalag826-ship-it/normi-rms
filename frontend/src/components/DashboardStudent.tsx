@@ -6,8 +6,8 @@ import {
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
-  chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress, researchTitle,
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, Textarea,
+  chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
 
@@ -62,12 +62,6 @@ export default function DashboardStudent({
   }, [research, users]);
 
 
-  const getAdviserName = () => {
-    if (!research) return 'Not Assigned';
-    const adviser = users.find(u => u.id === research.adviserId);
-    return adviser ? adviser.name : 'Unknown Faculty';
-  };
-
   // The title hearing and the defense are separate bookings; the "defense" card shows the real
   // defense when there is one, otherwise the title hearing.
   const myBookings = research ? schedules.filter(s => s.researchId === research.id) : [];
@@ -76,23 +70,6 @@ export default function DashboardStudent({
   const hearingDone = myBookings.some(s => s.type === 'title_hearing' && s.status === 'completed');
   const mySchedule = myDefense ?? myHearing ?? null;
   const activeComments = comments.filter(c => c.researchId === research?.id && !c.resolved);
-
-  // Calculate progress percent
-  const getProgressPercentage = () => {
-    if (!research) return 0;
-    switch (research.status) {
-      case 'Group Registered': return 5;
-      case 'Submitted': return 15;
-      case 'Under Review': return 30;
-      case 'Revision Required': return 45;
-      case 'Approved by Adviser': return 65;
-      case 'Pending Coordinator': return 75;
-      case 'Scheduled': return 85;
-      case 'Completed': return 100;
-      case 'Archived': return 100;
-      default: return 0;
-    }
-  };
 
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -225,7 +202,6 @@ export default function DashboardStudent({
   const shownStage = selectedJourneyStage ?? Math.min(activeIdx, phases.length - 1);
 
   // ---------- Main home page for a student ----------
-  const progress = getProgressPercentage();
   const roomName = mySchedule ? rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online meeting room' : '';
 
   // "What should I do next?" — one clear step for every stage.
@@ -415,38 +391,6 @@ export default function DashboardStudent({
           </div>
         )}
       </Card>
-      {/* Your research paper */}
-      <Card>
-        <CardHeader
-          title="Your research paper"
-          icon={<FileText className="h-5 w-5" aria-hidden="true" />}
-        />
-        <div className="space-y-4">
-          <p className="text-lg font-semibold text-slate-900">{researchTitle(research)}</p>
-          <p className="text-sm text-slate-700">
-            Adviser: <strong className="text-slate-900">{getAdviserName()}</strong>
-          </p>
-          <ResearchStatusBadge status={research.status} explain />
-
-          <div>
-            <div className="mb-1.5 flex justify-between text-sm font-semibold text-slate-800">
-              <span>Your progress</span>
-              <span>{progress}% done</span>
-            </div>
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-              aria-label="Progress of your research paper"
-              className="h-3 w-full overflow-hidden rounded-full bg-slate-200"
-            >
-              <div className="h-full rounded-full bg-blue-800" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </div>
-      </Card>
-
       <ResearchGroupCard research={research} users={users} currentUserId={user.id} />
 
       {/* Quick facts */}
