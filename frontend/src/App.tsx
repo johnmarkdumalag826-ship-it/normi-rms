@@ -77,6 +77,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showStartForm, setShowStartForm] = useState(false); // a student adding their first research
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
 
   // Toast / Status Alerts
@@ -181,6 +182,7 @@ export default function App() {
     setCurrentUser(null);
     setActiveTab('dashboard');
     setSelectedResearchId(null);
+    setShowStartForm(false);
   };
 
   // Notifications
@@ -558,6 +560,7 @@ export default function App() {
       const freshVersions = await listVersionsForResearch(created.id);
       setVersions(prev => [...freshVersions, ...prev]);
       triggerAlert("Research Title Proposal submitted successfully!");
+      setShowStartForm(false);
     } catch (err) {
       handleApiError(err, 'Could not submit research proposal.');
     }
@@ -607,6 +610,16 @@ export default function App() {
         if (currentUser?.role === 'student') {
           const res = researchList.find(r => r.studentIds.includes(currentUser.id));
           const currentVer = res ? versions.filter(v => v.researchId === res.id).sort((a,b) => b.versionNumber - a.versionNumber)[0] : undefined;
+          if (!res && showStartForm) {
+            return (
+              <ResearchInformationForm
+                user={currentUser}
+                advisers={users.filter(u => u.role === 'adviser')}
+                onSubmit={handleCreateTitleProposal}
+                onCancel={() => setShowStartForm(false)}
+              />
+            );
+          }
           return (
             <DashboardStudent
               user={currentUser}
@@ -620,6 +633,7 @@ export default function App() {
               onNavigateToTimeline={() => {
                 if (res) setSelectedResearchId(res.id);
               }}
+              onStartResearch={() => setShowStartForm(true)}
               onStudentUploadRevision={handleStudentUploadRevision}
               onUpdateResearchDetails={async (updated: Research) => {
                 try {
@@ -766,9 +780,9 @@ export default function App() {
         return (
           <Card>
             <EmptyState
-              title="You have no research paper yet"
-              description="Once you send in your research paper, its progress and your adviser's feedback will show here."
-              action={<Button onClick={() => setActiveTab('dashboard')}>Go to Home</Button>}
+              title="You have not added your research yet"
+              description="Once you add your research, its progress and your adviser's feedback will show here."
+              action={<Button onClick={() => { setActiveTab('dashboard'); setShowStartForm(true); }}>Add My Research</Button>}
             />
           </Card>
         );
@@ -948,34 +962,6 @@ export default function App() {
         </Card>
       </div>
     );
-  }
-
-  // Active Workspace
-  if (currentUser && currentUser.role === 'student') {
-    const hasResearch = researchList.some(r => r.studentIds.includes(currentUser.id));
-    if (!hasResearch) {
-      return (
-        <>
-          {alert && <Toast message={alert.message} type={alert.type} />}
-          <ResearchInformationForm
-            user={currentUser}
-            advisers={users.filter(u => u.role === 'adviser')}
-            onSubmit={handleCreateTitleProposal}
-            onLogout={handleLogout}
-            onOpenProfile={() => setShowMyProfile(true)}
-          />
-          <MyProfileModal
-            open={showMyProfile}
-            onClose={() => setShowMyProfile(false)}
-            user={currentUser}
-            departments={departments}
-            courses={courses}
-            onProfileUpdated={handleProfileUpdated}
-            onPasswordChanged={handlePasswordChanged}
-          />
-        </>
-      );
-    }
   }
 
   return (

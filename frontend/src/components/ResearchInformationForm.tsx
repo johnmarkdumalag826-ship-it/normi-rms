@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
-  FileText, Users, ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, LogOut, ExternalLink, Send,
+  Users, ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, ExternalLink, Send,
 } from 'lucide-react';
 import { User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
-  Alert, Avatar, Badge, BrandLogo, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
+  Alert, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong,
 } from '../ui';
 
 interface ResearchInformationFormProps {
@@ -21,8 +21,8 @@ interface ResearchInformationFormProps {
     fileName: string;
     proposalFiles?: ProposalFile[];
   }) => void;
-  onLogout: () => void;
-  onOpenProfile: () => void;
+  /** Closes the form and goes back to the dashboard without sending anything. */
+  onCancel: () => void;
 }
 
 const categoryLabels: Record<ProposalFile['category'], string> = {
@@ -33,7 +33,7 @@ const categoryLabels: Record<ProposalFile['category'], string> = {
 };
 
 export default function ResearchInformationForm({
-  user, advisers, onSubmit, onLogout, onOpenProfile
+  user, advisers, onSubmit, onCancel
 }: ResearchInformationFormProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState('');
@@ -209,40 +209,12 @@ export default function ResearchInformationForm({
   const stepTitle = step === 1 ? 'Your research details' : 'Your group and your files';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      {/* Top bar */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex min-h-16 max-w-3xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo className="h-11 shrink-0" />
-            <div className="min-w-0 leading-tight">
-              <p className="font-serif text-lg font-bold text-navy-900">NORMI</p>
-              <p className="hidden text-xs text-slate-600 sm:block">Research Management System</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              className="flex min-h-11 items-center gap-2 rounded-lg p-1 hover:bg-slate-100 cursor-pointer"
-              aria-label={`Open your profile and settings (${user.name}, ${roleLabels[user.role]})`}
-            >
-              <div className="hidden sm:block text-right min-w-0">
-                <p className="max-w-32 truncate text-sm font-semibold text-slate-900">{user.name}</p>
-                <Badge tone="info">{roleLabels[user.role]}</Badge>
-              </div>
-              <Avatar name={user.name} src={user.avatar} size="md" />
-            </button>
-            <Button variant="ghost" size="sm" icon={LogOut} onClick={onLogout}>Sign Out</Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="text-slate-800">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900">Start your research paper</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Add your research</h1>
           <p className="text-base text-slate-600">
-            Welcome, {user.name}. Before you can use the system, tell us about your research paper. It takes about 5 minutes.
+            Tell us about your research paper: its title, a short summary, your adviser and your document. It takes about 5 minutes.
           </p>
         </div>
 
@@ -316,7 +288,8 @@ export default function ResearchInformationForm({
                 />
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
+                <Button variant="secondary" icon={ArrowLeft} onClick={onCancel}>Back to Dashboard</Button>
                 <Button icon={ArrowRight} onClick={handleNextStep}>Continue to Step 2</Button>
               </div>
             </div>
@@ -427,7 +400,7 @@ export default function ResearchInformationForm({
             </form>
           )}
         </Card>
-      </main>
+      </div>
 
       {/* File details */}
       <Modal

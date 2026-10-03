@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
-  Landmark, Compass, Wrench,
+  Landmark, Compass, Wrench, Plus,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
@@ -21,13 +21,15 @@ interface DashboardStudentProps {
   rooms: Room[];
   users: User[];
   onNavigateToTimeline: () => void;
+  /** Opens the form where the student adds their research title and document. */
+  onStartResearch: () => void;
   onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
   onUpdateResearchDetails?: (updated: Research) => void;
 }
 
 export default function DashboardStudent({
   user, research, currentVersion, versions, comments, schedules, rooms, users, 
-  onNavigateToTimeline, onStudentUploadRevision, onUpdateResearchDetails
+  onNavigateToTimeline, onStartResearch, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -304,6 +306,27 @@ export default function DashboardStudent({
         return [];
     }
   };
+
+  // A student who has not added their research yet still lands on their dashboard after signing in;
+  // this button opens the form when they are ready.
+  if (!research) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title={`Welcome, ${user.name}`}
+          subtitle="Add your research whenever you are ready. Your progress and your adviser’s feedback will show here."
+        />
+        <Card padded={false}>
+          <EmptyState
+            icon={FileText}
+            title="You have not added your research yet"
+            description="When you are ready, add your research title, a short summary, your adviser and your document. Your adviser will be told."
+            action={<Button icon={Plus} onClick={onStartResearch}>Add My Research</Button>}
+          />
+        </Card>
+      </div>
+    );
+  }
 
   // ---------- Main home page for a student ----------
   const progress = getProgressPercentage();
