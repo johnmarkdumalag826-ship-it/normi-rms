@@ -4,7 +4,6 @@ import {
   Eye, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
-import { GroupJourneyCard } from './GroupJourneyCard';
 import {
   Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column, researchTitle,
@@ -280,8 +279,6 @@ export default function DashboardAdmin({
       {/* OVERVIEW */}
       {currentSection === 'dashboard' && (
         <div className="space-y-6">
-          <GroupJourneyCard researchList={researchList} schedules={schedules} users={users} showAdviser />
-
           <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               { icon: Users, tone: 'text-blue-800', label: 'Accounts', value: userStats.total },
