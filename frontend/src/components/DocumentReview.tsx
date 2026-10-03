@@ -5,10 +5,9 @@ import {
 import { User as UserType, Research, ResearchVersion, ResearchComment, CommentAnchor } from '../types';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
-import { TitleListReview } from './TitleListReview';
 import {
   Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea, type PaperHighlight,
-  chapterNames, cx, formatDate, formatDateLong, getResearchStatus, researchTitle,
+  chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
 } from '../ui';
 
 interface DocumentReviewProps {
@@ -18,7 +17,6 @@ interface DocumentReviewProps {
   comments: ResearchComment[];
   onAddComment: (comment: ResearchComment) => void;
   onApproveManuscript: (id: string, decision: 'Approve' | 'Revision' | 'Reject', feedbackNote: string) => void;
-  onReviewTitleList: (id: string, decision: 'Approve' | 'Revision', feedback?: string) => Promise<void>;
 }
 
 type Decision = 'Approve' | 'Revision' | 'Reject';
@@ -42,14 +40,11 @@ const decisionOptions: { value: Decision; label: string; help: string; icon: typ
 ];
 
 export default function DocumentReview({
-  user, researchList, versions, comments, onAddComment, onApproveManuscript, onReviewTitleList
+  user, researchList, versions, comments, onAddComment, onApproveManuscript
 }: DocumentReviewProps) {
   // Papers where this adviser is the adviser
   const myAssignedResearches = useMemo(() => {
-    // A group that has not sent its title proposal has a paper to review only once it has sent
-    // its prepared titles: then it is the titles that get checked.
-    return researchList.filter(r => r.adviserId === user.id
-      && (r.status !== 'Group Registered' || r.proposalFiles?.some(f => f.category === 'title_list')));
+    return researchList.filter(r => r.adviserId === user.id);
   }, [researchList, user.id]);
 
   const [selectedResearchId, setSelectedResearchId] = useState<string>(
@@ -166,7 +161,7 @@ export default function DocumentReview({
             <option value="" disabled>Choose a research paper…</option>
             {myAssignedResearches.map(res => (
               <option key={res.id} value={res.id}>
-                [{res.status === 'Group Registered' ? 'Prepared titles' : getResearchStatus(res.status).label}] {researchTitle(res).substring(0, 60)}{researchTitle(res).length > 60 ? '…' : ''}
+                [{getResearchStatus(res.status).label}] {res.title.substring(0, 60)}{res.title.length > 60 ? '…' : ''}
               </option>
             ))}
           </Select>
@@ -178,17 +173,8 @@ export default function DocumentReview({
           <EmptyState
             icon={FileText}
             title="No papers to review yet"
-            description="You are not the adviser of any group yet, or no group has sent a paper or its prepared titles. When they do, you can choose it above."
+            description="You are not the adviser of any group yet, or no group has sent a paper. When they do, you can choose it above."
           />
-        </Card>
-      ) : selectedResearch.status === 'Group Registered' ? (
-        <Card>
-          <CardHeader
-            title="Prepared titles"
-            description={`${researchTitle(selectedResearch)}: this group has not sent its paper yet. Check the titles it prepared for the title hearing.`}
-            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
-          />
-          <TitleListReview research={selectedResearch} onReview={onReviewTitleList} />
         </Card>
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

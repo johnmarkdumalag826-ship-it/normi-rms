@@ -12,8 +12,7 @@ import { ApiError } from './api/client';
 import { listDirectory, listUsers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
-  listResearch, createResearch, submitTitleProposal as apiSubmitTitleProposal, sendTitleList as apiSendTitleList, reviewTitleList as apiReviewTitleList,
-  createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
+  listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
   approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
   updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts,
   listAllVersions, listVersionsForResearch, addVersion,
@@ -47,8 +46,7 @@ import DashboardAdviser from './components/DashboardAdviser';
 import DashboardCoordinator from './components/DashboardCoordinator';
 import DashboardPanelist from './components/DashboardPanelist';
 import DashboardAdmin from './components/DashboardAdmin';
-import GroupStartForm from './components/GroupStartForm';
-import TitleProposalForm from './components/TitleProposalForm';
+import ResearchInformationForm from './components/ResearchInformationForm';
 
 export default function App() {
   // Session authentication states
@@ -77,7 +75,6 @@ export default function App() {
 
   // Navigation tracking
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [proposalFormOpen, setProposalFormOpen] = useState(false); // a student writing their title proposal
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
@@ -184,7 +181,6 @@ export default function App() {
     setCurrentUser(null);
     setActiveTab('dashboard');
     setSelectedResearchId(null);
-    setProposalFormOpen(false);
   };
 
   // Notifications
@@ -364,8 +360,7 @@ export default function App() {
       setEvaluations(prev => [created, ...prev]);
       setSchedules(prev => prev.map(s => s.id === evalObj.scheduleId ? { ...s, status: 'completed' } : s));
       const sched = schedules.find(s => s.id === evalObj.scheduleId);
-      // Scoring a title hearing only completes the hearing; the paper's own status does not change.
-      if (sched && sched.type !== 'title_hearing') {
+      if (sched) {
         setResearchList(prev => prev.map(r => r.id === sched.researchId ? {
           ...r, status: created.recommendation === 'Passed' ? 'Completed' : 'Revision Required',
         } : r));
@@ -543,52 +538,28 @@ export default function App() {
     triggerAlert('Your profile was saved.');
   };
 
-  // Starting out: the student registers their group (name, adviser, members). The title and
-  // main document come later, as the title proposal.
-  const handleRegisterGroup = async (data: { groupName: string; adviserId: string; members: string[] }) => {
+  const handleCreateTitleProposal = async (data: {
+    title: string;
+    abstract: string;
+    keywords: string[];
+    adviserId: string;
+    members: string[];
+    fileName: string;
+    proposalFiles?: ProposalFile[];
+  }) => {
     if (!currentUser) return;
     try {
-      const created = await createResearch(data);
+      const created = await createResearch({
+        title: data.title, abstract: data.abstract, keywords: data.keywords,
+        adviserId: data.adviserId, fileName: data.fileName, proposalFiles: data.proposalFiles,
+        members: data.members,
+      });
       setResearchList(prev => [created, ...prev]);
-      triggerAlert('Your group is registered. Next, send the file with your prepared titles for the title hearing.');
+      const freshVersions = await listVersionsForResearch(created.id);
+      setVersions(prev => [...freshVersions, ...prev]);
+      triggerAlert("Research Title Proposal submitted successfully!");
     } catch (err) {
-      handleApiError(err, 'Could not register your group.');
-    }
-  };
-
-  const handleSubmitTitleProposal = async (
-    researchId: string,
-    data: { title: string; proposalFiles: ProposalFile[] },
-  ) => {
-    try {
-      const updated = await apiSubmitTitleProposal(researchId, data);
-      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
-      const freshVersions = await listVersionsForResearch(updated.id);
-      setVersions(prev => [...freshVersions, ...prev.filter(v => v.researchId !== updated.id)]);
-      setProposalFormOpen(false);
-      triggerAlert('Your title proposal was sent to your adviser.');
-    } catch (err) {
-      handleApiError(err, 'Could not send your title proposal.');
-    }
-  };
-
-  const handleReviewTitleList = async (researchId: string, decision: 'Approve' | 'Revision', feedback?: string) => {
-    try {
-      const updated = await apiReviewTitleList(researchId, decision, feedback);
-      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
-      triggerAlert(decision === 'Approve' ? 'You approved the titles. The students were told.' : 'You asked for changes. The students were told.');
-    } catch (err) {
-      handleApiError(err, 'Could not save your decision.');
-    }
-  };
-
-  const handleSendTitleList = async (researchId: string, file: { name: string; url: string; size: number }) => {
-    try {
-      const updated = await apiSendTitleList(researchId, file);
-      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
-      triggerAlert('Your file with the prepared titles was sent.');
-    } catch (err) {
-      handleApiError(err, 'Could not send your file.');
+      handleApiError(err, 'Could not submit research proposal.');
     }
   };
 
@@ -624,10 +595,8 @@ export default function App() {
           versions={versions}
           comments={comments}
           user={currentUser!}
-          schedules={schedules}
           onBack={() => setSelectedResearchId(null)}
           onAddComment={handleAddComment}
-          onSendTitleList={handleSendTitleList}
           onStudentUploadRevision={handleStudentUploadRevision}
         />
       );
@@ -651,7 +620,6 @@ export default function App() {
               onNavigateToTimeline={() => {
                 if (res) setSelectedResearchId(res.id);
               }}
-              onOpenProposalForm={() => setProposalFormOpen(true)}
               onStudentUploadRevision={handleStudentUploadRevision}
               onUpdateResearchDetails={async (updated: Research) => {
                 try {
@@ -680,7 +648,6 @@ export default function App() {
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}
-              onReviewTitleList={handleReviewTitleList}
               onAddConsultation={handleAddConsultation}
               onApproveConsultation={handleApproveConsultation}
             />
@@ -789,11 +756,9 @@ export default function App() {
                 versions={versions}
                 comments={comments}
                 user={currentUser}
-                schedules={schedules}
                 onBack={() => setActiveTab('dashboard')}
                 onAddComment={handleAddComment}
-                onSendTitleList={handleSendTitleList}
-                onStudentUploadRevision={handleStudentUploadRevision}
+                      onStudentUploadRevision={handleStudentUploadRevision}
               />
             );
           }
@@ -824,7 +789,6 @@ export default function App() {
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}
-              onReviewTitleList={handleReviewTitleList}
               onAddConsultation={handleAddConsultation}
               onApproveConsultation={handleApproveConsultation}
             />
@@ -896,7 +860,6 @@ export default function App() {
               comments={comments}
               onAddComment={handleAddComment}
               onApproveManuscript={handleApproveManuscript}
-              onReviewTitleList={handleReviewTitleList}
             />
           );
         }
@@ -989,31 +952,18 @@ export default function App() {
 
   // Active Workspace
   if (currentUser && currentUser.role === 'student') {
-    const myResearch = researchList.find(r => r.studentIds.includes(currentUser.id));
-    const writingProposal = !!myResearch && myResearch.status === 'Group Registered' && proposalFormOpen;
-    if (!myResearch || writingProposal) {
+    const hasResearch = researchList.some(r => r.studentIds.includes(currentUser.id));
+    if (!hasResearch) {
       return (
         <>
           {alert && <Toast message={alert.message} type={alert.type} />}
-          {myResearch ? (
-            <TitleProposalForm
-              user={currentUser}
-              research={myResearch}
-              adviserName={users.find(u => u.id === myResearch.adviserId)?.name ?? 'your adviser'}
-              onSubmit={data => handleSubmitTitleProposal(myResearch.id, data)}
-              onBack={() => setProposalFormOpen(false)}
-              onLogout={handleLogout}
-              onOpenProfile={() => setShowMyProfile(true)}
-            />
-          ) : (
-            <GroupStartForm
-              user={currentUser}
-              advisers={users.filter(u => u.role === 'adviser')}
-              onSubmit={handleRegisterGroup}
-              onLogout={handleLogout}
-              onOpenProfile={() => setShowMyProfile(true)}
-            />
-          )}
+          <ResearchInformationForm
+            user={currentUser}
+            advisers={users.filter(u => u.role === 'adviser')}
+            onSubmit={handleCreateTitleProposal}
+            onLogout={handleLogout}
+            onOpenProfile={() => setShowMyProfile(true)}
+          />
           <MyProfileModal
             open={showMyProfile}
             onClose={() => setShowMyProfile(false)}

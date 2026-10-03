@@ -7,37 +7,27 @@ const proposalFileSchema = new mongoose.Schema({
   uploadedAt: { type: Date, default: Date.now },
   category: {
     type: String,
-    enum: ['proposal_document', 'research_summary', 'supporting_files', 'other_attachments', 'title_list'],
+    enum: ['proposal_document', 'research_summary', 'supporting_files', 'other_attachments'],
     required: true,
   },
 }, { _id: false });
 
 const researchSchema = new mongoose.Schema({
-  // A group is registered first; its title and summary come with the title proposal, after the
-  // title hearing, so they are empty until then.
-  groupName: String,
-  title: { type: String, default: '' },
-  abstract: { type: String, default: '' },
+  title: { type: String, required: true },
+  abstract: { type: String, required: true },
   departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', required: true },
   courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
   schoolYearId: { type: mongoose.Schema.Types.ObjectId, ref: 'SchoolYear', required: true },
   status: {
     type: String,
-    enum: ['Group Registered', 'Submitted', 'Under Review', 'Revision Required', 'Approved by Adviser',
+    enum: ['Submitted', 'Under Review', 'Revision Required', 'Approved by Adviser',
            'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'],
     default: 'Submitted',
   },
-  // The first student is the group leader (the person who registered the group).
+  // The first student is the group leader (the person who sent the paper in).
   studentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // The other group members, as typed by the leader. They may not have an account.
   memberNames: [String],
-  // The adviser's check of the file with the group's prepared titles (see sendTitleList). It goes
-  // back to "Pending" whenever the group sends a new file.
-  titleReview: {
-    status: { type: String, enum: ['Pending', 'Approved', 'Revision Required'], default: 'Pending' },
-    feedback: String,
-    reviewedAt: Date,
-  },
   adviserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   panelistIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   keywords: [String],

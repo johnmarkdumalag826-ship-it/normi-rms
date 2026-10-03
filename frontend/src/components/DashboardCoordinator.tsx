@@ -5,7 +5,7 @@ import {
 import { User, Research, Announcement, Room } from '../types';
 import {
   Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, Textarea,
-  announcementCategory, cx, formatDateLong, researchTitle,
+  announcementCategory, cx, formatDateLong,
 } from '../ui';
 
 interface DashboardCoordinatorProps {
@@ -95,7 +95,7 @@ export default function DashboardCoordinator({
                   <li key={res.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0 space-y-1">
                       <Badge tone="success" icon={CheckCircle2}>Approved by Adviser</Badge>
-                      <p className="text-base font-semibold text-slate-900">{researchTitle(res)}</p>
+                      <p className="text-base font-semibold text-slate-900">{res.title}</p>
                       <p className="text-sm text-slate-600">
                         Adviser: {getAdviserName(res.adviserId)}
                         {res.keywords.length > 0 && ` · Keywords: ${res.keywords.slice(0, 3).join(', ')}`}

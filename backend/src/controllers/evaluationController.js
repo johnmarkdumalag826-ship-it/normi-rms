@@ -19,21 +19,16 @@ const createEvaluation = async (req, res, next) => {
 
   const schedule = await Schedule.findByIdAndUpdate(scheduleId, { status: 'completed' }, { returnDocument: 'after' });
   if (schedule) {
-    // A title hearing comes before the adviser's review, so scoring it only marks the hearing done;
-    // it must not mark the paper's defense as finished ("Completed") or send it back for revision.
-    const isTitleHearing = schedule.type === 'title_hearing';
-    const research = isTitleHearing
-      ? await Research.findById(schedule.researchId)
-      : await Research.findByIdAndUpdate(
-        schedule.researchId,
-        { status: recommendation === 'Passed' ? 'Completed' : 'Revision Required' },
-        { returnDocument: 'after' },
-      );
+    const research = await Research.findByIdAndUpdate(
+      schedule.researchId,
+      { status: recommendation === 'Passed' ? 'Completed' : 'Revision Required' },
+      { returnDocument: 'after' },
+    );
     if (research) {
       await notifyMany(
         research.studentIds,
         'Jury Recommendation Published',
-        `Panelist evaluated ${isTitleHearing ? 'title hearing' : 'defense'} with recommendation: ${recommendation} (Score: ${totalScore}/100)`,
+        `Panelist evaluated defense with recommendation: ${recommendation} (Score: ${totalScore}/100)`,
         recommendation === 'Failed' ? 'error' : 'success',
       );
     }

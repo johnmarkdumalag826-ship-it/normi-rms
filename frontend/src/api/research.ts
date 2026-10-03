@@ -4,25 +4,10 @@ import { Research, ResearchStatus, ResearchVersion, ResearchComment, ProposalFil
 export const listResearch = (): Promise<Research[]> => api.get('/research');
 export const getResearch = (id: string): Promise<Research> => api.get(`/research/${id}`);
 
-// A student starts by registering their group (name, adviser, other members). The title,
-// summary and main document come later through submitTitleProposal.
 export const createResearch = (input: {
-  groupName?: string; adviserId: string; members?: string[];
-  title?: string; abstract?: string; keywords?: string[]; fileName?: string; proposalFiles?: ProposalFile[];
+  title: string; abstract: string; keywords?: string[]; adviserId: string; fileName?: string; proposalFiles?: ProposalFile[];
+  members?: string[];
 }): Promise<Research> => api.post('/research', input);
-
-// The registered group sends the title it chose and its file (a summary and keywords are optional).
-export const submitTitleProposal = (id: string, input: {
-  title: string; proposalFiles: ProposalFile[]; abstract?: string; keywords?: string[];
-}): Promise<Research> => api.post(`/research/${id}/title-proposal`, input);
-
-// The group sends one file with the titles it prepared for the title hearing (sending again replaces it).
-export const sendTitleList = (id: string, file: { name: string; url: string; size: number }): Promise<Research> =>
-  api.post(`/research/${id}/title-list`, file);
-
-// The group's adviser checks the file with the prepared titles: approve it, or ask for changes (with a note).
-export const reviewTitleList = (id: string, decision: 'Approve' | 'Revision', feedback?: string): Promise<Research> =>
-  api.post(`/research/${id}/title-list/review`, { decision, feedback });
 
 // Admin archiving a manuscript directly into the repository (no student submitter/version)
 export const createArchivedResearch = (input: {

@@ -5,7 +5,6 @@ import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, useFileLink, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, PdfReader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
-  researchTitle,
 } from '../ui';
 
 interface RepositoryViewProps {
@@ -220,7 +219,7 @@ export default function RepositoryView({
   const filteredPapers = useMemo(() => {
     return repoPapers.filter(paper => {
       const matchSearch = searchTerm === '' ||
-        researchTitle(paper).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         paper.abstract.toLowerCase().includes(searchTerm.toLowerCase()) ||
         paper.keywords.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -503,7 +502,7 @@ export default function RepositoryView({
                   </div>
 
                   <div className="space-y-1.5">
-                    <h2 className="text-lg font-bold leading-snug text-slate-900">{researchTitle(paper)}</h2>
+                    <h2 className="text-lg font-bold leading-snug text-slate-900">{paper.title}</h2>
                     <p className="text-sm text-slate-700 line-clamp-3">{paper.abstract}</p>
                   </div>
 
@@ -585,7 +584,7 @@ export default function RepositoryView({
       <Modal
         open={!!previewingResearch}
         onClose={() => setPreviewingResearch(null)}
-        title={previewingResearch ? researchTitle(previewingResearch) : 'Paper details'}
+        title={previewingResearch?.title ?? 'Paper details'}
         size="xl"
         footer={
           <>
@@ -723,7 +722,7 @@ export default function RepositoryView({
           setPaperToDelete(null);
         }}
         title="Delete this paper?"
-        message={`“${paperToDelete ? researchTitle(paperToDelete) : 'This paper'}” will be removed from the Repository. This cannot be undone.`}
+        message={`“${paperToDelete?.title ?? 'This paper'}” will be removed from the Repository. This cannot be undone.`}
         confirmLabel="Yes, Delete Paper"
         cancelLabel="No, Keep Paper"
         destructive

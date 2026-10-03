@@ -2,14 +2,13 @@ import React, { useMemo, useState } from 'react';
 import {
   FileText, History, MessageSquare, Send, Upload, Download,
 } from 'lucide-react';
-import { Research, ResearchVersion, ResearchComment, Schedule, User, CommentAnchor } from '../types';
+import { Research, ResearchVersion, ResearchComment, User, CommentAnchor } from '../types';
 import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
 import { downloadFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
-import { TitlesFilePanel } from './TitlesFilePanel';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
-  Textarea, cx, earlyStatuses, formatDateLong, formatDateTime, journeyProgress, researchTitle, roleLabels, type PaperHighlight,
+  Textarea, cx, formatDateLong, formatDateTime, roleLabels, type PaperHighlight,
 } from '../ui';
 
 interface ResearchDetailsViewProps {
@@ -17,12 +16,8 @@ interface ResearchDetailsViewProps {
   versions: ResearchVersion[];
   comments: ResearchComment[];
   user: User;
-  /** Needed to know whether the title hearing is done. */
-  schedules?: Schedule[];
   onBack: () => void;
   onAddComment: (comment: ResearchComment) => void;
-  /** Lets a student send the file with the titles their group prepared for the title hearing. */
-  onSendTitleList?: (researchId: string, file: { name: string; url: string; size: number }) => Promise<void>;
   onStudentUploadRevision: (
     researchId: string, title: string, abstract: string, fileName: string, fileUrl: string,
     type: 'adviser_check' | 'defense_manuscript',
@@ -41,7 +36,7 @@ const chapterFilters = ['all', 'chapter1', 'chapter2', 'chapter3', 'chapter4', '
 type ChapterFilter = (typeof chapterFilters)[number];
 
 export default function ResearchDetailsView({
-  research, versions, comments, user, schedules = [], onBack, onAddComment, onSendTitleList, onStudentUploadRevision
+  research, versions, comments, user, onBack, onAddComment, onStudentUploadRevision
 }: ResearchDetailsViewProps) {
   const [activeChapterFilter, setActiveChapterFilter] = useState<ChapterFilter>('all');
   const [newCommentText, setNewCommentText] = useState('');
@@ -118,13 +113,7 @@ export default function ResearchDetailsView({
 
   // ---- What the student may send, based on where the paper is ----
   const draftStatuses = ['Submitted', 'Under Review', 'Revision Required'];
-  // A group that has not sent its title proposal yet does that from the Home page, not here.
-  const canStudentUpload = user.role === 'student' && research.status !== 'Archived' && research.status !== 'Group Registered';
-  // The file with the group's prepared titles can be sent until the title hearing is done.
-  const hasTitleFile = !!research.proposalFiles?.some(f => f.category === 'title_list');
-  const canSendTitles = user.role === 'student' && !!onSendTitleList
-    && earlyStatuses.includes(research.status) && !journeyProgress(research, schedules).hearingDone;
-  const titlesButtonInHeader = canSendTitles && research.status === 'Group Registered';
+  const canStudentUpload = user.role === 'student' && research.status !== 'Archived';
   const uploadTypeOptions: { value: 'adviser_check' | 'defense_manuscript'; label: string }[] = draftStatuses.includes(research.status)
     ? [
         { value: 'adviser_check', label: 'A new draft for my adviser to check' },
@@ -208,20 +197,13 @@ export default function ResearchDetailsView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={researchTitle(research)}
+        title={research.title}
         subtitle={subtitles[user.role]}
         onBack={onBack}
         backLabel="Go Back"
         action={
-          (canStudentUpload || titlesButtonInHeader) ? (
-            <div className="flex flex-wrap gap-2">
-              {titlesButtonInHeader && (
-                <Button icon={Upload} onClick={() => document.getElementById('titles-input')?.click()}>
-                  {hasTitleFile ? 'Send a New Titles File' : 'Send Titles File'}
-                </Button>
-              )}
-              {canStudentUpload && <Button icon={Upload} onClick={openUploadModal}>Send a New Version</Button>}
-            </div>
+          canStudentUpload ? (
+            <Button icon={Upload} onClick={openUploadModal}>Send a New Version</Button>
           ) : undefined
         }
       />
@@ -234,33 +216,19 @@ export default function ResearchDetailsView({
         </Card>
       )}
 
-      {user.role === 'student' && onSendTitleList && (hasTitleFile || canSendTitles) && (
-        <Card>
-          <TitlesFilePanel research={research} canSend={canSendTitles} onSendTitleList={onSendTitleList} hideButton={titlesButtonInHeader} />
-        </Card>
-      )}
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
           {!currentVersion && (
             <Card padded={false}>
               <EmptyState
                 icon={FileText}
-                title={
-                  research.status === 'Group Registered'
-                    ? 'The title proposal has not been sent yet'
-                    : user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'
-                }
+                title={user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'}
                 description={
-                  research.status === 'Group Registered'
-                    ? user.role === 'student'
-                      ? 'After your title hearing, choose “Send Title Proposal” on your Home page.'
-                      : 'The group is registered. Its title and main document come after the title hearing.'
-                    : user.role === 'panelist'
-                      ? 'When the students upload their defense copy for the panel, it will show here.'
-                      : user.role === 'student'
-                        ? 'Use “Send a New Version” to upload your first file.'
-                        : 'The students have not uploaded a file yet.'
+                  user.role === 'panelist'
+                    ? 'When the students upload their defense copy for the panel, it will show here.'
+                    : user.role === 'student'
+                      ? 'Use “Send a New Version” to upload your first file.'
+                      : 'The students have not uploaded a file yet.'
                 }
               />
             </Card>
@@ -300,7 +268,6 @@ export default function ResearchDetailsView({
                   const catLabel = file.category === 'proposal_document' ? 'Main document'
                     : file.category === 'research_summary' ? 'Research summary'
                     : file.category === 'supporting_files' ? 'Supporting file'
-                    : file.category === 'title_list' ? 'Prepared titles'
                     : 'Other file';
                   return (
                     <li key={file.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -475,7 +442,7 @@ export default function ResearchDetailsView({
           </Select>
 
           <Input label="Research title" required value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-          <Textarea label="Short summary (abstract)" optional rows={4} value={newAbstract} onChange={e => setNewAbstract(e.target.value)} />
+          <Textarea label="Short summary (abstract)" required rows={4} value={newAbstract} onChange={e => setNewAbstract(e.target.value)} />
 
           <div className="space-y-1.5">
             <label htmlFor="upload-file" className="block text-sm font-semibold text-slate-800">

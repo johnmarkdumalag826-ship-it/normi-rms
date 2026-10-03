@@ -36,7 +36,6 @@ export function ResearchGroupCard({ research, users, currentUserId }: ResearchGr
     <Card>
       <CardHeader
         title="Your research group"
-        description={research.groupName}
         icon={<Users className="h-5 w-5" aria-hidden="true" />}
       />
       <ul className="space-y-3">

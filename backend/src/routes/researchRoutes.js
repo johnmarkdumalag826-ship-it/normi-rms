@@ -1,7 +1,7 @@
 const express = require('express');
 const {
-  listResearch, getResearch, createResearch, submitTitleProposal, sendTitleList, reviewTitleList, createArchivedResearch, updateResearch,
-  deleteResearch, approveManuscript, updateStatus, updateAdviser, incrementCounts, updateProposalFiles,
+  listResearch, getResearch, createResearch, createArchivedResearch, updateResearch, deleteResearch,
+  approveManuscript, updateStatus, updateAdviser, incrementCounts, updateProposalFiles,
 } = require('../controllers/researchController');
 const { addVersion, listVersionsForResearch } = require('../controllers/versionController');
 const { listCommentsForResearch, createComment } = require('../controllers/commentController');
@@ -14,9 +14,6 @@ router.use(protect);
 router.get('/', listResearch);
 router.post('/', requireRole('student'), createResearch);
 router.post('/archived', requireRole('admin'), createArchivedResearch);
-router.post('/:id/title-proposal', requireRole('student'), submitTitleProposal);
-router.post('/:id/title-list', requireRole('student'), sendTitleList);
-router.post('/:id/title-list/review', requireRole('adviser'), reviewTitleList);
 router.get('/:id', getResearch);
 router.patch('/:id', updateResearch);
 router.delete('/:id', requireRole('admin'), deleteResearch);

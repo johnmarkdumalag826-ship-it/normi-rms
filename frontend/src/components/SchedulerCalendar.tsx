@@ -6,7 +6,7 @@ import {
 import { Schedule, Room, User, Research } from '../types';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, StatusBadge,
-  cx, defenseTypeLabels, formatDate, formatDateLong, formatDateAndTime, formatTime, scheduleStatus, researchTitle,
+  cx, defenseTypeLabels, formatDate, formatDateLong, formatDateAndTime, formatTime, scheduleStatus,
 } from '../ui';
 
 interface SchedulerCalendarProps {
@@ -64,10 +64,7 @@ export default function SchedulerCalendar({
     return r ? `${r.name} (${r.location})` : 'Room not found';
   };
 
-  const getResearchTitle = (researchId: string) => {
-    const r = researchList.find(x => x.id === researchId);
-    return r ? researchTitle(r) : 'Research paper';
-  };
+  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
 
   const getPanelistNames = (panelistIds: string[]) =>
     panelistIds.map(pid => users.find(x => x.id === pid)?.name ?? 'Panel Member');
@@ -586,7 +583,7 @@ export default function SchedulerCalendar({
             <option value="" disabled>Choose a research paper…</option>
             {researchList.map(r => (
               <option key={r.id} value={r.id}>
-                {researchTitle(r).substring(0, 50)}{researchTitle(r).length > 50 ? '…' : ''} ({getStudentNames(r.id)})
+                {r.title.substring(0, 50)}{r.title.length > 50 ? '…' : ''} ({getStudentNames(r.id)})
               </option>
             ))}
           </Select>

@@ -16,11 +16,6 @@ const signUpRoles: SignUpRole[] = ['student', 'adviser', 'panelist', 'coordinato
 
 type Screen = 'sign-in' | 'sign-up' | 'sent' | 'forgot';
 
-// Students and advisers say which department and program they belong to; a coordinator only
-// the department; a panel member neither.
-const needsDepartment = (role: SignUpRole) => role !== 'panelist';
-const needsProgram = (role: SignUpRole) => role === 'student' || role === 'adviser';
-
 export default function Login({ onLoginSuccess }: LoginProps) {
   const [screen, setScreen] = useState<Screen>('sign-in');
   const [name, setName] = useState('');
@@ -32,7 +27,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Students and advisers also pick their department and program; a coordinator only the department.
+  // A student also picks their department and course.
   const [departments, setDepartments] = useState<Department[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [departmentId, setDepartmentId] = useState('');
@@ -106,8 +101,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (needsDepartment(role) && (!departmentId || (needsProgram(role) && !courseId))) {
-      setError(needsProgram(role) ? 'Please choose your department and program.' : 'Please choose your department.');
+    if (role === 'student' && (!departmentId || !courseId)) {
+      setError('Please choose your department and course.');
       return;
     }
     if (password.length < 8) {
@@ -122,8 +117,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     try {
       await signUp({
         name: name.trim(), email: email.trim().toLowerCase(), password, role,
-        ...(needsDepartment(role) ? { departmentId } : {}),
-        ...(needsProgram(role) ? { courseId } : {}),
+        ...(role === 'student' ? { departmentId, courseId } : {}),
       });
       setScreen('sent');
       setPassword('');
@@ -281,30 +275,29 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               >
                 {signUpRoles.map(r => <option key={r} value={r}>{roleLabels[r]}</option>)}
               </Select>
-              {needsDepartment(role) && (
-                <Select
-                  label="Department"
-                  required
-                  value={departmentId}
-                  onChange={e => setDepartmentId(e.target.value)}
-                  hint={role === 'adviser' ? 'The department you advise in.' : role === 'coordinator' ? 'The department you coordinate.' : undefined}
-                >
-                  <option value="" disabled>Choose your department…</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </Select>
-              )}
-              {needsProgram(role) && (
-                <Select
-                  label="Program"
-                  required
-                  value={courseId}
-                  onChange={e => setCourseId(e.target.value)}
-                  disabled={!departmentId}
-                  hint={!departmentId ? 'Choose a department first.' : role === 'adviser' ? 'The program you advise.' : undefined}
-                >
-                  <option value="" disabled>Choose your program…</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Select>
+              {role === 'student' && (
+                <>
+                  <Select
+                    label="Department"
+                    required
+                    value={departmentId}
+                    onChange={e => setDepartmentId(e.target.value)}
+                  >
+                    <option value="" disabled>Choose your department…</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </Select>
+                  <Select
+                    label="Program"
+                    required
+                    value={courseId}
+                    onChange={e => setCourseId(e.target.value)}
+                    disabled={!departmentId}
+                    hint={!departmentId ? 'Choose a department first.' : undefined}
+                  >
+                    <option value="" disabled>Choose your program…</option>
+                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </Select>
+                </>
               )}
               <Input
                 label="Password"

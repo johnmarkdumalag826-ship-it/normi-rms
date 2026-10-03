@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
   Landmark, Compass, Wrench,
@@ -6,8 +6,8 @@ import {
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, Select, Textarea,
-  chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress,
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
+  chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
 
@@ -21,24 +21,21 @@ interface DashboardStudentProps {
   rooms: Room[];
   users: User[];
   onNavigateToTimeline: () => void;
-  /** Opens the page where the group writes its title proposal. */
-  onOpenProposalForm: () => void;
   onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
   onUpdateResearchDetails?: (updated: Research) => void;
 }
 
 export default function DashboardStudent({
   user, research, currentVersion, versions, comments, schedules, rooms, users, 
-  onNavigateToTimeline, onOpenProposalForm, onStudentUploadRevision, onUpdateResearchDetails
+  onNavigateToTimeline, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
-
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [activeUploadTab, setActiveUploadTab] = useState<'adviser_check' | 'defense_manuscript'>('adviser_check');
   const [isDragging, setIsDragging] = useState(false);
-  const [selectedJourneyStage, setSelectedJourneyStage] = useState<number | null>(null); // null = open the step the student is on
+  const [selectedJourneyStage, setSelectedJourneyStage] = useState<number>(2); // Active stage (index 2: Proposal Defense) by default
   const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
 
   // Modals
@@ -62,14 +59,43 @@ export default function DashboardStudent({
   }, [research, users]);
 
 
-  // The title hearing and the defense are separate bookings; the "defense" card shows the real
-  // defense when there is one, otherwise the title hearing.
-  const myBookings = research ? schedules.filter(s => s.researchId === research.id) : [];
-  const myHearing = myBookings.find(s => s.type === 'title_hearing' && s.status === 'scheduled');
-  const myDefense = myBookings.find(s => s.type !== 'title_hearing' && s.status === 'scheduled');
-  const hearingDone = myBookings.some(s => s.type === 'title_hearing' && s.status === 'completed');
-  const mySchedule = myDefense ?? myHearing ?? null;
+  const getAdviserName = () => {
+    if (!research) return 'Not Assigned';
+    const adviser = users.find(u => u.id === research.adviserId);
+    return adviser ? adviser.name : 'Unknown Faculty';
+  };
+
+  const getUpcomingSchedule = () => {
+    if (!research) return null;
+    return schedules.find(s => s.researchId === research.id && s.status === 'scheduled');
+  };
+
+  const mySchedule = getUpcomingSchedule();
   const activeComments = comments.filter(c => c.researchId === research?.id && !c.resolved);
+
+  // Filter versions specifically for this student's research project
+  const myVersions = useMemo(() => {
+    if (!research) return [];
+    return versions
+      .filter(v => v.researchId === research.id)
+      .sort((a, b) => b.versionNumber - a.versionNumber); // Newest first
+  }, [versions, research]);
+
+  // Calculate progress percent
+  const getProgressPercentage = () => {
+    if (!research) return 0;
+    switch (research.status) {
+      case 'Submitted': return 15;
+      case 'Under Review': return 30;
+      case 'Revision Required': return 45;
+      case 'Approved by Adviser': return 65;
+      case 'Pending Coordinator': return 75;
+      case 'Scheduled': return 85;
+      case 'Completed': return 100;
+      case 'Archived': return 100;
+      default: return 0;
+    }
+  };
 
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
@@ -155,37 +181,68 @@ export default function DashboardStudent({
     setShowEditDetailsModal(false);
   };
 
-  // A research paper's journey in three steps, in plain words: the title hearing, the title
-  // proposal, then the final title (the final defense and the Repository). Nothing is blocked:
-  // a paper that is already further along simply counts the earlier steps as done.
-  const titleFile = research?.proposalFiles?.find(f => f.category === 'title_list');
-  const titleReviewStatus = research?.titleReview?.status ?? 'Pending';
+  // The 7 steps of a research paper's journey, in plain words.
   const getJourneyPhases = () => {
     const phases = [
       {
         idx: 0,
-        title: 'Title Hearing',
-        subtitle: 'Present your title',
-        description: 'Send one file with the titles your group prepared. The coordinator then sets a date, a room and 3 panel members for your title hearing, where the panel hears your titles.',
-        guide: 'Open My Research and send your titles file, then prepare to explain your titles. Your hearing details are shown on this page.',
+        title: 'Send your idea',
+        subtitle: 'Title and summary',
+        description: 'Write your research title and a short summary, and choose your adviser.',
+        guide: 'Send in your paper drafts so your adviser can start reading them.',
       },
       {
         idx: 1,
-        title: 'Title Proposal',
-        subtitle: 'Send it and get approved',
-        description: 'After your title hearing, type the title your group chose and send your file. Your adviser reads Chapters 1 to 3, writes feedback, and approves your paper when it is ready.',
-        guide: 'Send your title proposal when your hearing is done. Then read each comment from your adviser, fix your paper, and upload a new version.',
+        title: 'Adviser assigned',
+        subtitle: 'Your adviser is chosen',
+        description: 'The department matches your group with an adviser who will guide you.',
+        guide: 'Your adviser is set. You can ask for meetings to talk about your paper.',
       },
       {
         idx: 2,
-        title: 'Final Defense',
-        subtitle: 'Defend, then the Repository',
-        description: 'The coordinator picks a date, a room and 3 panel members for your final defense. The panel scores it and may ask for changes. You fix them, upload your final paper, and it is saved in the Research Repository.',
-        guide: 'Prepare your slides and arrive on time. After your defense, make the changes the panel asked for.',
+        title: 'Adviser checks your chapters',
+        subtitle: 'Feedback on Chapters 1 to 3',
+        description: 'Your adviser reads Chapters 1 to 3 and writes feedback. You fix the problems and upload the paper again.',
+        guide: 'Read each comment, fix your paper, and upload a new version.',
+      },
+      {
+        idx: 3,
+        title: 'Approval',
+        subtitle: 'Ready for your defense',
+        description: 'When your chapters are good enough, your adviser approves your paper. The coordinator then checks it.',
+        guide: 'Your adviser approved your paper. The coordinator will now prepare your defense.',
+      },
+      {
+        idx: 4,
+        title: 'Defense',
+        subtitle: 'Present to the panel',
+        description: 'The coordinator picks a date, a room and 3 panel members for your defense.',
+        guide: 'Prepare your slides and arrive on time. Your defense details are shown on this page.',
+      },
+      {
+        idx: 5,
+        title: 'Fix and finalize',
+        subtitle: 'After your defense',
+        description: 'The panel scores your defense and may ask for changes. Fix them and upload your final paper.',
+        guide: 'Your defense is done. Make the changes the panel asked for.',
+      },
+      {
+        idx: 6,
+        title: 'Saved in the Repository',
+        subtitle: 'All done',
+        description: 'Your final paper is saved in the Research Repository.',
+        guide: 'Congratulations! Your research journey is complete.',
       },
     ];
 
-    const activeIdx = research ? journeyProgress(research, schedules).activeIdx : 0;
+    const currentStatus = research?.status || 'Submitted';
+    let activeIdx = 0;
+    if (currentStatus === 'Submitted') activeIdx = 0;
+    else if (currentStatus === 'Under Review' || currentStatus === 'Revision Required') activeIdx = 2;
+    else if (currentStatus === 'Approved by Adviser' || currentStatus === 'Pending Coordinator') activeIdx = 3;
+    else if (currentStatus === 'Scheduled') activeIdx = 4;
+    else if (currentStatus === 'Completed') activeIdx = 5;
+    else if (currentStatus === 'Archived') activeIdx = 6;
 
     return {
       phases: phases.map((p, idx) => ({
@@ -199,60 +256,62 @@ export default function DashboardStudent({
   };
 
   const { phases, activeIdx } = getJourneyPhases();
-  const shownStage = selectedJourneyStage ?? Math.min(activeIdx, phases.length - 1);
+
+  // What has been done at each step (a checklist shown when a step is opened)
+  const getStageChecklist = (stageIndex: number) => {
+    if (!research) return [];
+
+    switch (stageIndex) {
+      case 0:
+        return [
+          { label: 'Write your research title', met: !!research.title },
+          { label: 'Write a short summary (abstract)', met: !!research.abstract },
+          { label: 'Add at least one keyword', met: research.keywords.length > 0 },
+        ];
+      case 1:
+        return [
+          { label: 'Send in your research form', met: true },
+          { label: 'An adviser is assigned to you', met: !!research.adviserId },
+        ];
+      case 2:
+        return [
+          { label: 'Chapter 1 (Introduction) approved', met: currentVersion?.chapters?.chapter1?.status === 'Approved' },
+          { label: 'Chapter 2 (Review of Related Literature) approved', met: currentVersion?.chapters?.chapter2?.status === 'Approved' },
+          { label: 'Chapter 3 (Methodology) approved', met: currentVersion?.chapters?.chapter3?.status === 'Approved' },
+        ];
+      case 3:
+        return [
+          { label: 'Fix all comments from your adviser', met: activeComments.length === 0 },
+          { label: 'Get your adviser’s approval', met: ['Approved by Adviser', 'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'].includes(research.status) },
+        ];
+      case 4:
+        return [
+          { label: 'You have a defense date and time', met: !!mySchedule },
+          { label: 'You have 3 panel members', met: !!mySchedule && mySchedule.panelistIds.length === 3 },
+          { label: 'You have a room', met: !!mySchedule && !!mySchedule.roomId },
+        ];
+      case 5:
+        return [
+          { label: 'Upload your final paper', met: myVersions.some(v => v.type === 'defense_manuscript') },
+          { label: 'Finish your defense', met: ['Completed', 'Archived'].includes(research.status) },
+        ];
+      case 6:
+        return [
+          { label: 'Fix the panel’s corrections', met: research.status === 'Archived' },
+          { label: 'Get final clearance from the school', met: research.status === 'Archived' },
+        ];
+      default:
+        return [];
+    }
+  };
 
   // ---------- Main home page for a student ----------
+  const progress = getProgressPercentage();
   const roomName = mySchedule ? rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online meeting room' : '';
 
   // "What should I do next?" — one clear step for every stage.
-  const nextStep: { title: string; text: string; showAction: boolean; action?: { label: string; onClick: () => void } } = (() => {
+  const nextStep: { title: string; text: string; showAction: boolean } = (() => {
     switch (research.status) {
-      case 'Group Registered':
-        if (hearingDone) {
-          return {
-            title: 'Send your title proposal',
-            text: 'Your title hearing is done. Type the title your group chose and add your file.',
-            showAction: false,
-            action: { label: 'Send Title Proposal', onClick: onOpenProposalForm },
-          };
-        }
-        if (myHearing) {
-          return {
-            title: `Get ready for your title hearing on ${formatDateAndTime(myHearing.date, myHearing.startTime)}`,
-            text: titleFile
-              ? 'Your prepared titles are sent. Prepare to present them to the panel. The date, room and panel members are shown on this page.'
-              : 'Send the file with your prepared titles before the hearing. The date, room and panel members are shown on this page.',
-            showAction: false,
-          };
-        }
-        if (!titleFile) {
-          return {
-            title: 'Send your prepared titles',
-            text: 'Put the titles your group prepared in one file (PDF or Word) and send it. The panel will read it at your title hearing.',
-            showAction: false,
-            action: { label: 'Send Titles File', onClick: onNavigateToTimeline },
-          };
-        }
-        if (titleReviewStatus === 'Revision Required') {
-          return {
-            title: 'Fix your titles and send a new file',
-            text: `Your adviser asked for changes${research.titleReview?.feedback ? `: ${research.titleReview.feedback}` : '.'} Update your file, then send it again.`,
-            showAction: false,
-            action: { label: 'Send a New File', onClick: onNavigateToTimeline },
-          };
-        }
-        if (titleReviewStatus === 'Pending') {
-          return {
-            title: 'Wait for your adviser to check your titles',
-            text: 'Your prepared titles are sent. Your adviser will read them and approve them, or ask for changes. You will get a notification.',
-            showAction: false,
-          };
-        }
-        return {
-          title: 'Wait for your title hearing date',
-          text: 'Your adviser approved your titles. The coordinator will set the date, the room and your panel. You will be told here and by notification.',
-          showAction: false,
-        };
       case 'Revision Required':
         return {
           title: 'Fix your paper and upload the new version',
@@ -261,13 +320,6 @@ export default function DashboardStudent({
         };
       case 'Submitted':
       case 'Under Review':
-        if (myHearing) {
-          return {
-            title: `Get ready for your title hearing on ${formatDateAndTime(myHearing.date, myHearing.startTime)}`,
-            text: 'Prepare to present your research title to the panel. The date, room and panel members are shown on this page.',
-            showAction: false,
-          };
-        }
         return {
           title: 'Wait for your adviser’s feedback',
           text: 'Your adviser is reading your paper. You will get a notification when there is feedback. You can upload a new version any time.',
@@ -324,11 +376,7 @@ export default function DashboardStudent({
               <h2 className="text-xl font-bold text-slate-900">{nextStep.title}</h2>
               <p className="max-w-2xl text-base text-slate-700">{nextStep.text}</p>
             </div>
-            {nextStep.action ? (
-              <Button icon={ArrowRight} onClick={nextStep.action.onClick} className="shrink-0">
-                {nextStep.action.label}
-              </Button>
-            ) : nextStep.showAction && (
+            {nextStep.showAction && (
               <Button icon={ArrowRight} onClick={onNavigateToTimeline} className="shrink-0">
                 Open My Research
               </Button>
@@ -337,17 +385,82 @@ export default function DashboardStudent({
         </Card>
       </section>
 
+      {/* Your research paper */}
+      <Card>
+        <CardHeader
+          title="Your research paper"
+          icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+        />
+        <div className="space-y-4">
+          <p className="text-lg font-semibold text-slate-900">{research.title}</p>
+          <p className="text-sm text-slate-700">
+            Adviser: <strong className="text-slate-900">{getAdviserName()}</strong>
+          </p>
+          <ResearchStatusBadge status={research.status} explain />
+
+          <div>
+            <div className="mb-1.5 flex justify-between text-sm font-semibold text-slate-800">
+              <span>Your progress</span>
+              <span>{progress}% done</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+              aria-label="Progress of your research paper"
+              className="h-3 w-full overflow-hidden rounded-full bg-slate-200"
+            >
+              <div className="h-full rounded-full bg-blue-800" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <ResearchGroupCard research={research} users={users} currentUserId={user.id} />
+
+      {/* Quick facts */}
+      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="flex items-start gap-3">
+          <FileText className="mt-0.5 h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
+          <div>
+            <dt className="text-sm text-slate-600">Latest file you sent</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {currentVersion ? `Version ${currentVersion.versionNumber}` : 'Nothing uploaded yet'}
+            </dd>
+          </div>
+        </Card>
+        <Card className="flex items-start gap-3">
+          <MessageSquare className="mt-0.5 h-6 w-6 shrink-0 text-amber-700" aria-hidden="true" />
+          <div>
+            <dt className="text-sm text-slate-600">Comments to fix</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {activeComments.length === 0 ? 'None right now' : activeComments.length}
+            </dd>
+          </div>
+        </Card>
+        <Card className="flex items-start gap-3">
+          <Calendar className="mt-0.5 h-6 w-6 shrink-0 text-rose-700" aria-hidden="true" />
+          <div>
+            <dt className="text-sm text-slate-600">Your defense</dt>
+            <dd className="text-base font-bold text-slate-900">
+              {mySchedule ? formatDateAndTime(mySchedule.date, mySchedule.startTime) : 'Not set yet'}
+            </dd>
+          </div>
+        </Card>
+      </dl>
+
       {/* The journey */}
       <Card>
         <CardHeader
           title="Your research journey"
-          description="There are 3 steps from your first idea to the Repository. Select a step to see what it needs."
+          description="There are 7 steps from your first idea to the Repository. Select a step to see what it needs."
           icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
         />
 
-        <ol className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
           {phases.map((phase, idx) => {
-            const isSelected = shownStage === idx;
+            const isSelected = selectedJourneyStage === idx;
             return (
               <li key={idx}>
                 <button
@@ -376,53 +489,45 @@ export default function DashboardStudent({
           })}
         </ol>
 
-        {shownStage !== null && (
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <div className="max-w-3xl space-y-3">
+        {selectedJourneyStage !== null && (
+          <div className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
+            <div className="space-y-3">
               <h3 className="text-base font-bold text-slate-900">
-                Step {shownStage + 1}: {phases[shownStage].title}
+                Step {selectedJourneyStage + 1}: {phases[selectedJourneyStage].title}
               </h3>
-              <p className="text-sm text-slate-700">{phases[shownStage].description}</p>
+              <p className="text-sm text-slate-700">{phases[selectedJourneyStage].description}</p>
               <div className="rounded-lg border border-blue-200 bg-white p-3">
                 <p className="text-xs font-bold text-blue-900">What to do</p>
-                <p className="mt-1 text-sm text-slate-800">{phases[shownStage].guide}</p>
+                <p className="mt-1 text-sm text-slate-800">{phases[selectedJourneyStage].guide}</p>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
+                <span>Checklist for this step</span>
+                <Badge tone="neutral">
+                  {getStageChecklist(selectedJourneyStage).filter(x => x.met).length} of {getStageChecklist(selectedJourneyStage).length} done
+                </Badge>
+              </h3>
+              <ul className="mt-3 space-y-2.5">
+                {getStageChecklist(selectedJourneyStage).map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-sm">
+                    {item.met ? (
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+                    ) : (
+                      <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-400" aria-hidden="true" />
+                    )}
+                    <span className={item.met ? 'text-slate-700' : 'font-semibold text-slate-900'}>
+                      {item.label}
+                      <span className="sr-only">{item.met ? ' (done)' : ' (not done yet)'}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
       </Card>
-      <ResearchGroupCard research={research} users={users} currentUserId={user.id} />
-
-      {/* Quick facts */}
-      <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="flex items-start gap-3">
-          <FileText className="mt-0.5 h-6 w-6 shrink-0 text-blue-800" aria-hidden="true" />
-          <div>
-            <dt className="text-sm text-slate-600">Latest file you sent</dt>
-            <dd className="text-base font-bold text-slate-900">
-              {currentVersion ? `Version ${currentVersion.versionNumber}` : 'Nothing uploaded yet'}
-            </dd>
-          </div>
-        </Card>
-        <Card className="flex items-start gap-3">
-          <MessageSquare className="mt-0.5 h-6 w-6 shrink-0 text-amber-700" aria-hidden="true" />
-          <div>
-            <dt className="text-sm text-slate-600">Comments to fix</dt>
-            <dd className="text-base font-bold text-slate-900">
-              {activeComments.length === 0 ? 'None right now' : activeComments.length}
-            </dd>
-          </div>
-        </Card>
-        <Card className="flex items-start gap-3">
-          <Calendar className="mt-0.5 h-6 w-6 shrink-0 text-rose-700" aria-hidden="true" />
-          <div>
-            <dt className="text-sm text-slate-600">{mySchedule?.type === 'title_hearing' ? 'Your title hearing' : 'Your defense'}</dt>
-            <dd className="text-base font-bold text-slate-900">
-              {mySchedule ? formatDateAndTime(mySchedule.date, mySchedule.startTime) : 'Not set yet'}
-            </dd>
-          </div>
-        </Card>
-      </dl>
 
       {/* Comments and defense */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -458,7 +563,7 @@ export default function DashboardStudent({
           {mySchedule ? (
             <Card className="border-blue-200">
               <CardHeader
-                title={mySchedule.type === 'title_hearing' ? 'Your title hearing' : 'Your defense'}
+                title="Your defense"
                 icon={<Calendar className="h-5 w-5" aria-hidden="true" />}
                 action={<Badge tone="success" icon={CheckCircle2}>Confirmed</Badge>}
               />

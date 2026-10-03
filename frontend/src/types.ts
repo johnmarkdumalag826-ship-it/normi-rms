@@ -33,7 +33,6 @@ export interface User {
 }
 
 export type ResearchStatus = 
-  | 'Group Registered'
   | 'Submitted'
   | 'Under Review'
   | 'Revision Required'
@@ -49,14 +48,11 @@ export interface ProposalFile {
   url: string;
   size: number;
   uploadedAt: string;
-  category: 'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments' | 'title_list';
+  category: 'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments';
 }
 
 export interface Research {
   id: string;
-  /** The group's name, typed when the group was registered. */
-  groupName?: string;
-  /** Empty until the group sends its title proposal. */
   title: string;
   abstract: string;
   departmentId: string;
@@ -65,8 +61,6 @@ export interface Research {
   status: ResearchStatus;
   studentIds: string[]; // The first one is the group leader
   memberNames?: string[]; // The other group members, as typed by the leader (they may have no account)
-  /** The adviser's check of the file with the group's prepared titles. */
-  titleReview?: { status: 'Pending' | 'Approved' | 'Revision Required'; feedback?: string; reviewedAt?: string };
   adviserId: string;
   panelistIds: string[]; // Panelist User IDs
   createdAt: string;

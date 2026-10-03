@@ -4,10 +4,10 @@
 // Approved by Adviser, Repository, Revision needed.
 import {
   Archive, CalendarCheck, CheckCircle2, Clock, Eye, Hourglass, Send, Wrench, XCircle,
-  Award, Users, type LucideIcon,
+  Award, type LucideIcon,
 } from 'lucide-react';
 import type {
-  Research, ResearchStatus, UserRole, ChapterStatus, Schedule, Consultation, User, Announcement, Evaluation,
+  ResearchStatus, UserRole, ChapterStatus, Schedule, Consultation, User, Announcement, Evaluation,
 } from '../types';
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
@@ -50,13 +50,6 @@ export interface StatusInfo {
 }
 
 export const researchStatus: Record<ResearchStatus, StatusInfo> = {
-  'Group Registered': {
-    label: 'Group registered',
-    tone: 'info',
-    icon: Users,
-    meaning: 'Your group is registered with your adviser.',
-    next: 'Send the file with your prepared titles for the title hearing, then your title proposal.',
-  },
   'Submitted': {
     label: 'Submitted',
     tone: 'info',
@@ -113,27 +106,6 @@ export const researchStatus: Record<ResearchStatus, StatusInfo> = {
     meaning: 'Your final paper is saved in the Research Repository.',
     next: 'Nothing more to do. Congratulations!',
   },
-};
-
-/** What to call a paper on screen: its title, or its group while no title has been sent yet. */
-export const researchTitle = (r: Pick<Research, 'title' | 'groupName'>): string =>
-  r.title || (r.groupName ? `${r.groupName} (title not sent yet)` : 'Title not sent yet');
-
-// ---------------------------------------------------------- Research journey
-/** Statuses before the adviser has approved the paper. */
-export const earlyStatuses: ResearchStatus[] = ['Group Registered', 'Submitted', 'Under Review', 'Revision Required'];
-
-/**
- * Which journey step a group is on (0 to 2, or 3 when every step is done). The title hearing counts
- * as done once it is marked completed; a paper that is already past review needs no hearing to
- * count as past it. Nothing here blocks anyone: it only decides what is shown.
- */
-export const journeyProgress = (research: Research, schedules: Schedule[]): { activeIdx: number; hearingDone: boolean } => {
-  const hearingDone = schedules.some(s => s.researchId === research.id && s.type === 'title_hearing' && s.status === 'completed');
-  let activeIdx = 2;
-  if (research.status === 'Archived') activeIdx = 3;
-  else if (earlyStatuses.includes(research.status)) activeIdx = hearingDone ? 1 : 0;
-  return { activeIdx, hearingDone };
 };
 
 export const getResearchStatus = (status: string): StatusInfo =>
