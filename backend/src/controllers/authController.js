@@ -45,6 +45,10 @@ const login = async (req, res, next) => {
 // Anyone can ask for an account, but it starts as "pending" and cannot sign in until an Admin approves it.
 // The Admin role can never be requested here: Admin accounts are made with the create-admin script.
 const SELF_SERVICE_ROLES = ['student', 'adviser', 'panelist', 'coordinator'];
+// Who must say which department they belong to when they register, and who must also say which
+// program: students and advisers pick both, a coordinator picks only the department.
+const NEEDS_DEPARTMENT = ['student', 'adviser', 'coordinator'];
+const NEEDS_PROGRAM = ['student', 'adviser'];
 
 const register = async (req, res, next) => {
   const { name, email, password, role, departmentId, courseId } = req.body;
@@ -60,22 +64,26 @@ const register = async (req, res, next) => {
   const existing = await User.findOne({ email: String(email).toLowerCase() });
   if (existing) return next(new AppError('An account with this email already exists. Try signing in instead.', 409));
 
-  // A student also picks their department and course when they register.
-  if (role === 'student') {
-    if (!departmentId || !courseId) {
-      return next(new AppError('Please choose your department and course.', 400));
+  const needsDepartment = NEEDS_DEPARTMENT.includes(role);
+  const needsProgram = NEEDS_PROGRAM.includes(role);
+  if (needsDepartment) {
+    if (!departmentId || (needsProgram && !courseId)) {
+      return next(new AppError(needsProgram ? 'Please choose your department and program.' : 'Please choose your department.', 400));
     }
     const department = await Department.findById(departmentId).catch(() => null);
     if (!department) return next(new AppError('Please choose a valid department.', 400));
-    const course = await Course.findById(courseId).catch(() => null);
-    if (!course || String(course.departmentId) !== String(departmentId)) {
-      return next(new AppError('Please choose a course that belongs to your department.', 400));
+    if (needsProgram) {
+      const course = await Course.findById(courseId).catch(() => null);
+      if (!course || String(course.departmentId) !== String(departmentId)) {
+        return next(new AppError('Please choose a program that belongs to your department.', 400));
+      }
     }
   }
 
   const user = await User.create({
     name: String(name).trim(), email, password, role, status: 'pending',
-    ...(role === 'student' ? { departmentId, courseId } : {}),
+    ...(needsDepartment ? { departmentId } : {}),
+    ...(needsProgram ? { courseId } : {}),
   });
   await logAction(req, 'USER_SIGN_UP', `${user.name} (${user.email}) registered as a ${role}.`, user);
   res.status(201).json({ message: 'You are registered. You can sign in after an Admin approves your registration.' });
