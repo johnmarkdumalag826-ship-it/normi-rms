@@ -11,9 +11,9 @@ export const createResearch = (input: {
   title?: string; abstract?: string; keywords?: string[]; fileName?: string; proposalFiles?: ProposalFile[];
 }): Promise<Research> => api.post('/research', input);
 
-// The registered group sends its chosen title, summary, keywords and main document.
+// The registered group sends the title it chose and its file (a summary and keywords are optional).
 export const submitTitleProposal = (id: string, input: {
-  title: string; abstract: string; keywords: string[]; proposalFiles: ProposalFile[];
+  title: string; proposalFiles: ProposalFile[]; abstract?: string; keywords?: string[];
 }): Promise<Research> => api.post(`/research/${id}/title-proposal`, input);
 
 // The group sends one file with the titles it prepared for the title hearing (sending again replaces it).

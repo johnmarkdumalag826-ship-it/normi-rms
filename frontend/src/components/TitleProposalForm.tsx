@@ -1,105 +1,61 @@
 import React, { useState } from 'react';
-import {
-  ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, LogOut, ExternalLink, Send,
-} from 'lucide-react';
+import { ArrowLeft, Download, ExternalLink, LogOut, RefreshCw, Send, Trash2, UploadCloud } from 'lucide-react';
 import { User, Research, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
-import {
-  Alert, Avatar, Badge, BrandLogo, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
-} from '../ui';
+import { Alert, Avatar, Badge, BrandLogo, Button, Card, ConfirmDialog, Input, cx, formatDateLong, roleLabels } from '../ui';
 
 interface TitleProposalFormProps {
   user: User;
   /** The group that is already registered; its adviser and members were chosen at the start. */
   research: Research;
   adviserName: string;
-  onSubmit: (data: {
-    title: string;
-    abstract: string;
-    keywords: string[];
-    proposalFiles: ProposalFile[];
-  }) => void;
+  onSubmit: (data: { title: string; proposalFiles: ProposalFile[] }) => void;
   onBack: () => void;
   onLogout: () => void;
   onOpenProfile: () => void;
 }
 
-const categoryLabels: Record<ProposalFile['category'], string> = {
-  proposal_document: 'Main document',
-  research_summary: 'Research summary',
-  supporting_files: 'Supporting file',
-  other_attachments: 'Other file',
-  title_list: 'Prepared titles',
-};
+const MAX_SIZE = 15 * 1024 * 1024;
 
-/** The second part of starting: after the title hearing, the group sends its chosen title, summary and main document. */
+/** After the title hearing, the group sends the title it chose and its file. */
 export default function TitleProposalForm({
-  user, research, adviserName, onSubmit, onBack, onLogout, onOpenProfile
+  user, research, adviserName, onSubmit, onBack, onLogout, onOpenProfile,
 }: TitleProposalFormProps) {
-  const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState('');
-  const [abstract, setAbstract] = useState('');
-  const [keywordsStr, setKeywordsStr] = useState('');
-  const [attemptedNext, setAttemptedNext] = useState(false);
-
-  // Files
-  const [dragActive, setDragActive] = useState(false);
-  const [proposalFiles, setProposalFiles] = useState<ProposalFile[]>([]);
-  const [uploadCategory, setUploadCategory] = useState<'proposal_document' | 'research_summary' | 'supporting_files' | 'other_attachments'>('proposal_document');
+  const [file, setFile] = useState<ProposalFile | null>(null);
+  const [attempted, setAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [replaceTargetId, setReplaceTargetId] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<ProposalFile | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
-  // Final "are you sure?"
-  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+  const titleError = attempted && !title.trim() ? 'Please type your research title.' : undefined;
 
-  const handleFileUpload = async (file: File) => {
-    const lower = file.name.toLowerCase();
-    const isPdfOrDocx = lower.endsWith('.pdf') || lower.endsWith('.docx');
-    if (!isPdfOrDocx) {
+  const handleFileUpload = async (chosen: File) => {
+    const lower = chosen.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
       setError('Please choose a PDF or Word (DOCX) file.');
       return;
     }
-
+    if (chosen.size > MAX_SIZE) {
+      setError('That file is too big. Please choose a file smaller than 15 MB.');
+      return;
+    }
     setIsUploading(true);
     setError(null);
     try {
-      const uploaded = await uploadFile(file);
-      const fileData = {
+      const uploaded = await uploadFile(chosen);
+      setFile({
+        id: `prop-file-${Date.now()}`,
+        category: 'proposal_document',
         name: uploaded.fileName,
         url: resolveFileUrl(uploaded.url),
         size: uploaded.size,
         uploadedAt: new Date().toISOString(),
-      };
-
-      if (replaceTargetId) {
-        setProposalFiles(prev => prev.map(f => f.id === replaceTargetId ? { ...f, ...fileData } : f));
-        setReplaceTargetId(null);
-        return;
-      }
-
-      // Main document and summary: one file each. Other categories can have many.
-      const isSingleCategory = uploadCategory === 'proposal_document' || uploadCategory === 'research_summary';
-      const existing = proposalFiles.find(f => f.category === uploadCategory);
-
-      if (isSingleCategory && existing) {
-        setProposalFiles(prev => prev.map(f => f.category === uploadCategory ? { ...f, ...fileData } : f));
-        return;
-      }
-
-      const newFile: ProposalFile = {
-        id: `prop-file-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        category: uploadCategory,
-        ...fileData,
-      };
-
-      setProposalFiles(prev => [...prev, newFile]);
+      });
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.',
-      );
+      setError(err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.');
     } finally {
       setIsUploading(false);
     }
@@ -108,99 +64,47 @@ export default function TitleProposalForm({
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true);
+    else if (e.type === 'dragleave') setDragActive(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
+    if (e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileUpload(e.target.files[0]);
-      e.target.value = ''; // so the same file can be chosen again
-    }
+  const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+    e.target.value = ''; // so the same file can be chosen again
   };
 
-  const triggerReplace = (id: string) => {
-    setReplaceTargetId(id);
-    document.getElementById('manuscript-input')?.click();
-  };
-
-  const handleDeleteFile = (id: string) => {
-    setProposalFiles(prev => prev.filter(f => f.id !== id));
-  };
-
-  // The server gives a short private link. The person who uploaded a file can always open it.
-  const handleFileDownload = (file: ProposalFile) => {
-    setError(null);
-    downloadFile(file.url, file.name).catch(err => setError(fileErrorMessage(err)));
-  };
-
-  const handleFileOpen = (file: ProposalFile) => {
-    setError(null);
-    openFile(file.url).catch(err => setError(fileErrorMessage(err)));
-  };
-
-  const titleError = attemptedNext && !title.trim() ? 'Please write your research title.' : undefined;
-  const abstractError = attemptedNext && !abstract.trim() ? 'Please write a short summary of your research.' : undefined;
-  const keywordsError = attemptedNext && !keywordsStr.split(',').some(k => k.trim()) ? 'Please add at least one keyword.' : undefined;
-
-  const handleNextStep = () => {
-    setAttemptedNext(true);
-    if (!title.trim() || !abstract.trim() || !keywordsStr.split(',').some(k => k.trim())) {
-      setError('Some details are missing. Please fix the fields marked in red.');
-      return;
-    }
-    setError(null);
-    setStep(2);
-  };
-
-  // Step 2 button: check the main file, then ask "are you sure?"
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const mainDoc = proposalFiles.find(f => f.category === 'proposal_document');
-    if (!mainDoc) {
-      setError('Please upload your main document (PDF or Word) before sending. Choose “Main document” below, then add your file.');
+    setAttempted(true);
+    if (!title.trim()) {
+      setError('Please type your research title.');
+      return;
+    }
+    if (!file) {
+      setError('Please add your file (PDF or Word) before sending.');
       return;
     }
     setError(null);
-    setConfirmingSubmit(true);
+    setConfirming(true);
   };
 
-  // Confirmed: send it
   const submitConfirmed = () => {
-    const mainDoc = proposalFiles.find(f => f.category === 'proposal_document');
-    if (!mainDoc) return;
-
-    const keywords = keywordsStr
-      .split(',')
-      .map(k => k.trim())
-      .filter(k => k.length > 0);
-
-    onSubmit({
-      title: title.trim(),
-      abstract: abstract.trim(),
-      keywords,
-      proposalFiles,
-    });
-    setConfirmingSubmit(false);
+    if (!file) return;
+    onSubmit({ title: title.trim(), proposalFiles: [file] });
+    setConfirming(false);
   };
 
-  const stepTitle = step === 1 ? 'Your title and summary' : 'Your files';
+  const sizeInKb = file?.size ? Math.round(file.size / 102.4) / 10 : null;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
-      {/* Top bar */}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-16 max-w-3xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -233,90 +137,33 @@ export default function TitleProposalForm({
           <h1 className="text-2xl font-bold text-slate-900">Send your title proposal</h1>
           <p className="text-base text-slate-600">
             {research.groupName ? <>Group <strong>{research.groupName}</strong>. </> : null}
-            Write the title your group chose, a short summary, and add your main document. Your adviser, <strong>{adviserName}</strong>, will read it.
+            Type the title your group chose and add your file. Your adviser, <strong>{adviserName}</strong>, will read it.
           </p>
         </div>
 
-        {/* Where am I? */}
-        <div aria-live="polite">
-          <p className="text-sm font-semibold text-slate-700">Step {step} of 2 · {stepTitle}</p>
-          <div
-            role="progressbar"
-            aria-valuemin={1}
-            aria-valuemax={2}
-            aria-valuenow={step}
-            aria-label={`Step ${step} of 2`}
-            className="mt-2 flex gap-2"
-          >
-            <span className="h-2 flex-1 rounded-full bg-blue-800" />
-            <span className={cx('h-2 flex-1 rounded-full', step === 2 ? 'bg-blue-800' : 'bg-slate-300')} />
-          </div>
-        </div>
+        <Card>
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+            <p className="text-sm text-slate-600">Fields marked with * are required.</p>
 
-        <Card className="space-y-6">
-          {error && <Alert tone="danger" title="Please check the form">{error}</Alert>}
+            {error && <Alert tone="danger" title="Please check the form">{error}</Alert>}
 
-          {step === 1 ? (
-            /* Step 1: title, summary, keywords */
-            <div className="space-y-5">
-              <p className="text-sm text-slate-600">Fields marked with * are required.</p>
+            <Input
+              label="Research title"
+              required
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              hint="The title your group chose."
+              placeholder="e.g. Web-Based Research Management System"
+              error={titleError}
+            />
 
-              <Input
-                label="Research title"
-                required
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                hint="The name of your research paper."
-                placeholder="e.g. Web-Based Research Management System"
-                error={titleError}
-              />
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-slate-800">
+                Your file <span className="text-rose-700" aria-hidden="true">*</span>
+                <span className="sr-only"> (required)</span>
+              </p>
 
-              <Textarea
-                label="Short summary (abstract)"
-                required
-                rows={5}
-                value={abstract}
-                onChange={e => setAbstract(e.target.value)}
-                hint="What problem will you solve, and how? A few sentences is enough."
-                error={abstractError}
-              />
-
-              <Input
-                label="Keywords"
-                required
-                value={keywordsStr}
-                onChange={e => setKeywordsStr(e.target.value)}
-                hint="Separate each keyword with a comma."
-                placeholder="e.g. Web-based, Monitoring"
-                error={keywordsError}
-              />
-
-              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
-                <Button variant="secondary" icon={ArrowLeft} onClick={onBack}>Back to Home</Button>
-                <Button icon={ArrowRight} onClick={handleNextStep}>Continue to Step 2</Button>
-              </div>
-            </div>
-          ) : (
-            /* Step 2: files */
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
-                <legend className="px-2 text-base font-bold text-slate-900">Your files</legend>
-                <p className="text-sm text-slate-600">
-                  You must add your <strong>main document</strong>. Other files are optional. Only PDF and Word (DOCX) files are accepted.
-                </p>
-
-                <Select
-                  label="What kind of file is this?"
-                  value={uploadCategory}
-                  onChange={e => setUploadCategory(e.target.value as typeof uploadCategory)}
-                >
-                  <option value="proposal_document">Main document (required)</option>
-                  <option value="research_summary">Research summary</option>
-                  <option value="supporting_files">Supporting files (data, syllabus)</option>
-                  <option value="other_attachments">Other files</option>
-                </Select>
-
-                {/* Drop area */}
+              {!file ? (
                 <div
                   onDragEnter={handleDrag}
                   onDragOver={handleDrag}
@@ -327,115 +174,74 @@ export default function TitleProposalForm({
                     dragActive ? 'border-blue-700 bg-blue-50' : 'border-slate-300 bg-slate-50',
                   )}
                 >
-                  <input
-                    id="manuscript-input"
-                    type="file"
-                    accept=".pdf,.docx"
-                    className="sr-only"
-                    tabIndex={-1}
-                    disabled={isUploading}
-                    onChange={handleFileSelect}
-                  />
                   <UploadCloud className="h-8 w-8 text-blue-800" aria-hidden="true" />
                   <p className="text-sm text-slate-700">Drop your file here, or choose it from your device.</p>
                   <Button
                     icon={isUploading ? RefreshCw : UploadCloud}
                     loading={isUploading}
-                    onClick={() => document.getElementById('manuscript-input')?.click()}
+                    onClick={() => document.getElementById('proposal-input')?.click()}
                   >
                     {isUploading ? 'Uploading…' : 'Choose a File'}
                   </Button>
+                  <p className="text-xs text-slate-600">Only PDF and Word (DOCX) files, smaller than 15 MB.</p>
                 </div>
-
-                {/* Files added so far */}
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-slate-900">Files you added ({proposalFiles.length})</p>
-                  {proposalFiles.length === 0 ? (
-                    <p className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                      No files yet. Please add your <strong>main document</strong>.
+              ) : (
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold text-slate-900">{file.name}</p>
+                    <p className="text-xs text-slate-600">
+                      {sizeInKb !== null ? `${sizeInKb} KB · ` : ''}Added {formatDateLong(file.uploadedAt)}
                     </p>
-                  ) : (
-                    <ul className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-                      {proposalFiles.map(file => {
-                        const sizeInKb = file.size ? Math.round(file.size / 102.4) / 10 : null;
-                        return (
-                          <li key={file.id} className="flex flex-col gap-3 p-4">
-                            <div className="min-w-0 space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge tone={file.category === 'proposal_document' ? 'info' : 'neutral'}>{categoryLabels[file.category]}</Badge>
-                                {sizeInKb !== null && <span className="text-xs text-slate-600">{sizeInKb} KB</span>}
-                              </div>
-                              <p className="break-words text-sm font-semibold text-slate-900">{file.name}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Button variant="secondary" size="sm" icon={Eye} onClick={() => setPreviewFile(file)}>File Details</Button>
-                              <Button variant="secondary" size="sm" icon={Download} onClick={() => handleFileDownload(file)}>Download</Button>
-                              <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => triggerReplace(file.id)}>Replace File</Button>
-                              <Button variant="danger" size="sm" icon={Trash2} onClick={() => handleDeleteFile(file.id)}>Remove File</Button>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary" size="sm" icon={ExternalLink}
+                      onClick={() => openFile(file.url).catch(err => setError(fileErrorMessage(err)))}
+                    >
+                      Open File
+                    </Button>
+                    <Button
+                      variant="secondary" size="sm" icon={Download}
+                      onClick={() => downloadFile(file.url, file.name).catch(err => setError(fileErrorMessage(err)))}
+                    >
+                      Download
+                    </Button>
+                    <Button
+                      variant="secondary" size="sm" icon={isUploading ? RefreshCw : UploadCloud} loading={isUploading}
+                      onClick={() => document.getElementById('proposal-input')?.click()}
+                    >
+                      Replace File
+                    </Button>
+                    <Button variant="danger" size="sm" icon={Trash2} onClick={() => setFile(null)}>Remove File</Button>
+                  </div>
                 </div>
-              </fieldset>
+              )}
 
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
-                <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep(1)}>Back to Step 1</Button>
-                <Button type="submit" icon={Send}>Send My Title Proposal</Button>
-              </div>
-            </form>
-          )}
+              <input
+                id="proposal-input"
+                type="file"
+                accept=".pdf,.docx"
+                className="sr-only"
+                tabIndex={-1}
+                disabled={isUploading}
+                onChange={handleSelect}
+              />
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
+              <Button variant="secondary" icon={ArrowLeft} onClick={onBack}>Back to Home</Button>
+              <Button type="submit" icon={Send}>Send My Title Proposal</Button>
+            </div>
+          </form>
         </Card>
       </main>
 
-      {/* File details */}
-      <Modal
-        open={!!previewFile}
-        onClose={() => setPreviewFile(null)}
-        title="File details"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPreviewFile(null)}>Close</Button>
-            {previewFile && (
-              <Button icon={ExternalLink} onClick={() => handleFileOpen(previewFile)}>Open File</Button>
-            )}
-          </>
-        }
-      >
-        {previewFile && (
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-slate-600">File name</dt>
-              <dd className="break-words font-semibold text-slate-900">{previewFile.name}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-600">Kind of file</dt>
-              <dd className="font-semibold text-slate-900">{categoryLabels[previewFile.category]}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-600">Size</dt>
-              <dd className="font-semibold text-slate-900">
-                {previewFile.size ? `${Math.round(previewFile.size / 102.4) / 10} KB` : '—'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-slate-600">Added on</dt>
-              <dd className="font-semibold text-slate-900">{formatDateLong(previewFile.uploadedAt)}</dd>
-            </div>
-          </dl>
-        )}
-      </Modal>
-
-      {/* Are you sure? */}
       <ConfirmDialog
-        open={confirmingSubmit}
-        onCancel={() => setConfirmingSubmit(false)}
+        open={confirming}
+        onCancel={() => setConfirming(false)}
         onConfirm={submitConfirmed}
         title="Send your title proposal?"
-        message={`“${title.trim()}” will be sent to ${adviserName}. You can send new versions later from your home page.`}
+        message={`“${title.trim()}” will be sent to ${adviserName}. You can send new versions later from My Research.`}
         confirmLabel="Yes, Send My Title Proposal"
         cancelLabel="No, Let Me Check"
       />

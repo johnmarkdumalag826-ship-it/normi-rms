@@ -10,7 +10,7 @@ const researchVersionSchema = new mongoose.Schema({
   researchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Research', required: true },
   versionNumber: { type: Number, required: true },
   title: { type: String, required: true },
-  abstract: { type: String, required: true },
+  abstract: { type: String, default: '' },
   fileUrl: String,
   fileName: String,
   submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

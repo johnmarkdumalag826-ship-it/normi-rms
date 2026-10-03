@@ -475,7 +475,7 @@ export default function ResearchDetailsView({
           </Select>
 
           <Input label="Research title" required value={newTitle} onChange={e => setNewTitle(e.target.value)} />
-          <Textarea label="Short summary (abstract)" required rows={4} value={newAbstract} onChange={e => setNewAbstract(e.target.value)} />
+          <Textarea label="Short summary (abstract)" optional rows={4} value={newAbstract} onChange={e => setNewAbstract(e.target.value)} />
 
           <div className="space-y-1.5">
             <label htmlFor="upload-file" className="block text-sm font-semibold text-slate-800">

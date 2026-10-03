@@ -173,7 +173,7 @@ export default function DashboardStudent({
         idx: 1,
         title: 'Title Proposal',
         subtitle: 'Send it and get approved',
-        description: 'After your title hearing, write the title your group chose and a short summary, and send your main document. Your adviser reads Chapters 1 to 3, writes feedback, and approves your paper when it is ready.',
+        description: 'After your title hearing, type the title your group chose and send your file. Your adviser reads Chapters 1 to 3, writes feedback, and approves your paper when it is ready.',
         guide: 'Send your title proposal when your hearing is done. Then read each comment from your adviser, fix your paper, and upload a new version.',
       },
       {
@@ -211,7 +211,7 @@ export default function DashboardStudent({
         if (hearingDone) {
           return {
             title: 'Send your title proposal',
-            text: 'Your title hearing is done. Write the title your group chose and a short summary, and add your main document.',
+            text: 'Your title hearing is done. Type the title your group chose and add your file.',
             showAction: false,
             action: { label: 'Send Title Proposal', onClick: onOpenProposalForm },
           };

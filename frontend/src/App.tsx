@@ -557,7 +557,7 @@ export default function App() {
 
   const handleSubmitTitleProposal = async (
     researchId: string,
-    data: { title: string; abstract: string; keywords: string[]; proposalFiles: ProposalFile[] },
+    data: { title: string; proposalFiles: ProposalFile[] },
   ) => {
     try {
       const updated = await apiSubmitTitleProposal(researchId, data);

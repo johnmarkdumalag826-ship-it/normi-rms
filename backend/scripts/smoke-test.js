@@ -487,6 +487,20 @@ async function main() {
   const sentTwice = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, proposalBody, leader.token);
   assert(sentTwice.status === 409, 'the title proposal cannot be sent a second time -> 409');
 
+  // Only a title and a file are needed
+  const leader2 = await makeUser({ email: 'student4@test.local', name: 'Second Leader', role: 'student', departmentId: dept._id, courseId: course._id }, 'student-pass-5');
+  const group2 = await request(server, 'POST', '/api/research', { groupName: 'Team Beta', adviserId }, leader2.token);
+  const main2 = await uploadAs(leader2.token, 'only-title.pdf', '%PDF-1.4 just a title and a file');
+  const titleOnly = await request(server, 'POST', `/api/research/${group2.body.id}/title-proposal`, {
+    title: 'Just A Title',
+    proposalFiles: [{ name: 'only-title.pdf', url: main2.body.url, size: main2.body.size, category: 'proposal_document' }],
+  }, leader2.token);
+  assert(titleOnly.status === 200 && titleOnly.body.status === 'Submitted' && titleOnly.body.abstract === '', 'a title and a file are enough for a title proposal (no summary or keywords) -> "Submitted"');
+  const nextVersion = await request(server, 'POST', `/api/research/${group2.body.id}/versions`, {
+    title: 'Just A Title', fileName: 'only-title-v2.pdf', fileUrl: main2.body.url, type: 'adviser_check',
+  }, leader2.token);
+  assert(nextVersion.status === 201, 'a new version can be sent for a paper that has no summary -> 201');
+
   console.log('\n--- Uploaded files are private ---');
   // Attach the student's file to their paper as a draft for the adviser.
   const attach = await request(server, 'POST', `/api/research/${researchId}/versions`, {

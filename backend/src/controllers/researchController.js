@@ -96,8 +96,9 @@ const createResearch = async (req, res, next) => {
   res.status(201).json(research);
 };
 
-// The group sends its title, summary, keywords and main document. This is the first time the
-// adviser gets something to read, so the paper becomes "Submitted" and Version 1 is made.
+// The group sends the title it chose and its file (a summary and keywords are optional). This is
+// the first time the adviser gets something to read, so the paper becomes "Submitted" and Version 1
+// is made.
 const submitTitleProposal = async (req, res, next) => {
   const { title, abstract, keywords, proposalFiles } = req.body;
   const research = await Research.findById(req.params.id);
@@ -106,8 +107,8 @@ const submitTitleProposal = async (req, res, next) => {
   if (research.status !== 'Group Registered') {
     return next(new AppError('Your title proposal was already sent. Upload a new version from My Research instead.', 409));
   }
-  if (!String(title || '').trim() || !String(abstract || '').trim()) {
-    return next(new AppError('Please write your research title and a short summary.', 400));
+  if (!String(title || '').trim()) {
+    return next(new AppError('Please type your research title.', 400));
   }
   const files = (Array.isArray(proposalFiles) ? proposalFiles : []).filter((f) => f.category !== 'title_list');
   const mainDoc = files.find((f) => f.category === 'proposal_document');
@@ -115,7 +116,7 @@ const submitTitleProposal = async (req, res, next) => {
   if (!(await allUploadedBy(req.user, files))) return next(new AppError('Those files were not uploaded by you', 400));
 
   research.title = String(title).trim();
-  research.abstract = String(abstract).trim();
+  research.abstract = String(abstract || '').trim();
   research.keywords = (Array.isArray(keywords) ? keywords : []).map((k) => String(k).trim()).filter(Boolean);
   research.proposalFiles = [...research.proposalFiles.filter((f) => f.category === 'title_list'), ...files];
   research.status = 'Submitted';
