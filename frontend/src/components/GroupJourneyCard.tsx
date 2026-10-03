@@ -11,13 +11,13 @@ interface GroupJourneyCardProps {
   showAdviser?: boolean;
 }
 
-/** Where every student group is on its journey: Title Hearing, then Title Proposal, then Final Title. */
+/** Where every student group is on its journey: Title Hearing, then Title Proposal, then Final Defense. */
 export function GroupJourneyCard({ researchList, schedules, users, showAdviser = false }: GroupJourneyCardProps) {
   return (
     <Card as="section" aria-label="Where each group is on its journey">
       <CardHeader
         title="Where each group is on its journey"
-        description="Every student group goes through three steps: Title Hearing, Title Proposal, then Final Title."
+        description="Every student group goes through three steps: Title Hearing, Title Proposal, then Final Defense."
         icon={<Compass className="h-5 w-5" aria-hidden="true" />}
       />
 

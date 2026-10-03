@@ -121,7 +121,7 @@ export const researchTitle = (r: Pick<Research, 'title' | 'groupName'>): string 
 
 // ---------------------------------------------------------- Research journey
 /** The three steps every student group goes through, in order. */
-export const journeySteps = ['Title Hearing', 'Title Proposal', 'Final Title'] as const;
+export const journeySteps = ['Title Hearing', 'Title Proposal', 'Final Defense'] as const;
 
 /** Statuses before the adviser has approved the paper. */
 export const earlyStatuses: ResearchStatus[] = ['Group Registered', 'Submitted', 'Under Review', 'Revision Required'];
