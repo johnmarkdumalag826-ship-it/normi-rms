@@ -12,7 +12,7 @@ export function BrandLogo({ className }: BrandLogoProps) {
       alt="Northern Mindanao Colleges, Inc. seal"
       width={320}
       height={320}
-      className={cx('w-auto object-contain', className)}
+      className={cx('w-auto rounded-full object-contain', className)}
     />
   );
 }

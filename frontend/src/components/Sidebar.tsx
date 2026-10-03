@@ -88,7 +88,7 @@ export default function Sidebar({
       >
         {/* Brand: the seal and name, centered */}
         <div className="relative flex flex-col items-center gap-2 border-b border-white/10 px-5 py-5 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white p-1.5">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white p-1">
             <BrandLogo className="h-full" />
           </div>
           <div className="min-w-0">
