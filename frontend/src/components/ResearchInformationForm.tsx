@@ -6,7 +6,7 @@ import { User, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
-  Alert, Avatar, Badge, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
+  Alert, Avatar, Badge, BrandLogo, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
 } from '../ui';
 
 interface ResearchInformationFormProps {
@@ -198,7 +198,7 @@ export default function ResearchInformationForm({
       abstract: abstract.trim(),
       keywords,
       adviserId,
-      members: [user.name, ...members],
+      members,
       fileName: mainDoc.name,
       proposalFiles: proposalFiles
     });
@@ -212,17 +212,15 @@ export default function ResearchInformationForm({
     <div className="min-h-screen bg-slate-50 text-slate-800">
       {/* Top bar */}
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-navy-900 text-white">
-              <FileText className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="leading-tight">
+        <div className="mx-auto flex min-h-16 max-w-3xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo className="h-11 shrink-0" />
+            <div className="min-w-0 leading-tight">
               <p className="font-serif text-lg font-bold text-navy-900">NORMI</p>
-              <p className="text-xs text-slate-600">Research Management System</p>
+              <p className="hidden text-xs text-slate-600 sm:block">Research Management System</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={onOpenProfile}
@@ -334,9 +332,9 @@ export default function ResearchInformationForm({
                   hint="Type their names separated by commas. Do not type your own name."
                   placeholder="e.g. Juan dela Cruz, Maria Santos"
                 />
-                <p className="flex items-center gap-2 text-sm text-slate-700">
-                  <Users className="h-4 w-4 text-slate-600" aria-hidden="true" />
-                  You (<strong>{user.name}</strong>) are added automatically as the group leader.
+                <p className="flex items-start gap-2 text-sm text-slate-700">
+                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
+                  <span>You (<strong>{user.name}</strong>) are added automatically as the group leader.</span>
                 </p>
               </div>
 

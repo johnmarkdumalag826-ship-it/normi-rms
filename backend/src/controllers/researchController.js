@@ -31,10 +31,15 @@ const getResearch = async (req, res, next) => {
 
 // Student submits a new title proposal (handleCreateTitleProposal)
 const createResearch = async (req, res, next) => {
-  const { title, abstract, keywords, adviserId, fileName, proposalFiles } = req.body;
+  const { title, abstract, keywords, adviserId, fileName, proposalFiles, members } = req.body;
   if (!title || !abstract || !adviserId) {
     return next(new AppError('title, abstract, and adviserId are required', 400));
   }
+
+  const memberNames = (Array.isArray(members) ? members : [])
+    .map((m) => String(m).trim().slice(0, 100))
+    .filter(Boolean)
+    .slice(0, 20);
 
   const user = req.user;
   const departmentId = user.departmentId || (await Department.findOne().sort({ name: 1 }))?._id;
@@ -44,7 +49,7 @@ const createResearch = async (req, res, next) => {
   const research = await Research.create({
     title, abstract, keywords: keywords || [],
     departmentId, courseId, schoolYearId: currentYear?._id,
-    studentIds: [user._id], adviserId, panelistIds: [],
+    studentIds: [user._id], memberNames, adviserId, panelistIds: [],
     status: 'Submitted', viewCount: 0, downloadCount: 0,
     proposalFiles: proposalFiles || [],
   });

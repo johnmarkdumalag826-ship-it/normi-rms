@@ -6,6 +6,7 @@ export const getResearch = (id: string): Promise<Research> => api.get(`/research
 
 export const createResearch = (input: {
   title: string; abstract: string; keywords?: string[]; adviserId: string; fileName?: string; proposalFiles?: ProposalFile[];
+  members?: string[];
 }): Promise<Research> => api.post('/research', input);
 
 // Admin archiving a manuscript directly into the repository (no student submitter/version)

@@ -426,6 +426,15 @@ export default function DashboardAdviser({
                             </div>
                           </li>
                         ))}
+                        {(selectedGroup.memberNames ?? []).map(name => (
+                          <li key={`member-${name}`} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                            <Avatar name={name} size="md" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-slate-900">{name}</p>
+                              <p className="text-xs text-slate-600">Group member</p>
+                            </div>
+                          </li>
+                        ))}
                       </ul>
                     </div>
 

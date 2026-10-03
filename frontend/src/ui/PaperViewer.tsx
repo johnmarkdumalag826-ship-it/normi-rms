@@ -36,7 +36,7 @@ const collapsed = (text: string) => text.replace(/\s+/g, ' ').trim().slice(0, 60
 function Toolbar({ children, zoom, setZoom }: { children?: React.ReactNode; zoom: number; setZoom: (z: number) => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
-      <div className="flex items-center gap-2">{children}</div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
       <div className="flex items-center gap-2">
         <IconButton icon={ZoomOut} variant="secondary" label="Make the page smaller" onClick={() => setZoom(Math.max(ZOOM_STEPS.min, zoom - ZOOM_STEPS.step))} />
         <span className="min-w-12 text-center text-sm font-semibold text-slate-800">{zoom}%</span>

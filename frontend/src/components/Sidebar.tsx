@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import {
-  Landmark, Home, FileText, CalendarDays, BookOpen, ClipboardCheck,
+  Home, FileText, CalendarDays, BookOpen, ClipboardCheck,
   LogOut, X, FileSearch, UserCog,
   type LucideIcon,
 } from 'lucide-react';
 import { User, UserRole } from '../types';
-import { getPageTitle, cx } from '../ui';
+import { getPageTitle, cx, BrandLogo } from '../ui';
 
 interface SidebarProps {
   user: User;
@@ -89,8 +89,8 @@ export default function Sidebar({
         {/* Brand */}
         <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-navy-900 shrink-0">
-              <Landmark className="h-5 w-5" aria-hidden="true" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white p-1 shrink-0">
+              <BrandLogo className="h-full" />
             </div>
             <div className="min-w-0">
               <p className="font-serif text-lg font-bold leading-none">NORMI</p>

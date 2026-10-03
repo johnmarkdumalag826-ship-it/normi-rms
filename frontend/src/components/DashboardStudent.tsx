@@ -9,6 +9,7 @@ import {
   Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
   chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime,
 } from '../ui';
+import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
 
 interface DashboardStudentProps {
   user: User;
@@ -53,15 +54,9 @@ export default function DashboardStudent({
       setEditAbstract(research.abstract);
       setEditKeywords(research.keywords.join(', '));
       
-      // Get member names
-      const otherStudentIds = research.studentIds.filter(id => id !== user.id);
-      const memberNames = otherStudentIds.map(id => {
-        const u = users.find(x => x.id === id);
-        return u ? u.name : '';
-      }).filter(Boolean).join(', ');
-      setEditMembers(memberNames);
+      setEditMembers(groupPeople(research, users).members.join(', '));
     }
-  }, [research, user.id, users]);
+  }, [research, users]);
 
 
   const getAdviserName = () => {
@@ -421,6 +416,8 @@ export default function DashboardStudent({
           </div>
         </div>
       </Card>
+
+      <ResearchGroupCard research={research} users={users} currentUserId={user.id} />
 
       {/* Quick facts */}
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">

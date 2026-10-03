@@ -24,7 +24,10 @@ const researchSchema = new mongoose.Schema({
            'Pending Coordinator', 'Scheduled', 'Completed', 'Archived'],
     default: 'Submitted',
   },
+  // The first student is the group leader (the person who sent the paper in).
   studentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // The other group members, as typed by the leader. They may not have an account.
+  memberNames: [String],
   adviserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   panelistIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   keywords: [String],

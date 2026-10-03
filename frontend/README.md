@@ -82,6 +82,7 @@ src/
 │   ├── DashboardStudent / Adviser / Coordinator / Panelist / Admin.tsx
 │   │                                        One home page for each role
 │   ├── ResearchInformationForm.tsx          A student's first form
+│   ├── ResearchGroupCard.tsx                The group leader and members, shown on the student's home page
 │   ├── ResearchDetailsView.tsx              A paper's chapters, versions and comments
 │   ├── DocumentReview.tsx                   Adviser's review and decision screen
 │   ├── AnnotatedPaper.tsx                   The paper on screen with highlights and the comment box
@@ -91,6 +92,7 @@ src/
 │
 ├── ui/                  Shared building blocks used by every screen
 │   ├── Button, Field (Input/Select/Textarea), Badge, Card, Table
+│   ├── BrandLogo        The school seal (the picture is public/normi-logo.jpg)
 │   ├── Modal (with ConfirmDialog), Alert (with Toast), EmptyState, Skeleton, PageHeader
 │   └── labels.ts        Plain-English names for statuses and roles, and readable dates
 │

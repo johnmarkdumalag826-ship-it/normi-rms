@@ -125,7 +125,7 @@ export function PdfReader({ url, title }: PdfReaderProps) {
     <div className="no-print space-y-3" aria-label={`Paper: ${title}`}>
       {/* Our own controls: only reading, nothing else */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" icon={ChevronLeft} disabled={page <= 1} onClick={() => goTo(page - 1)}>
             Previous Page
           </Button>

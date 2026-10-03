@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Landmark, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { User, UserRole, Department, Course } from '../types';
 import { login as loginRequest, signUp, forgotPassword, resetPassword } from '../api/auth';
 import { listDepartments, listCourses } from '../api/lookups';
 import { ApiError } from '../api/client';
-import { Alert, Button, Card, IconButton, Input, Select, roleDescriptions, roleLabels } from '../ui';
+import { Alert, BrandLogo, Button, Card, IconButton, Input, Select, roleDescriptions, roleLabels } from '../ui';
 
 interface LoginProps {
   onLoginSuccess: (user: User) => void;
@@ -181,9 +181,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       <div className="w-full max-w-md space-y-8">
         {/* School name */}
         <div className="text-center space-y-3">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-navy-900 text-white shadow-md">
-            <Landmark className="h-8 w-8" aria-hidden="true" />
-          </span>
+          <BrandLogo className="mx-auto h-24" />
           <div>
             <p className="font-serif text-xl font-bold text-navy-900 sm:text-2xl">Northern Mindanao Colleges, Inc.</p>
             <p className="text-sm text-slate-600">Research Management System</p>

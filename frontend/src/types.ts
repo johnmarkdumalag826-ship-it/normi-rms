@@ -59,7 +59,8 @@ export interface Research {
   courseId: string;
   schoolYearId: string;
   status: ResearchStatus;
-  studentIds: string[];
+  studentIds: string[]; // The first one is the group leader
+  memberNames?: string[]; // The other group members, as typed by the leader (they may have no account)
   adviserId: string;
   panelistIds: string[]; // Panelist User IDs
   createdAt: string;

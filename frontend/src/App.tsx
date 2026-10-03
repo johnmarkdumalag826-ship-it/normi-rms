@@ -552,6 +552,7 @@ export default function App() {
       const created = await createResearch({
         title: data.title, abstract: data.abstract, keywords: data.keywords,
         adviserId: data.adviserId, fileName: data.fileName, proposalFiles: data.proposalFiles,
+        members: data.members,
       });
       setResearchList(prev => [created, ...prev]);
       const freshVersions = await listVersionsForResearch(created.id);

@@ -354,12 +354,18 @@ async function main() {
   const proposalWithFile = await request(server, 'POST', '/api/research', {
     title: 'Real File Test', abstract: 'Checks Version 1 points at the real upload, not a fabricated path.', adviserId,
     fileName: 'real-main-doc.pdf',
+    members: ['Juan dela Cruz', '  Maria Santos  ', '', 42],
     proposalFiles: [{
       id: 'pf-1', name: 'real-main-doc.pdf', url: mainDocUpload.body.url, size: mainDocUpload.body.size,
       uploadedAt: new Date().toISOString(), category: 'proposal_document',
     }],
   }, secondStudent.token);
   assert(proposalWithFile.status === 201, 'student submits a title with a real uploaded main document -> 201');
+  assert(
+    JSON.stringify(proposalWithFile.body.memberNames) === JSON.stringify(['Juan dela Cruz', 'Maria Santos', '42']),
+    'the group members typed on the form are saved (trimmed, blanks dropped)',
+  );
+  assert(proposalWithFile.body.studentIds.length === 1, 'the person who sends the paper is the one group leader account');
   const proposalVersions = await request(server, 'GET', `/api/research/${proposalWithFile.body.id}/versions`, null, secondStudent.token);
   const v1 = proposalVersions.body[0];
   assert(v1 && v1.fileUrl === mainDocUpload.body.url, "Version 1's fileUrl is the real uploaded file's url, not a fabricated 'manuscripts/' path");
