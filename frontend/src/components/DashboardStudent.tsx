@@ -10,7 +10,6 @@ import {
   chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress, researchTitle,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
-import { TitlesFilePanel } from './TitlesFilePanel';
 
 interface DashboardStudentProps {
   user: User;
@@ -24,15 +23,13 @@ interface DashboardStudentProps {
   onNavigateToTimeline: () => void;
   /** Opens the page where the group writes its title proposal. */
   onOpenProposalForm: () => void;
-  /** Sends the file with the titles the group prepared for the title hearing. */
-  onSendTitleList: (researchId: string, file: { name: string; url: string; size: number }) => Promise<void>;
   onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
   onUpdateResearchDetails?: (updated: Research) => void;
 }
 
 export default function DashboardStudent({
   user, research, currentVersion, versions, comments, schedules, rooms, users, 
-  onNavigateToTimeline, onOpenProposalForm, onSendTitleList, onStudentUploadRevision, onUpdateResearchDetails
+  onNavigateToTimeline, onOpenProposalForm, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
 
 
@@ -186,12 +183,6 @@ export default function DashboardStudent({
   // a paper that is already further along simply counts the earlier steps as done.
   const titleFile = research?.proposalFiles?.find(f => f.category === 'title_list');
   const titleReviewStatus = research?.titleReview?.status ?? 'Pending';
-  const canSendTitles = !!research && earlyStatuses.includes(research.status) && !hearingDone;
-  // Opens Step 1 and brings its panel (where the file is sent) into view
-  const openTitlesStep = () => {
-    setSelectedJourneyStage(0);
-    setTimeout(() => document.getElementById('titles-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-  };
   const getJourneyPhases = () => {
     const phases = [
       {
@@ -199,7 +190,7 @@ export default function DashboardStudent({
         title: 'Title Hearing',
         subtitle: 'Present your title',
         description: 'Send one file with the titles your group prepared. The coordinator then sets a date, a room and 3 panel members for your title hearing, where the panel hears your titles.',
-        guide: 'Send your titles file, then prepare to explain your titles. Your hearing details are shown on this page.',
+        guide: 'Open My Research and send your titles file, then prepare to explain your titles. Your hearing details are shown on this page.',
       },
       {
         idx: 1,
@@ -263,7 +254,7 @@ export default function DashboardStudent({
             title: 'Send your prepared titles',
             text: 'Put the titles your group prepared in one file (PDF or Word) and send it. The panel will read it at your title hearing.',
             showAction: false,
-            action: { label: 'Send Titles File', onClick: openTitlesStep },
+            action: { label: 'Send Titles File', onClick: onNavigateToTimeline },
           };
         }
         if (titleReviewStatus === 'Revision Required') {
@@ -271,7 +262,7 @@ export default function DashboardStudent({
             title: 'Fix your titles and send a new file',
             text: `Your adviser asked for changes${research.titleReview?.feedback ? `: ${research.titleReview.feedback}` : '.'} Update your file, then send it again.`,
             showAction: false,
-            action: { label: 'Send a New File', onClick: openTitlesStep },
+            action: { label: 'Send a New File', onClick: onNavigateToTimeline },
           };
         }
         if (titleReviewStatus === 'Pending') {
@@ -345,6 +336,31 @@ export default function DashboardStudent({
         subtitle="Here is where your research paper stands and what to do next."
       />
 
+      {/* What should I do next? */}
+      <section aria-labelledby="next-step-title">
+        <Card className="border-blue-200 bg-blue-50">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0 space-y-3">
+              <p id="next-step-title" className="flex items-center gap-2 text-sm font-bold text-blue-900">
+                <Compass className="h-5 w-5" aria-hidden="true" />
+                What should I do next?
+              </p>
+              <h2 className="text-xl font-bold text-slate-900">{nextStep.title}</h2>
+              <p className="max-w-2xl text-base text-slate-700">{nextStep.text}</p>
+            </div>
+            {nextStep.action ? (
+              <Button icon={ArrowRight} onClick={nextStep.action.onClick} className="shrink-0">
+                {nextStep.action.label}
+              </Button>
+            ) : nextStep.showAction && (
+              <Button icon={ArrowRight} onClick={onNavigateToTimeline} className="shrink-0">
+                Open My Research
+              </Button>
+            )}
+          </div>
+        </Card>
+      </section>
+
       {/* The journey */}
       <Card>
         <CardHeader
@@ -398,38 +414,7 @@ export default function DashboardStudent({
             </div>
           </div>
         )}
-
-        {/* Step 1: send the prepared titles, and see the adviser's decision */}
-        {shownStage === 0 && (
-          <TitlesFilePanel research={research} canSend={canSendTitles} onSendTitleList={onSendTitleList} />
-        )}
       </Card>
-
-      {/* What should I do next? */}
-      <section aria-labelledby="next-step-title">
-        <Card className="border-blue-200 bg-blue-50">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0 space-y-3">
-              <p id="next-step-title" className="flex items-center gap-2 text-sm font-bold text-blue-900">
-                <Compass className="h-5 w-5" aria-hidden="true" />
-                What should I do next?
-              </p>
-              <h2 className="text-xl font-bold text-slate-900">{nextStep.title}</h2>
-              <p className="max-w-2xl text-base text-slate-700">{nextStep.text}</p>
-            </div>
-            {nextStep.action ? (
-              <Button icon={ArrowRight} onClick={nextStep.action.onClick} className="shrink-0">
-                {nextStep.action.label}
-              </Button>
-            ) : nextStep.showAction && (
-              <Button icon={ArrowRight} onClick={onNavigateToTimeline} className="shrink-0">
-                Open My Research
-              </Button>
-            )}
-          </div>
-        </Card>
-      </section>
-
       {/* Your research paper */}
       <Card>
         <CardHeader

@@ -651,7 +651,6 @@ export default function App() {
                 if (res) setSelectedResearchId(res.id);
               }}
               onOpenProposalForm={() => setProposalFormOpen(true)}
-              onSendTitleList={handleSendTitleList}
               onStudentUploadRevision={handleStudentUploadRevision}
               onUpdateResearchDetails={async (updated: Research) => {
                 try {

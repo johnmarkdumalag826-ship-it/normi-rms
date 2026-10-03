@@ -84,7 +84,7 @@ src/
 │   ├── GroupStartForm.tsx                   A student's first form: group name, adviser, other members
 │   ├── TitleProposalForm.tsx                The title, summary and main document, sent after the title hearing
 │   ├── ResearchGroupCard.tsx                The group leader and members, shown on the student's home page
-│   ├── TitlesFilePanel.tsx                  Sending and seeing the file of prepared titles (on Home and My Research)
+│   ├── TitlesFilePanel.tsx                  Sending and seeing the file of prepared titles (on My Research)
 │   ├── TitleListReview.tsx                  The adviser checks a group's prepared titles: approve, or ask for changes
 │   ├── GroupJourneyCard.tsx                 Where every group is on its journey, at the top of the adviser, coordinator and admin homes
 │   ├── ResearchDetailsView.tsx              A paper's chapters, versions and comments
