@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
-  Landmark, Compass, Wrench, UploadCloud, Download, ExternalLink, RefreshCw, Send,
+  Landmark, Compass, Wrench, UploadCloud, Download, ExternalLink, RefreshCw,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
@@ -528,18 +528,6 @@ export default function DashboardStudent({
           </div>
         </Card>
       </section>
-
-      {/* After the hearing: the title proposal */}
-      {research.status === 'Group Registered' && (
-        <Card className={hearingDone ? 'border-blue-200 bg-blue-50' : undefined}>
-          <CardHeader
-            title="Your title proposal"
-            description="After your title hearing, send the title your group chose, a short summary and your main document."
-            icon={<Send className="h-5 w-5" aria-hidden="true" />}
-          />
-          <Button icon={ArrowRight} onClick={onOpenProposalForm}>Send Title Proposal</Button>
-        </Card>
-      )}
 
       {/* Your research paper */}
       <Card>
