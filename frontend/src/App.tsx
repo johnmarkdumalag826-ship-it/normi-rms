@@ -691,7 +691,6 @@ export default function App() {
               researchList={researchList}
               announcements={announcements}
               rooms={rooms}
-              schedules={schedules}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
@@ -840,7 +839,6 @@ export default function App() {
               researchList={researchList}
               announcements={announcements}
               rooms={rooms}
-              schedules={schedules}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
@@ -860,7 +858,6 @@ export default function App() {
               researchList={researchList}
               announcements={announcements}
               rooms={rooms}
-              schedules={schedules}
               users={users}
               onAddAnnouncement={handleAddAnnouncement}
               onDeleteAnnouncement={handleDeleteAnnouncement}
