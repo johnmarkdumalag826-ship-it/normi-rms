@@ -169,7 +169,10 @@ export interface Consultation {
 
 export interface Schedule {
   id: string;
-  researchId: string;
+  /** The paper that will defend. A title hearing for a student with no research yet has none. */
+  researchId?: string;
+  /** Only for a title hearing held for one student who has not added research yet. */
+  studentId?: string;
   date: string; // 'YYYY-MM-DD'
   startTime: string; // '09:00'
   endTime: string; // '10:30'

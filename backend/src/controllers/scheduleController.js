@@ -15,32 +15,49 @@ const listSchedules = async (req, res) => {
 
 // Coordinator manually registers a defense slot (handleAddSchedule)
 const createSchedule = async (req, res, next) => {
-  const { researchId, date, startTime, endTime, roomId, panelistIds, type } = req.body;
-  if (!researchId || !date || !startTime || !endTime || !roomId || !panelistIds || panelistIds.length < 3) {
-    return next(new AppError('researchId, date, startTime, endTime, roomId, and 3 panelistIds are required', 400));
+  const { researchId, studentId, date, startTime, endTime, roomId, panelistIds, type } = req.body;
+  if (!date || !startTime || !endTime || !roomId || !panelistIds || panelistIds.length < 3) {
+    return next(new AppError('date, startTime, endTime, roomId, and 3 panelistIds are required', 400));
+  }
+
+  // A title hearing may be for one student who has not added any research yet.
+  const forStudentAlone = !researchId && type === 'title_hearing' && !!studentId;
+  if (!researchId && !forStudentAlone) {
+    return next(new AppError('Choose a research paper (only a title hearing can be for a student alone).', 400));
+  }
+  if (forStudentAlone) {
+    const student = await User.findById(studentId).catch(() => null);
+    if (!student || student.role !== 'student' || student.status !== 'active') {
+      return next(new AppError('Please choose a student with an active account.', 400));
+    }
+    if (await Research.exists({ studentIds: student._id })) {
+      return next(new AppError('That student already has research. Choose their research paper instead.', 409));
+    }
   }
 
   const schedule = await Schedule.create({
-    researchId, date, startTime, endTime, roomId, panelistIds,
+    researchId: researchId || undefined, studentId: forStudentAlone ? studentId : undefined,
+    date, startTime, endTime, roomId, panelistIds,
     status: 'scheduled', type: type || 'proposal',
   });
 
   // A title hearing happens before the adviser's review, so it must not move the paper along
   // the review steps; only a real defense marks the paper "Scheduled".
   const isTitleHearing = schedule.type === 'title_hearing';
-  const research = isTitleHearing
+  const research = !researchId ? null : isTitleHearing
     ? await Research.findById(researchId)
     : await Research.findByIdAndUpdate(researchId, { status: 'Scheduled' }, { returnDocument: 'after' });
-  if (research) {
+  const audience = research ? research.studentIds : (forStudentAlone ? [studentId] : []);
+  if (audience.length) {
     await notifyMany(
-      research.studentIds,
+      audience,
       isTitleHearing ? 'Title Hearing Scheduled!' : 'Defense Schedule Published!',
       `Your ${isTitleHearing ? 'title hearing' : 'defense'} is set for ${date} @ ${startTime} in the presentation rooms. Check coordinates.`,
       'success',
     );
   }
 
-  await logAction(req, 'CREATE_SCHEDULE', `Coordinator registered defense slot ID ${schedule._id} for research ${researchId}`);
+  await logAction(req, 'CREATE_SCHEDULE', `Coordinator registered defense slot ID ${schedule._id} for ${researchId ? `research ${researchId}` : `student ${studentId}`}`);
   res.status(201).json(schedule);
 };
 
@@ -70,7 +87,7 @@ const deleteSchedule = async (req, res, next) => {
 // Reset draft (non-completed) schedules (handleClearSchedules)
 const clearDraftSchedules = async (req, res) => {
   const drafts = await Schedule.find({ status: { $ne: 'completed' } });
-  const researchIds = drafts.map((s) => s.researchId);
+  const researchIds = drafts.map((s) => s.researchId).filter(Boolean);
   await Schedule.deleteMany({ status: { $ne: 'completed' } });
   await Research.updateMany({ _id: { $in: researchIds }, status: 'Scheduled' }, { status: 'Approved by Adviser' });
   await logAction(req, 'CLEAR_SCHEDULES', 'Coordinator cleared draft scheduling calendars.');

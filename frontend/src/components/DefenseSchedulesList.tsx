@@ -6,7 +6,7 @@ import {
 import { Schedule, Room, User as UserType, Research } from '../types';
 import {
   Badge, Button, Card, EmptyState, PageHeader, Select, StatusBadge, Table, cx, defenseTypeLabels, formatDate, formatDateLong,
-  formatDateAndTime, formatTime, scheduleStatus, type Column,
+  formatDateAndTime, formatTime, scheduleStatus, noResearchYetLabel, scheduleSubjectId, subjectStudentId, type Column,
 } from '../ui';
 
 interface DefenseSchedulesListProps {
@@ -35,7 +35,9 @@ export default function DefenseSchedulesList({
 
   const getRoomName = (roomId: string) => rooms.find(x => x.id === roomId)?.name ?? 'Online meeting';
   const getRoomLocation = (roomId: string) => rooms.find(x => x.id === roomId)?.location ?? 'Online';
-  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
+  // "subject" = a research paper's id, or a student with no research yet (see scheduleSubjectId)
+  const getResearchTitle = (subject: string) =>
+    subjectStudentId(subject) ? noResearchYetLabel : researchList.find(x => x.id === subject)?.title ?? 'Research paper';
 
   const getAdviserName = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);
@@ -46,8 +48,10 @@ export default function DefenseSchedulesList({
   const getPanelistNames = (panelistIds: string[]) =>
     panelistIds.map(pid => users.find(x => x.id === pid)?.name ?? 'Panel Member');
 
-  const getStudentNames = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
+  const getStudentNames = (subject: string) => {
+    const alone = subjectStudentId(subject);
+    if (alone) return users.find(x => x.id === alone)?.name ?? 'Student';
+    const res = researchList.find(x => x.id === subject);
     if (!res) return 'No students';
     return res.studentIds.map(sid => users.find(x => x.id === sid)?.name ?? 'Student').join(', ');
   };
@@ -55,6 +59,8 @@ export default function DefenseSchedulesList({
   // Is this defense connected to the person who is signed in?
   const isMySchedule = (sched: Schedule) => {
     if (currentUser.role === 'coordinator' || currentUser.role === 'admin') return true;
+
+    if (sched.studentId) return currentUser.role === 'student' && sched.studentId === currentUser.id;
 
     const res = researchList.find(r => r.id === sched.researchId);
     if (!res) return false;
@@ -70,9 +76,9 @@ export default function DefenseSchedulesList({
   const filteredSchedules = useMemo(() => {
     return schedules
       .filter(sched => {
-        const title = getResearchTitle(sched.researchId).toLowerCase();
-        const students = getStudentNames(sched.researchId).toLowerCase();
-        const adviser = getAdviserName(sched.researchId).toLowerCase();
+        const title = getResearchTitle(scheduleSubjectId(sched)).toLowerCase();
+        const students = getStudentNames(scheduleSubjectId(sched)).toLowerCase();
+        const adviser = getAdviserName(scheduleSubjectId(sched)).toLowerCase();
         const roomName = getRoomName(sched.roomId).toLowerCase();
         const roomLoc = getRoomLocation(sched.roomId).toLowerCase();
         const query = searchQuery.toLowerCase();
@@ -129,8 +135,8 @@ export default function DefenseSchedulesList({
       key: 'paper', header: 'Research paper and group',
       render: s => (
         <span className="block max-w-sm space-y-0.5">
-          <span className="block font-semibold text-slate-900">{getResearchTitle(s.researchId)}</span>
-          <span className="block text-sm text-slate-600">{getStudentNames(s.researchId)}</span>
+          <span className="block font-semibold text-slate-900">{getResearchTitle(scheduleSubjectId(s))}</span>
+          <span className="block text-sm text-slate-600">{getStudentNames(scheduleSubjectId(s))}</span>
         </span>
       ),
     },
@@ -139,7 +145,7 @@ export default function DefenseSchedulesList({
       key: 'people', header: 'Adviser and panel',
       render: s => (
         <span className="block space-y-0.5 text-sm">
-          <span className="block">Adviser: <strong>{getAdviserName(s.researchId)}</strong></span>
+          <span className="block">Adviser: <strong>{getAdviserName(scheduleSubjectId(s))}</strong></span>
           <span className="block text-slate-700">Panel: {getPanelistNames(s.panelistIds).join(', ') || '—'}</span>
         </span>
       ),
@@ -171,7 +177,7 @@ export default function DefenseSchedulesList({
               <div className="mt-2 space-y-1">
                 <h2 className="text-xl font-bold text-slate-900">{formatDateAndTime(nextDefense.date, nextDefense.startTime)}</h2>
                 <p className="text-base text-slate-700">
-                  {getResearchTitle(nextDefense.researchId)} · {getRoomName(nextDefense.roomId)}
+                  {getResearchTitle(scheduleSubjectId(nextDefense))} · {getRoomName(nextDefense.roomId)}
                 </p>
               </div>
             ) : (
@@ -304,10 +310,10 @@ interface ScheduleCardProps {
   highlighted: boolean;
   getRoomName: (roomId: string) => string;
   getRoomLocation: (roomId: string) => string;
-  getResearchTitle: (researchId: string) => string;
-  getAdviserName: (researchId: string) => string;
+  getResearchTitle: (subject: string) => string;
+  getAdviserName: (subject: string) => string;
   getPanelistNames: (panelistIds: string[]) => string[];
-  getStudentNames: (researchId: string) => string;
+  getStudentNames: (subject: string) => string;
 }
 
 function ScheduleCard({
@@ -324,10 +330,10 @@ function ScheduleCard({
       </div>
 
       <div>
-        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(sched.researchId)}</h3>
+        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(scheduleSubjectId(sched))}</h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700">
           <Users className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-          <span>{getStudentNames(sched.researchId)}</span>
+          <span>{getStudentNames(scheduleSubjectId(sched))}</span>
         </p>
       </div>
 
@@ -373,7 +379,7 @@ function ScheduleCard({
           <p className="mb-1.5 text-sm font-bold text-slate-900">Adviser</p>
           <p className="flex items-center gap-2 text-sm text-slate-800">
             <User className="h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-            {getAdviserName(sched.researchId)}
+            {getAdviserName(scheduleSubjectId(sched))}
           </p>
         </div>
         <div>

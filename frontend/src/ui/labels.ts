@@ -164,6 +164,22 @@ export const defenseTypeLabels: Record<Schedule['type'], string> = {
   final: 'Final Defense',
 };
 
+// A defense is about a research paper, except a title hearing for a student who has not added
+// research yet. The screens treat both the same way through one "subject" id: the paper's id,
+// or "student:<id>" for a student on their own.
+const STUDENT_SUBJECT = 'student:';
+
+export const studentSubjectId = (studentId: string) => `${STUDENT_SUBJECT}${studentId}`;
+
+export const scheduleSubjectId = (s: Pick<Schedule, 'researchId' | 'studentId'>): string =>
+  s.researchId || (s.studentId ? studentSubjectId(s.studentId) : '');
+
+/** The student's id when the subject is a student with no research, otherwise null. */
+export const subjectStudentId = (subject: string): string | null =>
+  subject.startsWith(STUDENT_SUBJECT) ? subject.slice(STUDENT_SUBJECT.length) : null;
+
+export const noResearchYetLabel = 'No research yet';
+
 // ----------------------------------------------------------- Consultations
 export const consultationStatus: Record<Consultation['status'], StatusInfo> = {
   pending: {

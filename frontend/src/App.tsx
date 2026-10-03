@@ -284,11 +284,14 @@ export default function App() {
   const handleAddSchedule = async (sched: Schedule) => {
     try {
       const created = await createSchedule({
-        researchId: sched.researchId, date: sched.date, startTime: sched.startTime,
+        researchId: sched.researchId, studentId: sched.studentId, date: sched.date, startTime: sched.startTime,
         endTime: sched.endTime, roomId: sched.roomId, panelistIds: sched.panelistIds, type: sched.type,
       });
       setSchedules(prev => [created, ...prev]);
-      setResearchList(prev => prev.map(r => r.id === created.researchId ? { ...r, status: 'Scheduled' } : r));
+      // A title hearing does not move a paper along, and one for a student alone has no paper
+      if (created.researchId && created.type !== 'title_hearing') {
+        setResearchList(prev => prev.map(r => r.id === created.researchId ? { ...r, status: 'Scheduled' } : r));
+      }
       triggerAlert("Schedule slot registered!");
     } catch (err) {
       handleApiError(err, 'Could not register schedule.');
@@ -298,7 +301,9 @@ export default function App() {
   const handleUpdateSchedule = async (updated: Schedule) => {
     try {
       const { id, ...patch } = updated;
-      const saved = await apiUpdateSchedule(id, patch);
+      const saved = await apiUpdateSchedule(id, {
+        ...patch, researchId: patch.researchId ?? null, studentId: patch.studentId ?? null,
+      });
       setSchedules(prev => prev.map(s => s.id === saved.id ? saved : s));
       triggerAlert("Defense schedule updated successfully!");
     } catch (err) {

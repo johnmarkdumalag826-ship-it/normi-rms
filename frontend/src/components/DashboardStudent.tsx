@@ -69,7 +69,7 @@ export default function DashboardStudent({
 
   const getUpcomingSchedule = () => {
     if (!research) return null;
-    return schedules.find(s => s.researchId === research.id && s.status === 'scheduled');
+    return schedules.find(s => (s.researchId === research.id || s.studentId === user.id) && s.status === 'scheduled');
   };
 
   const mySchedule = getUpcomingSchedule();
@@ -310,12 +310,44 @@ export default function DashboardStudent({
   // A student who has not added their research yet still lands on their dashboard after signing in;
   // this button opens the form when they are ready.
   if (!research) {
+    // The coordinator can book a title hearing for a student before they add any research
+    const myHearing = schedules
+      .filter(s => s.studentId === user.id && !s.researchId && s.status === 'scheduled')
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0];
+    const hearingRoom = myHearing ? rooms.find(r => r.id === myHearing.roomId) : undefined;
     return (
       <div className="space-y-6">
         <PageHeader
           title={`Welcome, ${user.name}`}
           subtitle="Add your research whenever you are ready. Your progress and your adviser’s feedback will show here."
         />
+        {myHearing && (
+          <Card as="section" className="space-y-3 border-blue-200 bg-blue-50">
+            <CardHeader title="Your title hearing" icon={<Calendar className="h-5 w-5" aria-hidden="true" />} />
+            <p className="text-base text-slate-800">
+              The coordinator set a title hearing for you. Come ready to present the research titles you are thinking about.
+            </p>
+            <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+              <div className="rounded-lg bg-white p-3">
+                <dt className="font-bold text-slate-900">When</dt>
+                <dd className="text-slate-800">{formatDateLong(myHearing.date)}</dd>
+                <dd className="text-slate-800">{formatTime(myHearing.startTime)} to {formatTime(myHearing.endTime)}</dd>
+              </div>
+              <div className="rounded-lg bg-white p-3">
+                <dt className="font-bold text-slate-900">Where</dt>
+                <dd className="text-slate-800">
+                  {myHearing.roomId === 'online' ? 'Online meeting' : hearingRoom ? `${hearingRoom.name} (${hearingRoom.location})` : 'Room to be announced'}
+                </dd>
+              </div>
+              <div className="rounded-lg bg-white p-3">
+                <dt className="font-bold text-slate-900">Panel members</dt>
+                {myHearing.panelistIds.map(pid => (
+                  <dd key={pid} className="text-slate-800">{users.find(u => u.id === pid)?.name ?? 'Panel Member'}</dd>
+                ))}
+              </div>
+            </dl>
+          </Card>
+        )}
         <Card padded={false}>
           <EmptyState
             icon={FileText}

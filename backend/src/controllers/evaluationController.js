@@ -19,14 +19,18 @@ const createEvaluation = async (req, res, next) => {
 
   const schedule = await Schedule.findByIdAndUpdate(scheduleId, { status: 'completed' }, { returnDocument: 'after' });
   if (schedule) {
-    const research = await Research.findByIdAndUpdate(
-      schedule.researchId,
-      { status: recommendation === 'Passed' ? 'Completed' : 'Revision Required' },
-      { returnDocument: 'after' },
-    );
-    if (research) {
+    // A title hearing held for a student who has not added research yet has no paper to update.
+    const research = schedule.researchId
+      ? await Research.findByIdAndUpdate(
+        schedule.researchId,
+        { status: recommendation === 'Passed' ? 'Completed' : 'Revision Required' },
+        { returnDocument: 'after' },
+      )
+      : null;
+    const audience = research ? research.studentIds : (schedule.studentId ? [schedule.studentId] : []);
+    if (audience.length) {
       await notifyMany(
-        research.studentIds,
+        audience,
         'Jury Recommendation Published',
         `Panelist evaluated defense with recommendation: ${recommendation} (Score: ${totalScore}/100)`,
         recommendation === 'Failed' ? 'error' : 'success',

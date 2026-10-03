@@ -299,6 +299,26 @@ async function main() {
   const researchAfterSchedule = await request(server, 'GET', `/api/research/${researchId}`, null, studentToken);
   assert(researchAfterSchedule.body.status === 'Scheduled', 'research status flips to Scheduled');
 
+  // A title hearing for a student who has not added any research yet
+  const hearingFor = (extra) => request(server, 'POST', '/api/schedules', {
+    date: '2026-08-27', startTime: '09:00', endTime: '10:00', roomId: room._id,
+    panelistIds: panelistTokens.map((p) => p.id), ...extra,
+  }, coordinatorToken);
+  const soloHearing = await hearingFor({ studentId: String(created._id), type: 'title_hearing' });
+  assert(soloHearing.status === 201 && !soloHearing.body.researchId && soloHearing.body.studentId === String(created._id), 'a title hearing can be booked for a student who has no research yet -> 201');
+  assert((await hearingFor({ studentId: String(created._id), type: 'proposal' })).status === 400, 'a proposal defense cannot be for a student alone -> 400');
+  assert((await hearingFor({ studentId: adviserId, type: 'title_hearing' })).status === 400, 'a title hearing for someone who is not a student is refused -> 400');
+  assert((await hearingFor({ studentId: student.id, type: 'title_hearing' })).status === 409, 'a student who already has research is booked through their paper instead -> 409');
+  assert((await hearingFor({ type: 'title_hearing' })).status === 400, 'a title hearing needs a paper or a student -> 400');
+  const soloNotes = await request(server, 'GET', '/api/notifications', null, afterApprove.body.token);
+  assert(JSON.stringify(soloNotes.body).includes('Title Hearing Scheduled'), 'that student is told about the hearing');
+  const soloScore = await request(server, 'POST', '/api/evaluations', {
+    scheduleId: soloHearing.body.id, score1: 20, score2: 20, score3: 20, score4: 20, recommendation: 'Passed',
+  }, panelistTokens[0].token);
+  assert(soloScore.status === 201, 'a panel member can score a hearing that has no paper -> 201');
+  const stillScheduled = await request(server, 'GET', `/api/research/${researchId}`, null, studentToken);
+  assert(stillScheduled.body.status === 'Scheduled', "scoring a paperless hearing does not touch another paper's status");
+
   console.log('\n--- Auto-scheduler (second research group) ---');
   const secondStudent = await makeUser({ email: 'student2@test.local', name: 'Second Student', role: 'student', departmentId: dept._id, courseId: course._id }, 'student-pass-3');
   const secondCreate = await request(server, 'POST', '/api/research', {

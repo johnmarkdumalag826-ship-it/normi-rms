@@ -4,6 +4,7 @@ import { User, Schedule, Research, Evaluation } from '../types';
 import {
   Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Textarea,
   cx, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, recommendationLabels, scheduleStatus,
+  noResearchYetLabel, scheduleSubjectId, subjectStudentId,
 } from '../ui';
 
 interface DashboardPanelistProps {
@@ -40,10 +41,14 @@ export default function DashboardPanelist({
   const pendingDefenses = assignedDefenses.filter(s => s.status === 'scheduled' && !isEvaluated(s.id));
   const myEvaluations = evaluations.filter(e => e.panelistId === user.id);
 
-  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
+  // "subject" = a research paper's id, or a student with no research yet (see scheduleSubjectId)
+  const getResearchTitle = (subject: string) =>
+    subjectStudentId(subject) ? noResearchYetLabel : researchList.find(x => x.id === subject)?.title ?? 'Research paper';
 
-  const getStudentNames = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
+  const getStudentNames = (subject: string) => {
+    const alone = subjectStudentId(subject);
+    if (alone) return users.find(x => x.id === alone)?.name ?? 'Student';
+    const res = researchList.find(x => x.id === subject);
     if (!res) return 'Unknown students';
     return res.studentIds.map(sid => users.find(x => x.id === sid)?.name ?? 'Student').join(', ');
   };
@@ -130,7 +135,7 @@ export default function DashboardPanelist({
                   <li key={sched.id} className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-blue-900">{formatDateAndTime(sched.date, sched.startTime)}</p>
-                      <p className="text-base font-semibold text-slate-900">{getResearchTitle(sched.researchId)}</p>
+                      <p className="text-base font-semibold text-slate-900">{getResearchTitle(scheduleSubjectId(sched))}</p>
                     </div>
                     <Button size="sm" icon={Play} onClick={() => handleOpenEvaluation(sched.id)} className="shrink-0">
                       Score This Defense
@@ -194,14 +199,16 @@ export default function DashboardPanelist({
                     </div>
 
                     <div>
-                      <h3 className="text-base font-bold leading-snug text-slate-900">{getResearchTitle(sched.researchId)}</h3>
-                      <p className="mt-0.5 text-sm text-slate-700">Students: {getStudentNames(sched.researchId)}</p>
+                      <h3 className="text-base font-bold leading-snug text-slate-900">{getResearchTitle(scheduleSubjectId(sched))}</h3>
+                      <p className="mt-0.5 text-sm text-slate-700">Students: {getStudentNames(scheduleSubjectId(sched))}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button variant="secondary" size="sm" icon={FileText} onClick={() => onSelectResearch(sched.researchId)}>
-                        Read Paper
-                      </Button>
+                      {sched.researchId && (
+                        <Button variant="secondary" size="sm" icon={FileText} onClick={() => onSelectResearch(sched.researchId!)}>
+                          Read Paper
+                        </Button>
+                      )}
                       {done ? (
                         <Badge tone="success" icon={CheckCircle2}>You have scored this defense</Badge>
                       ) : (
@@ -230,7 +237,7 @@ export default function DashboardPanelist({
                 return (
                   <li key={e.id} className="space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <p className="text-sm font-semibold text-slate-900 line-clamp-2">
-                      {sched ? getResearchTitle(sched.researchId) : 'Research paper'}
+                      {sched ? getResearchTitle(scheduleSubjectId(sched)) : 'Research paper'}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={rec?.tone ?? 'neutral'}>{rec?.label ?? e.recommendation}</Badge>

@@ -7,6 +7,7 @@ import { Schedule, Room, User, Research } from '../types';
 import {
   Alert, Badge, Button, Card, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, StatusBadge,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatDateAndTime, formatTime, scheduleStatus,
+  noResearchYetLabel, scheduleSubjectId, studentSubjectId, subjectStudentId,
 } from '../ui';
 
 interface SchedulerCalendarProps {
@@ -64,34 +65,51 @@ export default function SchedulerCalendar({
     return r ? `${r.name} (${r.location})` : 'Room not found';
   };
 
-  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
+  // "subject" = a research paper's id, or a student with no research yet (see scheduleSubjectId)
+  const getResearchTitle = (subject: string) =>
+    subjectStudentId(subject) ? noResearchYetLabel : researchList.find(x => x.id === subject)?.title ?? 'Research paper';
 
   const getPanelistNames = (panelistIds: string[]) =>
     panelistIds.map(pid => users.find(x => x.id === pid)?.name ?? 'Panel Member');
 
-  const getStudentNames = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
-    if (!res) return 'No students';
-    return res.studentIds.map(sid => users.find(u => u.id === sid)?.name ?? 'Student').join(', ');
+  // The students a defense is about: the whole group, or the one student with no research yet
+  const studentIdsOf = (subject: string): string[] => {
+    const alone = subjectStudentId(subject);
+    return alone ? [alone] : researchList.find(x => x.id === subject)?.studentIds ?? [];
   };
 
-  const getAdviserName = (researchId: string) => {
-    const res = researchList.find(x => x.id === researchId);
+  const getStudentNames = (subject: string) => {
+    const ids = studentIdsOf(subject);
+    if (ids.length === 0) return 'No students';
+    return ids.map(sid => users.find(u => u.id === sid)?.name ?? 'Student').join(', ');
+  };
+
+  const getAdviserName = (subject: string) => {
+    const res = researchList.find(x => x.id === subject);
     if (!res) return 'No adviser yet';
     return users.find(u => u.id === res.adviserId)?.name ?? 'No adviser yet';
   };
 
-  const getResearchAdviserId = (researchId: string) => researchList.find(x => x.id === researchId)?.adviserId ?? '';
+  const getResearchAdviserId = (subject: string) => researchList.find(x => x.id === subject)?.adviserId ?? '';
 
-  const shortTitle = (researchId: string) => {
-    const t = getResearchTitle(researchId);
+  const shortTitle = (subject: string) => {
+    const t = subjectStudentId(subject) ? `${noResearchYetLabel}: ${getStudentNames(subject)}` : getResearchTitle(subject);
     return t.length > 30 ? `${t.substring(0, 30)}…` : t;
   };
 
-  // Picking a research paper also picks its current adviser
+  // Students who have not added any research yet: the coordinator can still book their title hearing
+  const studentsWithoutResearch = useMemo(
+    () => users.filter(u => u.role === 'student' && u.status === 'active' && !researchList.some(r => r.studentIds.includes(u.id))),
+    [users, researchList],
+  );
+  const formIsStudentAlone = !!subjectStudentId(formResearchId);
+
+  // Picking a research paper also picks its current adviser; a student with no research can only
+  // have a title hearing, and has no adviser yet
   const handleFormResearchChange = (id: string) => {
     setFormResearchId(id);
     setFormAdviserId(getResearchAdviserId(id));
+    if (subjectStudentId(id)) setFormType('title_hearing');
   };
 
   // Finds double bookings (same room, same panel member, same student, same time)
@@ -106,7 +124,7 @@ export default function SchedulerCalendar({
         if (other.id !== sched.id && other.status === 'scheduled' && other.date === sched.date && other.roomId === sched.roomId && other.roomId !== 'online') {
           if (sched.startTime < other.endTime && sched.endTime > other.startTime) {
             const otherRoom = rooms.find(r => r.id === sched.roomId)?.name || 'This room';
-            conflicts.push(`Room already booked: ${otherRoom} is also used for “${shortTitle(other.researchId)}” at the same time.`);
+            conflicts.push(`Room already booked: ${otherRoom} is also used for “${shortTitle(scheduleSubjectId(other))}” at the same time.`);
           }
         }
       });
@@ -117,29 +135,25 @@ export default function SchedulerCalendar({
           if (other.id !== sched.id && other.status === 'scheduled' && other.date === sched.date && other.panelistIds.includes(pid)) {
             if (sched.startTime < other.endTime && sched.endTime > other.startTime) {
               const panName = users.find(u => u.id === pid)?.name || 'A panel member';
-              conflicts.push(`Panel member busy: ${panName} is also on the panel for “${shortTitle(other.researchId)}” at the same time.`);
+              conflicts.push(`Panel member busy: ${panName} is also on the panel for “${shortTitle(scheduleSubjectId(other))}” at the same time.`);
             }
           }
         });
       });
 
       // 3. Same student at the same time
-      const currentRes = researchList.find(r => r.id === sched.researchId);
-      if (currentRes) {
-        currentRes.studentIds.forEach(sid => {
-          schedules.forEach(other => {
-            if (other.id !== sched.id && other.status === 'scheduled' && other.date === sched.date) {
-              const otherRes = researchList.find(r => r.id === other.researchId);
-              if (otherRes && otherRes.studentIds.includes(sid)) {
-                if (sched.startTime < other.endTime && sched.endTime > other.startTime) {
-                  const studName = users.find(u => u.id === sid)?.name || 'A student';
-                  conflicts.push(`Student busy: ${studName} has another defense at the same time.`);
-                }
+      studentIdsOf(scheduleSubjectId(sched)).forEach(sid => {
+        schedules.forEach(other => {
+          if (other.id !== sched.id && other.status === 'scheduled' && other.date === sched.date) {
+            if (studentIdsOf(scheduleSubjectId(other)).includes(sid)) {
+              if (sched.startTime < other.endTime && sched.endTime > other.startTime) {
+                const studName = users.find(u => u.id === sid)?.name || 'A student';
+                conflicts.push(`Student busy: ${studName} has another defense at the same time.`);
               }
             }
-          });
+          }
         });
-      }
+      });
 
       return { ...sched, conflictsDetected: conflicts };
     });
@@ -173,22 +187,18 @@ export default function SchedulerCalendar({
       });
     });
 
-    const currentRes = researchList.find(r => r.id === formResearchId);
-    if (currentRes) {
-      currentRes.studentIds.forEach(sid => {
-        schedules.forEach(other => {
-          if (other.id !== editingScheduleId && other.status === 'scheduled' && other.date === formDate) {
-            const otherRes = researchList.find(r => r.id === other.researchId);
-            if (otherRes && otherRes.studentIds.includes(sid)) {
-              if (formStartTime < other.endTime && formEndTime > other.startTime) {
-                const sName = users.find(u => u.id === sid)?.name || 'A student';
-                conflicts.push(`${sName} has another defense at this time.`);
-              }
+    studentIdsOf(formResearchId).forEach(sid => {
+      schedules.forEach(other => {
+        if (other.id !== editingScheduleId && other.status === 'scheduled' && other.date === formDate) {
+          if (studentIdsOf(scheduleSubjectId(other)).includes(sid)) {
+            if (formStartTime < other.endTime && formEndTime > other.startTime) {
+              const sName = users.find(u => u.id === sid)?.name || 'A student';
+              conflicts.push(`${sName} has another defense at this time.`);
             }
           }
-        });
+        }
       });
-    }
+    });
 
     return conflicts;
   }, [formResearchId, formDate, formStartTime, formEndTime, formRoomId, formPanelistIds, editingScheduleId, schedules, rooms, users, researchList]);
@@ -236,14 +246,17 @@ export default function SchedulerCalendar({
   const handleOpenCreateModal = () => {
     setModalMode('create');
     setEditingScheduleId(null);
-    setFormResearchId(researchList[0]?.id || '');
-    setFormType('proposal');
+    // A group with research first; if nobody has research yet, a student for a title hearing
+    const firstSubject = researchList[0]?.id
+      || (studentsWithoutResearch[0] ? studentSubjectId(studentsWithoutResearch[0].id) : '');
+    setFormResearchId(firstSubject);
+    setFormType(subjectStudentId(firstSubject) ? 'title_hearing' : 'proposal');
     setFormDate(todayIso);
     setFormStartTime('09:00');
     setFormEndTime('10:30');
     setFormRoomId(rooms[0]?.id || '');
     setFormPanelistIds(registeredPanelists.slice(0, 3).map(p => p.id));
-    setFormAdviserId(researchList[0] ? getResearchAdviserId(researchList[0].id) : '');
+    setFormAdviserId(getResearchAdviserId(firstSubject));
     setFormStatus('scheduled');
     setShowModal(true);
   };
@@ -252,14 +265,14 @@ export default function SchedulerCalendar({
   const handleOpenEditModal = (sched: Schedule) => {
     setModalMode('edit');
     setEditingScheduleId(sched.id);
-    setFormResearchId(sched.researchId);
+    setFormResearchId(scheduleSubjectId(sched));
     setFormType(sched.type);
     setFormDate(sched.date);
     setFormStartTime(sched.startTime);
     setFormEndTime(sched.endTime);
     setFormRoomId(sched.roomId);
     setFormPanelistIds(sched.panelistIds);
-    setFormAdviserId(getResearchAdviserId(sched.researchId));
+    setFormAdviserId(getResearchAdviserId(scheduleSubjectId(sched)));
     setFormStatus(sched.status);
     setShowModal(true);
   };
@@ -272,10 +285,13 @@ export default function SchedulerCalendar({
     e.preventDefault();
     if (!formResearchId || !formDate || !formStartTime || !formEndTime) return;
 
+    const alone = subjectStudentId(formResearchId);
+    const subject = alone ? { studentId: alone } : { researchId: formResearchId };
+
     if (modalMode === 'create' && onAddSchedule) {
       const newSchedule: Schedule = {
         id: `sched-${Date.now()}`,
-        researchId: formResearchId,
+        ...subject,
         date: formDate,
         startTime: formStartTime,
         endTime: formEndTime,
@@ -285,7 +301,7 @@ export default function SchedulerCalendar({
         type: formType
       };
 
-      if (formAdviserId && onUpdateResearchAdviser) {
+      if (!alone && formAdviserId && onUpdateResearchAdviser) {
         onUpdateResearchAdviser(formResearchId, formAdviserId);
       }
 
@@ -293,7 +309,7 @@ export default function SchedulerCalendar({
     } else if (modalMode === 'edit' && editingScheduleId && onUpdateSchedule) {
       const updatedSchedule: Schedule = {
         id: editingScheduleId,
-        researchId: formResearchId,
+        ...subject,
         date: formDate,
         startTime: formStartTime,
         endTime: formEndTime,
@@ -303,7 +319,7 @@ export default function SchedulerCalendar({
         type: formType
       };
 
-      if (formAdviserId && onUpdateResearchAdviser) {
+      if (!alone && formAdviserId && onUpdateResearchAdviser) {
         onUpdateResearchAdviser(formResearchId, formAdviserId);
       }
 
@@ -346,16 +362,16 @@ export default function SchedulerCalendar({
           </span>
         </div>
 
-        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(sched.researchId)}</h3>
+        <h3 className="text-lg font-bold leading-snug text-slate-900">{getResearchTitle(scheduleSubjectId(sched))}</h3>
 
         <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
           <div className="space-y-1 rounded-lg bg-slate-50 p-3">
             <p className="font-bold text-slate-900">Students and adviser</p>
             <p className="flex items-start gap-1.5 text-slate-800">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-              {getStudentNames(sched.researchId)}
+              {getStudentNames(scheduleSubjectId(sched))}
             </p>
-            <p className="text-slate-700">Adviser: <strong className="text-slate-900">{getAdviserName(sched.researchId)}</strong></p>
+            <p className="text-slate-700">Adviser: <strong className="text-slate-900">{getAdviserName(scheduleSubjectId(sched))}</strong></p>
           </div>
           <div className="space-y-1 rounded-lg bg-slate-50 p-3">
             <p className="font-bold text-slate-900">Panel members</p>
@@ -481,7 +497,7 @@ export default function SchedulerCalendar({
                             key={sched.id}
                             type="button"
                             onClick={() => handleOpenEditModal(sched)}
-                            title={`${getResearchTitle(sched.researchId)}. Select to change it.`}
+                            title={`${getResearchTitle(scheduleSubjectId(sched))}. Select to change it.`}
                             className={cx(
                               'tap-auto block w-full rounded border px-1.5 py-1 text-left text-xs font-semibold cursor-pointer',
                               hasConflicts ? 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100'
@@ -494,7 +510,7 @@ export default function SchedulerCalendar({
                               {formatTime(sched.startTime)}
                               {hasConflicts && <AlertTriangle className="h-3 w-3 text-rose-700" aria-label="Has a scheduling problem" />}
                             </span>
-                            <span className="block truncate">{getResearchTitle(sched.researchId)}</span>
+                            <span className="block truncate">{getResearchTitle(scheduleSubjectId(sched))}</span>
                           </button>
                         );
                       })}
@@ -578,7 +594,9 @@ export default function SchedulerCalendar({
             required
             value={formResearchId}
             onChange={e => handleFormResearchChange(e.target.value)}
-            hint="Choose the group that will defend."
+            hint={studentsWithoutResearch.length > 0
+              ? 'Choose the group that will defend. A student who has not added research yet can have a title hearing.'
+              : 'Choose the group that will defend.'}
           >
             <option value="" disabled>Choose a research paper…</option>
             {researchList.map(r => (
@@ -586,10 +604,23 @@ export default function SchedulerCalendar({
                 {r.title.substring(0, 50)}{r.title.length > 50 ? '…' : ''} ({getStudentNames(r.id)})
               </option>
             ))}
+            {studentsWithoutResearch.length > 0 && (
+              <optgroup label="Students who have not added research yet (title hearing)">
+                {studentsWithoutResearch.map(s => (
+                  <option key={s.id} value={studentSubjectId(s.id)}>{s.name}: {noResearchYetLabel.toLowerCase()}</option>
+                ))}
+              </optgroup>
+            )}
           </Select>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <Select label="Type of defense" value={formType} onChange={e => setFormType(e.target.value as Schedule['type'])}>
+            <Select
+              label="Type of defense"
+              value={formType}
+              onChange={e => setFormType(e.target.value as Schedule['type'])}
+              disabled={formIsStudentAlone}
+              hint={formIsStudentAlone ? 'A student with no research yet can only have a title hearing.' : undefined}
+            >
               <option value="title_hearing">Title Hearing</option>
               <option value="proposal">Proposal Defense</option>
               <option value="final">Final Defense</option>
@@ -614,17 +645,24 @@ export default function SchedulerCalendar({
                 <option key={r.id} value={r.id}>{r.name} - {r.location}</option>
               ))}
             </Select>
-            <Select
-              label="Adviser"
-              required
-              value={formAdviserId}
-              onChange={e => setFormAdviserId(e.target.value)}
-            >
-              <option value="" disabled>Choose an adviser…</option>
-              {registeredAdvisers.map(adv => (
-                <option key={adv.id} value={adv.id}>{adv.name}</option>
-              ))}
-            </Select>
+            {formIsStudentAlone ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p className="font-semibold text-slate-900">Adviser</p>
+                <p>No adviser yet. The student will choose one when they add their research.</p>
+              </div>
+            ) : (
+              <Select
+                label="Adviser"
+                required
+                value={formAdviserId}
+                onChange={e => setFormAdviserId(e.target.value)}
+              >
+                <option value="" disabled>Choose an adviser…</option>
+                {registeredAdvisers.map(adv => (
+                  <option key={adv.id} value={adv.id}>{adv.name}</option>
+                ))}
+              </Select>
+            )}
           </div>
 
           <fieldset className="space-y-2">
@@ -672,8 +710,8 @@ export default function SchedulerCalendar({
         title={confirmAction?.type === 'delete' ? 'Delete this defense?' : 'Cancel this defense?'}
         message={
           confirmAction?.type === 'delete'
-            ? `The defense for “${confirmTarget ? getResearchTitle(confirmTarget.researchId) : 'this paper'}” on ${confirmTarget ? formatDate(confirmTarget.date) : ''} will be removed for good. This cannot be undone.`
-            : `The defense for “${confirmTarget ? getResearchTitle(confirmTarget.researchId) : 'this paper'}” on ${confirmTarget ? formatDate(confirmTarget.date) : ''} will be marked as cancelled. You can schedule it again later.`
+            ? `The defense for “${confirmTarget ? getResearchTitle(scheduleSubjectId(confirmTarget)) : 'this paper'}” on ${confirmTarget ? formatDate(confirmTarget.date) : ''} will be removed for good. This cannot be undone.`
+            : `The defense for “${confirmTarget ? getResearchTitle(scheduleSubjectId(confirmTarget)) : 'this paper'}” on ${confirmTarget ? formatDate(confirmTarget.date) : ''} will be marked as cancelled. You can schedule it again later.`
         }
         confirmLabel={confirmAction?.type === 'delete' ? 'Yes, Delete Defense' : 'Yes, Cancel Defense'}
         cancelLabel="No, Keep Defense"

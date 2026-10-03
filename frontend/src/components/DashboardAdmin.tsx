@@ -148,8 +148,10 @@ export default function DashboardAdmin({
   const filteredSchedules = useMemo(() => {
     return schedules.filter(sched => {
       const res = researchList.find(r => r.id === sched.researchId);
+      // A student with no research yet counts under their own department
+      const deptId = res?.departmentId ?? users.find(u => u.id === sched.studentId)?.departmentId;
 
-      const matchesDept = schedDeptFilter === 'all' || (res && res.departmentId === schedDeptFilter);
+      const matchesDept = schedDeptFilter === 'all' || deptId === schedDeptFilter;
       const matchesDate = !schedDateFilter || sched.date === schedDateFilter;
       const matchesAdviser = schedAdviserFilter === 'all' || (res && res.adviserId === schedAdviserFilter);
       const matchesPanel = schedPanelFilter === 'all' || sched.panelistIds.includes(schedPanelFilter);
@@ -158,7 +160,7 @@ export default function DashboardAdmin({
 
       return matchesDept && matchesDate && matchesAdviser && matchesPanel && matchesRoom && matchesStatus;
     });
-  }, [schedules, researchList, schedDeptFilter, schedDateFilter, schedAdviserFilter, schedPanelFilter, schedRoomFilter, schedStatusFilter]);
+  }, [schedules, researchList, users, schedDeptFilter, schedDateFilter, schedAdviserFilter, schedPanelFilter, schedRoomFilter, schedStatusFilter]);
 
   const handleEditUserClick = (u: User) => {
     setEditingUser(u);
@@ -477,7 +479,8 @@ export default function DashboardAdmin({
             <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredSchedules.map(sched => {
                 const res = researchList.find(r => r.id === sched.researchId);
-                const dpt = departments.find(d => d.id === res?.departmentId);
+                const hearingStudent = sched.studentId ? users.find(u => u.id === sched.studentId) : undefined;
+                const dpt = departments.find(d => d.id === (res?.departmentId ?? hearingStudent?.departmentId));
                 return (
                   <li key={sched.id}>
                     <Card as="article" className="flex h-full flex-col gap-3">
@@ -487,7 +490,7 @@ export default function DashboardAdmin({
                       </div>
                       <div className="space-y-1">
                         <h3 className="text-base font-bold leading-snug text-slate-900 line-clamp-3" title={res?.title}>
-                          {res ? res.title : 'Research paper'}
+                          {res ? res.title : hearingStudent ? `No research yet: ${hearingStudent.name}` : 'Research paper'}
                         </h3>
                         <p className="text-sm text-slate-700">{defenseTypeLabels[sched.type] ?? sched.type}</p>
                         <p className="flex items-center gap-1.5 text-sm text-slate-800">
