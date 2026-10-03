@@ -521,8 +521,9 @@ export default function SchedulerCalendar({
             </div>
           </Card>
 
-          {/* Defenses in this month */}
-          <section aria-labelledby="month-list-title" className="space-y-4">
+          {/* Defenses in this month: only on phones, where the calendar squares can show just a number.
+              On bigger screens each defense is in the calendar itself; select it to change, cancel or delete it. */}
+          <section aria-labelledby="month-list-title" className="space-y-4 sm:hidden">
             <h2 id="month-list-title" className="text-lg font-bold text-slate-900">
               Defenses in {monthLabel} ({monthSchedules.length})
             </h2>
@@ -572,7 +573,21 @@ export default function SchedulerCalendar({
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+            {modalMode === 'edit' && editingScheduleId && (
+              <div className="mr-auto flex flex-wrap gap-2">
+                {onCancelSchedule && formStatus !== 'cancelled' && (
+                  <Button variant="secondary" icon={Ban} onClick={() => { setShowModal(false); setConfirmAction({ type: 'cancel', id: editingScheduleId }); }}>
+                    Cancel Defense
+                  </Button>
+                )}
+                {onDeleteSchedule && (
+                  <Button variant="danger" icon={Trash2} onClick={() => { setShowModal(false); setConfirmAction({ type: 'delete', id: editingScheduleId }); }}>
+                    Delete Defense
+                  </Button>
+                )}
+              </div>
+            )}
+            <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
             <Button type="submit" form="schedule-form" disabled={!canSave}>
               {modalMode === 'create' ? 'Save Defense Schedule' : 'Save Changes'}
             </Button>
