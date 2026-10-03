@@ -20,6 +20,10 @@ export const submitTitleProposal = (id: string, input: {
 export const sendTitleList = (id: string, file: { name: string; url: string; size: number }): Promise<Research> =>
   api.post(`/research/${id}/title-list`, file);
 
+// The group's adviser checks the file with the prepared titles: approve it, or ask for changes (with a note).
+export const reviewTitleList = (id: string, decision: 'Approve' | 'Revision', feedback?: string): Promise<Research> =>
+  api.post(`/research/${id}/title-list/review`, { decision, feedback });
+
 // Admin archiving a manuscript directly into the repository (no student submitter/version)
 export const createArchivedResearch = (input: {
   title: string; abstract: string; departmentId: string; courseId: string; schoolYearId: string;

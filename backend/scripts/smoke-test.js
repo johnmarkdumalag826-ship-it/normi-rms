@@ -445,6 +445,27 @@ async function main() {
   const approveEmpty = await request(server, 'POST', `/api/research/${group.body.id}/approve`, { decision: 'Approve' }, adviserToken);
   assert(approveEmpty.status === 409, 'an adviser cannot approve a group that has not sent its title proposal -> 409');
 
+  // The adviser checks the prepared titles
+  const reviewPath = `/api/research/${group.body.id}/title-list/review`;
+  assert(resend.body.titleReview && resend.body.titleReview.status === 'Pending', 'a newly sent titles file starts as "Pending" the adviser\'s check');
+  const coordReview = await request(server, 'POST', reviewPath, { decision: 'Approve' }, coordinatorToken);
+  assert(coordReview.status === 403, 'only an adviser can check the titles -> 403');
+  const noNote = await request(server, 'POST', reviewPath, { decision: 'Revision' }, adviserToken);
+  assert(noNote.status === 400, 'asking for changes without saying what to change is refused -> 400');
+  const badDecision = await request(server, 'POST', reviewPath, { decision: 'maybe' }, adviserToken);
+  assert(badDecision.status === 400, 'an unknown decision is refused -> 400');
+  const noTitlesYet = await request(server, 'POST', `/api/research/${researchId}/title-list/review`, { decision: 'Approve' }, adviserToken);
+  assert(noTitlesYet.status === 409, 'a group that sent no titles file cannot have it checked -> 409');
+  const askChanges = await request(server, 'POST', reviewPath, { decision: 'Revision', feedback: '  Please add two more titles.  ' }, adviserToken);
+  assert(askChanges.status === 200 && askChanges.body.titleReview.status === 'Revision Required' && askChanges.body.titleReview.feedback === 'Please add two more titles.', 'the adviser asks for changes with a note -> 200');
+  const titlesUpload3 = await uploadAs(leader.token, 'my-titles-v3.pdf', '%PDF-1.4 two more titles');
+  const resend3 = await request(server, 'POST', `/api/research/${group.body.id}/title-list`, {
+    name: 'my-titles-v3.pdf', url: titlesUpload3.body.url, size: titlesUpload3.body.size,
+  }, leader.token);
+  assert(resend3.body.titleReview.status === 'Pending' && !resend3.body.titleReview.feedback, 'sending a new file puts it back to "Pending" and clears the old note');
+  const approveTitles = await request(server, 'POST', reviewPath, { decision: 'Approve' }, adviserToken);
+  assert(approveTitles.status === 200 && approveTitles.body.titleReview.status === 'Approved', 'the adviser approves the titles -> 200');
+
   const mainForGroup = await uploadAs(leader.token, 'proposal-main.pdf', '%PDF-1.4 the title proposal');
   const proposalBody = {
     title: 'Chosen Title', abstract: 'The title the panel picked.', keywords: ['one', ' two '],

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedule, Room } from '../types';
 import { GroupJourneyCard } from './GroupJourneyCard';
+import { TitleListReview } from './TitleListReview';
 import {
   Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
   StatusBadge, Table, chapterNames, chapterStatus, cx, defenseTypeLabels, formatDate, formatDateAndTime, formatDateLong,
@@ -24,14 +25,16 @@ interface DashboardAdviserProps {
   courses?: { id: string; name: string; code: string }[];
   onSelectResearch: (id: string) => void;
   onApproveManuscript: (id: string, approve: boolean) => void;
+  onReviewTitleList: (id: string, decision: 'Approve' | 'Revision', feedback?: string) => Promise<void>;
   onAddConsultation: (cons: Consultation) => void;
   onApproveConsultation: (id: string) => void;
 }
 
-type DetailTab = 'info' | 'versions' | 'schedule' | 'timeline';
+type DetailTab = 'info' | 'titles' | 'versions' | 'schedule' | 'timeline';
 
 const detailTabs: { id: DetailTab; label: string }[] = [
   { id: 'info', label: 'Group Members' },
+  { id: 'titles', label: 'Prepared Titles' },
   { id: 'versions', label: 'Latest Paper' },
   { id: 'schedule', label: 'Defense' },
   { id: 'timeline', label: 'Progress' },
@@ -41,7 +44,7 @@ interface ChapterRow { key: string; name: string; status: keyof typeof chapterSt
 
 export default function DashboardAdviser({
   user, researchList, versions, comments, consultations, schedules = [], rooms = [], users,
-  departments = [], courses = [], onSelectResearch, onApproveManuscript, onAddConsultation, onApproveConsultation,
+  departments = [], courses = [], onSelectResearch, onApproveManuscript, onReviewTitleList, onAddConsultation, onApproveConsultation,
 }: DashboardAdviserProps) {
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
@@ -75,6 +78,20 @@ export default function DashboardAdviser({
     () => assignedResearchList.filter(r => r.status === 'Submitted' || r.status === 'Under Review'),
     [assignedResearchList],
   );
+
+  // Groups that sent their prepared titles and are waiting for this adviser to check them
+  const titlesToCheck = useMemo(
+    () => assignedResearchList.filter(r =>
+      r.proposalFiles?.some(f => f.category === 'title_list') && (r.titleReview?.status ?? 'Pending') === 'Pending'),
+    [assignedResearchList],
+  );
+  const hasWork = waitingForReview.length > 0 || titlesToCheck.length > 0;
+
+  const openTitles = (id: string) => {
+    setSelectedGroupId(id);
+    setDetailTab('titles');
+    setTimeout(() => document.getElementById('panel-titles')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+  };
 
   // Recent things that happened in this adviser's groups
   const activityNotifications = useMemo(() => {
@@ -249,18 +266,20 @@ export default function DashboardAdviser({
 
       {/* What should I do next? */}
       <section aria-labelledby="adviser-next">
-        <Card className={cx(waitingForReview.length > 0 ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50')}>
+        <Card className={cx(hasWork ? 'border-blue-200 bg-blue-50' : 'border-emerald-200 bg-emerald-50')}>
           <p id="adviser-next" className="flex items-center gap-2 text-sm font-bold text-blue-900">
             <Compass className="h-5 w-5" aria-hidden="true" />
             What should I do next?
           </p>
-          {waitingForReview.length === 0 ? (
+          {!hasWork ? (
             <div className="mt-2">
               <h2 className="text-xl font-bold text-slate-900">You are all caught up</h2>
               <p className="mt-1 text-base text-slate-700">No papers are waiting for your review right now. We will tell you when a group sends a new one.</p>
             </div>
           ) : (
-            <div className="mt-2 space-y-3">
+            <div className="mt-2 space-y-5">
+            {waitingForReview.length > 0 && (
+            <div className="space-y-3">
               <h2 className="text-xl font-bold text-slate-900">
                 {waitingForReview.length === 1 ? '1 paper is waiting for your review' : `${waitingForReview.length} papers are waiting for your review`}
               </h2>
@@ -283,6 +302,28 @@ export default function DashboardAdviser({
                   );
                 })}
               </ul>
+            </div>
+            )}
+            {titlesToCheck.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-xl font-bold text-slate-900">
+                {titlesToCheck.length === 1 ? '1 group sent its prepared titles for you to check' : `${titlesToCheck.length} groups sent their prepared titles for you to check`}
+              </h2>
+              <ul className="divide-y divide-blue-100 rounded-xl border border-blue-100 bg-white">
+                {titlesToCheck.map(res => (
+                  <li key={res.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-slate-900">{researchTitle(res)}</p>
+                      <p className="text-sm text-slate-600">{getStudentNames(res.studentIds)}</p>
+                    </div>
+                    <Button size="sm" icon={ArrowRight} onClick={() => openTitles(res.id)} className="shrink-0">
+                      Check These Titles
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            )}
             </div>
           )}
         </Card>
@@ -458,6 +499,8 @@ export default function DashboardAdviser({
                 )}
 
                 {/* Latest paper */}
+                {detailTab === 'titles' && <TitleListReview research={selectedGroup} onReview={onReviewTitleList} />}
+
                 {detailTab === 'versions' && (
                   selectedGroupLatestVersion ? (
                     <div className="space-y-5">

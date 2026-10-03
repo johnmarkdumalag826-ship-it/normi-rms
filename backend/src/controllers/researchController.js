@@ -127,6 +127,38 @@ const submitTitleProposal = async (req, res, next) => {
   res.json(research);
 };
 
+// The adviser checks the file with the group's prepared titles: approves it, or asks for changes
+// with a note. Only this group's own adviser can decide.
+const reviewTitleList = async (req, res, next) => {
+  const { decision, feedback } = req.body;
+  const research = await Research.findById(req.params.id);
+  if (!research) return next(new AppError('Research not found', 404));
+  if (String(research.adviserId) !== String(req.user._id)) {
+    return next(new AppError("Only this group's adviser can check its titles", 403));
+  }
+  if (!research.proposalFiles.some((f) => f.category === 'title_list')) {
+    return next(new AppError('This group has not sent its prepared titles yet.', 409));
+  }
+  const approved = decision === 'Approve';
+  if (!approved && decision !== 'Revision') return next(new AppError('Please choose Approve or Ask for changes.', 400));
+  const note = String(feedback || '').trim().slice(0, 1000);
+  if (!approved && !note) return next(new AppError('Please tell the students what to change.', 400));
+
+  research.titleReview = { status: approved ? 'Approved' : 'Revision Required', feedback: note, reviewedAt: new Date() };
+  await research.save();
+
+  await notifyMany(
+    research.studentIds,
+    approved ? 'Titles Approved' : 'Titles Need Changes',
+    approved
+      ? 'Your adviser approved the titles your group prepared for the title hearing.'
+      : `Your adviser asked for changes to your prepared titles: ${note}`,
+    approved ? 'success' : 'warning',
+  );
+  await logAction(req, 'REVIEW_TITLE_LIST', `Adviser ${approved ? 'approved' : 'asked for changes to'} the prepared titles of research ID ${research._id}`);
+  res.json(research);
+};
+
 // The group sends one file with the titles it prepared for the title hearing. Sending again
 // replaces the earlier file. The adviser, the coordinator and the hearing's panel can open it.
 const sendTitleList = async (req, res, next) => {
@@ -141,6 +173,7 @@ const sendTitleList = async (req, res, next) => {
     ...research.proposalFiles.filter((f) => f.category !== 'title_list'),
     { name: String(name).slice(0, 200), url: String(url), size: Number(size) || 0, category: 'title_list', uploadedAt: new Date() },
   ];
+  research.titleReview = { status: 'Pending' }; // a new file needs the adviser's check again
   await research.save();
 
   await notify(research.adviserId, 'Titles Sent for the Hearing', `${req.user.name}'s group sent the file with their prepared titles: ${name}`, 'info');
@@ -258,6 +291,6 @@ const updateProposalFiles = async (req, res, next) => {
 };
 
 module.exports = {
-  listResearch, getResearch, createResearch, submitTitleProposal, sendTitleList, createArchivedResearch, updateResearch, deleteResearch,
+  listResearch, getResearch, createResearch, submitTitleProposal, sendTitleList, reviewTitleList, createArchivedResearch, updateResearch, deleteResearch,
   approveManuscript, updateStatus, updateAdviser, incrementCounts, updateProposalFiles,
 };

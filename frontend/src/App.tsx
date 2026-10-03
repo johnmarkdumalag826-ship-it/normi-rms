@@ -12,7 +12,7 @@ import { ApiError } from './api/client';
 import { listDirectory, listUsers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
-  listResearch, createResearch, submitTitleProposal as apiSubmitTitleProposal, sendTitleList as apiSendTitleList,
+  listResearch, createResearch, submitTitleProposal as apiSubmitTitleProposal, sendTitleList as apiSendTitleList, reviewTitleList as apiReviewTitleList,
   createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
   approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
   updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts,
@@ -571,6 +571,16 @@ export default function App() {
     }
   };
 
+  const handleReviewTitleList = async (researchId: string, decision: 'Approve' | 'Revision', feedback?: string) => {
+    try {
+      const updated = await apiReviewTitleList(researchId, decision, feedback);
+      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
+      triggerAlert(decision === 'Approve' ? 'You approved the titles. The students were told.' : 'You asked for changes. The students were told.');
+    } catch (err) {
+      handleApiError(err, 'Could not save your decision.');
+    }
+  };
+
   const handleSendTitleList = async (researchId: string, file: { name: string; url: string; size: number }) => {
     try {
       const updated = await apiSendTitleList(researchId, file);
@@ -668,6 +678,7 @@ export default function App() {
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}
+              onReviewTitleList={handleReviewTitleList}
               onAddConsultation={handleAddConsultation}
               onApproveConsultation={handleApproveConsultation}
             />
@@ -810,6 +821,7 @@ export default function App() {
               users={users}
               onSelectResearch={(id) => setSelectedResearchId(id)}
               onApproveManuscript={handleApproveManuscript}
+              onReviewTitleList={handleReviewTitleList}
               onAddConsultation={handleAddConsultation}
               onApproveConsultation={handleApproveConsultation}
             />

@@ -196,6 +196,13 @@ export default function DashboardStudent({
   // proposal, then the final title (the final defense and the Repository). Nothing is blocked:
   // a paper that is already further along simply counts the earlier steps as done.
   const titleFile = research?.proposalFiles?.find(f => f.category === 'title_list');
+  const titleReviewStatus = research?.titleReview?.status ?? 'Pending';
+  const canSendTitles = !!research && earlyStatuses.includes(research.status) && !hearingDone;
+  // Opens Step 1 and brings its panel (where the file is sent) into view
+  const openTitlesStep = () => {
+    setSelectedJourneyStage(0);
+    setTimeout(() => document.getElementById('titles-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  };
 
   const handleTitleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -271,6 +278,7 @@ export default function DashboardStudent({
       case 0:
         return [
           { label: 'Send the file with your prepared titles', met: !!titleFile || hearingDone || pastEarlySteps },
+          { label: 'Your adviser approves your titles', met: (!!titleFile && titleReviewStatus === 'Approved') || hearingDone || pastEarlySteps },
           { label: 'You have a title hearing date and time', met: !!myHearing || hearingDone || pastEarlySteps },
           { label: 'You have a room and 3 panel members', met: (!!myHearing && !!myHearing.roomId && myHearing.panelistIds.length === 3) || hearingDone || pastEarlySteps },
           { label: 'Finish your title hearing', met: hearingDone || pastEarlySteps },
@@ -325,15 +333,27 @@ export default function DashboardStudent({
             title: 'Send your prepared titles',
             text: 'Put the titles your group prepared in one file (PDF or Word) and send it. The panel will read it at your title hearing.',
             showAction: false,
-            action: {
-              label: 'Send Titles File',
-              onClick: () => document.getElementById('titles-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-            },
+            action: { label: 'Send Titles File', onClick: openTitlesStep },
+          };
+        }
+        if (titleReviewStatus === 'Revision Required') {
+          return {
+            title: 'Fix your titles and send a new file',
+            text: `Your adviser asked for changes${research.titleReview?.feedback ? `: ${research.titleReview.feedback}` : '.'} Update your file, then send it again.`,
+            showAction: false,
+            action: { label: 'Send a New File', onClick: openTitlesStep },
+          };
+        }
+        if (titleReviewStatus === 'Pending') {
+          return {
+            title: 'Wait for your adviser to check your titles',
+            text: 'Your prepared titles are sent. Your adviser will read them and approve them, or ask for changes. You will get a notification.',
+            showAction: false,
           };
         }
         return {
           title: 'Wait for your title hearing date',
-          text: 'Your prepared titles are sent. The coordinator will set the date, the room and your panel. You will be told here and by notification.',
+          text: 'Your adviser approved your titles. The coordinator will set the date, the room and your panel. You will be told here and by notification.',
           showAction: false,
         };
       case 'Revision Required':
@@ -472,6 +492,82 @@ export default function DashboardStudent({
             </div>
           </div>
         )}
+
+        {/* Step 1: send the prepared titles, and see the adviser's decision */}
+        {shownStage === 0 && (
+          <div id="titles-card" className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+            <div>
+              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <FileText className="h-5 w-5 text-blue-800" aria-hidden="true" />
+                Your prepared titles
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                {canSendTitles
+                  ? 'Put the titles your group prepared in one file (PDF or Word). Your adviser checks it and approves it, then the panel reads it at your title hearing.'
+                  : 'This is the file your group sent for the title hearing.'}
+              </p>
+            </div>
+
+            {titlesError && <Alert tone="danger" title="We could not send your file">{titlesError}</Alert>}
+
+            {titleFile ? (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="success" icon={CheckCircle2}>Sent</Badge>
+                    {titleReviewStatus === 'Approved' && <Badge tone="success" icon={CheckCircle2}>Approved by your adviser</Badge>}
+                    {titleReviewStatus === 'Revision Required' && <Badge tone="warning" icon={Wrench}>Your adviser asked for changes</Badge>}
+                    {titleReviewStatus === 'Pending' && <Badge tone="info" icon={Clock}>Waiting for your adviser</Badge>}
+                  </div>
+                  <p className="mt-2 break-words text-sm font-semibold text-slate-900">{titleFile.name}</p>
+                  <p className="text-xs text-slate-600">Sent {formatDateLong(titleFile.uploadedAt)}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary" size="sm" icon={ExternalLink}
+                    onClick={() => openFile(titleFile.url).catch(err => setTitlesError(fileErrorMessage(err)))}
+                  >
+                    Open File
+                  </Button>
+                  <Button
+                    variant="secondary" size="sm" icon={Download}
+                    onClick={() => downloadFile(titleFile.url, titleFile.name).catch(err => setTitlesError(fileErrorMessage(err)))}
+                  >
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">You have not sent a file yet.</p>
+            )}
+
+            {titleReviewStatus === 'Revision Required' && research.titleReview?.feedback && (
+              <Alert tone="warning" title="What your adviser asked you to change">{research.titleReview.feedback}</Alert>
+            )}
+
+            {canSendTitles && (
+              <div>
+                <input
+                  id="titles-input"
+                  type="file"
+                  accept=".pdf,.docx"
+                  className="sr-only"
+                  tabIndex={-1}
+                  disabled={sendingTitles}
+                  onChange={handleTitleFile}
+                />
+                <Button
+                  icon={sendingTitles ? RefreshCw : UploadCloud}
+                  loading={sendingTitles}
+                  onClick={() => document.getElementById('titles-input')?.click()}
+                >
+                  {sendingTitles ? 'Sending…' : titleFile ? 'Send a New File' : 'Send Titles File'}
+                </Button>
+                <p className="mt-2 text-xs text-slate-600">Only PDF and Word (DOCX) files, smaller than 15 MB. A new file replaces the old one and goes to your adviser to check again.</p>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* What should I do next? */}
@@ -498,64 +594,6 @@ export default function DashboardStudent({
           </div>
         </Card>
       </section>
-
-      {/* The titles the group prepared for its title hearing */}
-      {earlyStatuses.includes(research.status) && !hearingDone && (
-        <Card id="titles-card">
-          <CardHeader
-            title="Your prepared titles"
-            description="Put the titles your group prepared in one file (PDF or Word). The panel reads it at your title hearing."
-            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
-          />
-          <div className="space-y-4">
-            {titlesError && <Alert tone="danger" title="We could not send your file">{titlesError}</Alert>}
-            {titleFile ? (
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="min-w-0">
-                  <Badge tone="success" icon={CheckCircle2}>Sent</Badge>
-                  <p className="mt-2 break-words text-sm font-semibold text-slate-900">{titleFile.name}</p>
-                  <p className="text-xs text-slate-600">Sent {formatDateLong(titleFile.uploadedAt)}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="secondary" size="sm" icon={ExternalLink}
-                    onClick={() => openFile(titleFile.url).catch(err => setTitlesError(fileErrorMessage(err)))}
-                  >
-                    Open File
-                  </Button>
-                  <Button
-                    variant="secondary" size="sm" icon={Download}
-                    onClick={() => downloadFile(titleFile.url, titleFile.name).catch(err => setTitlesError(fileErrorMessage(err)))}
-                  >
-                    Download
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">You have not sent a file yet.</p>
-            )}
-            <div>
-              <input
-                id="titles-input"
-                type="file"
-                accept=".pdf,.docx"
-                className="sr-only"
-                tabIndex={-1}
-                disabled={sendingTitles}
-                onChange={handleTitleFile}
-              />
-              <Button
-                icon={sendingTitles ? RefreshCw : UploadCloud}
-                loading={sendingTitles}
-                onClick={() => document.getElementById('titles-input')?.click()}
-              >
-                {sendingTitles ? 'Sending…' : titleFile ? 'Send a New File' : 'Send Titles File'}
-              </Button>
-              <p className="mt-2 text-xs text-slate-600">Only PDF and Word (DOCX) files, smaller than 15 MB. A new file replaces the old one.</p>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* After the hearing: the title proposal */}
       {research.status === 'Group Registered' && (

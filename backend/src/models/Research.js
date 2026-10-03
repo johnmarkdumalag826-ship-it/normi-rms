@@ -31,6 +31,13 @@ const researchSchema = new mongoose.Schema({
   studentIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   // The other group members, as typed by the leader. They may not have an account.
   memberNames: [String],
+  // The adviser's check of the file with the group's prepared titles (see sendTitleList). It goes
+  // back to "Pending" whenever the group sends a new file.
+  titleReview: {
+    status: { type: String, enum: ['Pending', 'Approved', 'Revision Required'], default: 'Pending' },
+    feedback: String,
+    reviewedAt: Date,
+  },
   adviserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   panelistIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   keywords: [String],
