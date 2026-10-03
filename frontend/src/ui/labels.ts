@@ -119,6 +119,26 @@ export const researchStatus: Record<ResearchStatus, StatusInfo> = {
 export const researchTitle = (r: Pick<Research, 'title' | 'groupName'>): string =>
   r.title || (r.groupName ? `${r.groupName} (title not sent yet)` : 'Title not sent yet');
 
+// ---------------------------------------------------------- Research journey
+/** The three steps every student group goes through, in order. */
+export const journeySteps = ['Title Hearing', 'Title Proposal', 'Final Title'] as const;
+
+/** Statuses before the adviser has approved the paper. */
+export const earlyStatuses: ResearchStatus[] = ['Group Registered', 'Submitted', 'Under Review', 'Revision Required'];
+
+/**
+ * Which journey step a group is on (0 to 2, or 3 when every step is done). The title hearing counts
+ * as done once it is marked completed; a paper that is already past review needs no hearing to
+ * count as past it. Nothing here blocks anyone: it only decides what is shown.
+ */
+export const journeyProgress = (research: Research, schedules: Schedule[]): { activeIdx: number; hearingDone: boolean } => {
+  const hearingDone = schedules.some(s => s.researchId === research.id && s.type === 'title_hearing' && s.status === 'completed');
+  let activeIdx = 2;
+  if (research.status === 'Archived') activeIdx = 3;
+  else if (earlyStatuses.includes(research.status)) activeIdx = hearingDone ? 1 : 0;
+  return { activeIdx, hearingDone };
+};
+
 export const getResearchStatus = (status: string): StatusInfo =>
   researchStatus[status as ResearchStatus] ?? {
     label: status, tone: 'neutral', icon: Clock, meaning: '', next: '',

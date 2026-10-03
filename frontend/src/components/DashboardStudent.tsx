@@ -8,7 +8,7 @@ import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
-  chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, researchTitle,
+  chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress, researchTitle,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
 
@@ -195,7 +195,6 @@ export default function DashboardStudent({
   // A research paper's journey in three steps, in plain words: the title hearing, the title
   // proposal, then the final title (the final defense and the Repository). Nothing is blocked:
   // a paper that is already further along simply counts the earlier steps as done.
-  const earlyStatuses = ['Group Registered', 'Submitted', 'Under Review', 'Revision Required'];
   const titleFile = research?.proposalFiles?.find(f => f.category === 'title_list');
 
   const handleTitleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,10 +246,7 @@ export default function DashboardStudent({
       },
     ];
 
-    const currentStatus = research?.status || 'Submitted';
-    let activeIdx = 2;
-    if (currentStatus === 'Archived') activeIdx = 3; // every step is done
-    else if (earlyStatuses.includes(currentStatus)) activeIdx = hearingDone ? 1 : 0;
+    const activeIdx = research ? journeyProgress(research, schedules).activeIdx : 0;
 
     return {
       phases: phases.map((p, idx) => ({
@@ -398,6 +394,85 @@ export default function DashboardStudent({
         title={`Welcome back, ${user.name}`}
         subtitle="Here is where your research paper stands and what to do next."
       />
+
+      {/* The journey */}
+      <Card>
+        <CardHeader
+          title="Your research journey"
+          description="There are 3 steps from your first idea to the Repository. Select a step to see what it needs."
+          icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
+        />
+
+        <ol className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          {phases.map((phase, idx) => {
+            const isSelected = shownStage === idx;
+            return (
+              <li key={idx}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedJourneyStage(idx)}
+                  aria-pressed={isSelected}
+                  className={`flex h-full w-full flex-col gap-2 rounded-xl border-2 p-3 text-left transition-colors cursor-pointer ${
+                    isSelected ? 'border-blue-800 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-slate-700">Step {idx + 1}</span>
+                    {phase.isCompleted ? (
+                      <Badge tone="success" icon={CheckCircle2}>Done</Badge>
+                    ) : phase.isActive ? (
+                      <Badge tone="warning" icon={Clock}>You are here</Badge>
+                    ) : (
+                      <Badge tone="neutral">Later</Badge>
+                    )}
+                  </span>
+                  <span className="text-sm font-bold text-slate-900">{phase.title}</span>
+                  <span className="text-xs text-slate-600">{phase.subtitle}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+
+        {shownStage !== null && (
+          <div className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
+            <div className="space-y-3">
+              <h3 className="text-base font-bold text-slate-900">
+                Step {shownStage + 1}: {phases[shownStage].title}
+              </h3>
+              <p className="text-sm text-slate-700">{phases[shownStage].description}</p>
+              <div className="rounded-lg border border-blue-200 bg-white p-3">
+                <p className="text-xs font-bold text-blue-900">What to do</p>
+                <p className="mt-1 text-sm text-slate-800">{phases[shownStage].guide}</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
+                <span>Checklist for this step</span>
+                <Badge tone="neutral">
+                  {getStageChecklist(shownStage).filter(x => x.met).length} of {getStageChecklist(shownStage).length} done
+                </Badge>
+              </h3>
+              <ul className="mt-3 space-y-2.5">
+                {getStageChecklist(shownStage).map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-sm">
+                    {item.met ? (
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+                    ) : (
+                      <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-400" aria-hidden="true" />
+                    )}
+                    <span className={item.met ? 'text-slate-700' : 'font-semibold text-slate-900'}>
+                      {item.label}
+                      <span className="sr-only">{item.met ? ' (done)' : ' (not done yet)'}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* What should I do next? */}
       <section aria-labelledby="next-step-title">
@@ -558,85 +633,6 @@ export default function DashboardStudent({
           </div>
         </Card>
       </dl>
-
-      {/* The journey */}
-      <Card>
-        <CardHeader
-          title="Your research journey"
-          description="There are 3 steps from your first idea to the Repository. Select a step to see what it needs."
-          icon={<TrendingUp className="h-5 w-5" aria-hidden="true" />}
-        />
-
-        <ol className="grid grid-cols-1 gap-2 md:grid-cols-3">
-          {phases.map((phase, idx) => {
-            const isSelected = shownStage === idx;
-            return (
-              <li key={idx}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedJourneyStage(idx)}
-                  aria-pressed={isSelected}
-                  className={`flex h-full w-full flex-col gap-2 rounded-xl border-2 p-3 text-left transition-colors cursor-pointer ${
-                    isSelected ? 'border-blue-800 bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-slate-700">Step {idx + 1}</span>
-                    {phase.isCompleted ? (
-                      <Badge tone="success" icon={CheckCircle2}>Done</Badge>
-                    ) : phase.isActive ? (
-                      <Badge tone="warning" icon={Clock}>You are here</Badge>
-                    ) : (
-                      <Badge tone="neutral">Later</Badge>
-                    )}
-                  </span>
-                  <span className="text-sm font-bold text-slate-900">{phase.title}</span>
-                  <span className="text-xs text-slate-600">{phase.subtitle}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-
-        {shownStage !== null && (
-          <div className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
-            <div className="space-y-3">
-              <h3 className="text-base font-bold text-slate-900">
-                Step {shownStage + 1}: {phases[shownStage].title}
-              </h3>
-              <p className="text-sm text-slate-700">{phases[shownStage].description}</p>
-              <div className="rounded-lg border border-blue-200 bg-white p-3">
-                <p className="text-xs font-bold text-blue-900">What to do</p>
-                <p className="mt-1 text-sm text-slate-800">{phases[shownStage].guide}</p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="flex items-center justify-between gap-2 text-sm font-bold text-slate-900">
-                <span>Checklist for this step</span>
-                <Badge tone="neutral">
-                  {getStageChecklist(shownStage).filter(x => x.met).length} of {getStageChecklist(shownStage).length} done
-                </Badge>
-              </h3>
-              <ul className="mt-3 space-y-2.5">
-                {getStageChecklist(shownStage).map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2.5 text-sm">
-                    {item.met ? (
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-                    ) : (
-                      <span className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-400" aria-hidden="true" />
-                    )}
-                    <span className={item.met ? 'text-slate-700' : 'font-semibold text-slate-900'}>
-                      {item.label}
-                      <span className="sr-only">{item.met ? ' (done)' : ' (not done yet)'}</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-      </Card>
 
       {/* Comments and defense */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">

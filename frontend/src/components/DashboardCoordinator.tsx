@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import {
   Users, CheckCircle2, Calendar, Megaphone, Trash2, Send, FileText, Compass, Pin, ChevronRight,
 } from 'lucide-react';
-import { User, Research, Announcement, Room } from '../types';
+import { User, Research, Announcement, Room, Schedule } from '../types';
+import { GroupJourneyCard } from './GroupJourneyCard';
 import {
   Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, Textarea,
   announcementCategory, cx, formatDateLong, researchTitle,
@@ -13,6 +14,7 @@ interface DashboardCoordinatorProps {
   researchList: Research[];
   announcements: Announcement[];
   rooms: Room[];
+  schedules: Schedule[];
   users: User[];
   onAddAnnouncement: (ann: Announcement) => void;
   onDeleteAnnouncement: (id: string) => void;
@@ -24,7 +26,7 @@ interface DashboardCoordinatorProps {
 }
 
 export default function DashboardCoordinator({
-  user, researchList, announcements, rooms, users,
+  user, researchList, announcements, rooms, schedules, users,
   onAddAnnouncement, onDeleteAnnouncement, onApproveManuscript, onGoToSchedule, onGoToRepository
 }: DashboardCoordinatorProps) {
 
@@ -72,6 +74,8 @@ export default function DashboardCoordinator({
         title="Coordinator Home"
         subtitle="See which papers need a defense date, and post news for students and advisers."
       />
+
+      <GroupJourneyCard researchList={researchList} schedules={schedules} users={users} showAdviser />
 
       {/* What should I do next? */}
       <section aria-labelledby="coord-next">
