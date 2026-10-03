@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Users, CheckCircle2, Calendar, Megaphone, Trash2, Send, FileText, Compass, Pin,
+  Users, CheckCircle2, Calendar, Megaphone, Trash2, Send, FileText, Compass, Pin, ChevronRight,
 } from 'lucide-react';
 import { User, Research, Announcement, Room } from '../types';
 import {
-  Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, PageHeader, Select, Textarea,
+  Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, IconButton, Input, Modal, PageHeader, Select, Textarea,
   announcementCategory, cx, formatDateLong,
 } from '../ui';
 
@@ -19,12 +19,16 @@ interface DashboardCoordinatorProps {
   onApproveManuscript: (id: string, approve: boolean) => void;
   /** Opens the "Schedule Defenses" page. */
   onGoToSchedule?: () => void;
+  /** Opens the Research Repository. */
+  onGoToRepository?: () => void;
 }
 
 export default function DashboardCoordinator({
   user, researchList, announcements, rooms, users,
-  onAddAnnouncement, onDeleteAnnouncement, onApproveManuscript, onGoToSchedule
+  onAddAnnouncement, onDeleteAnnouncement, onApproveManuscript, onGoToSchedule, onGoToRepository
 }: DashboardCoordinatorProps) {
+
+  const [showStudents, setShowStudents] = useState(false);
 
   // Announcement form
   const [annTitle, setAnnTitle] = useState('');
@@ -36,7 +40,8 @@ export default function DashboardCoordinator({
   // Papers approved by an adviser that still need a defense
   const readyPapers = researchList.filter(r => r.status === 'Approved by Adviser' || r.status === 'Pending Coordinator');
 
-  const totalStudents = users.filter(u => u.role === 'student').length;
+  const students = users.filter(u => u.role === 'student');
+  const totalStudents = students.length;
   const totalApprovedArchives = researchList.filter(r => r.status === 'Completed' || r.status === 'Archived').length;
   const scheduledDefensesCount = researchList.filter(r => r.status === 'Scheduled').length;
 
@@ -120,23 +125,57 @@ export default function DashboardCoordinator({
         </Card>
       </section>
 
-      {/* Numbers */}
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Numbers: each one opens the page where you can act on it */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { icon: Users, tone: 'text-blue-800', label: 'Students in the system', value: totalStudents },
-          { icon: FileText, tone: 'text-amber-700', label: 'Papers waiting for a defense date', value: readyPapers.length },
-          { icon: Calendar, tone: 'text-indigo-700', label: 'Defenses scheduled', value: scheduledDefensesCount },
-          { icon: CheckCircle2, tone: 'text-emerald-700', label: 'Papers in the Repository', value: totalApprovedArchives },
-        ].map(({ icon: Icon, tone, label, value }) => (
-          <Card key={label} className="flex items-start gap-3 !p-4">
+          { icon: Users, tone: 'text-blue-800', label: 'Students in the system', value: totalStudents, hint: 'See the students', onClick: () => setShowStudents(true) },
+          { icon: FileText, tone: 'text-amber-700', label: 'Papers waiting for a defense date', value: readyPapers.length, hint: 'Open Schedule Defenses', onClick: onGoToSchedule },
+          { icon: Calendar, tone: 'text-indigo-700', label: 'Defenses scheduled', value: scheduledDefensesCount, hint: 'Open Schedule Defenses', onClick: onGoToSchedule },
+          { icon: CheckCircle2, tone: 'text-emerald-700', label: 'Papers in the Repository', value: totalApprovedArchives, hint: 'Open the Repository', onClick: onGoToRepository },
+        ].map(({ icon: Icon, tone, label, value, hint, onClick }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={onClick}
+            disabled={!onClick}
+            aria-label={`${value} ${label}. ${hint}.`}
+            className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-blue-300 hover:bg-blue-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-white"
+          >
             <Icon className={cx('mt-0.5 h-6 w-6 shrink-0', tone)} aria-hidden="true" />
-            <div>
-              <dd className="text-2xl font-bold text-slate-900">{value}</dd>
-              <dt className="text-sm text-slate-600">{label}</dt>
-            </div>
-          </Card>
+            <span className="min-w-0 flex-1">
+              <span className="block text-2xl font-bold text-slate-900">{value}</span>
+              <span className="block text-sm text-slate-600">{label}</span>
+            </span>
+            <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+          </button>
         ))}
-      </dl>
+      </div>
+
+      <Modal
+        open={showStudents}
+        onClose={() => setShowStudents(false)}
+        title="Students in the system"
+        description={`${totalStudents} ${totalStudents === 1 ? 'student' : 'students'} with an account.`}
+        size="sm"
+        footer={<Button variant="secondary" onClick={() => setShowStudents(false)}>Close</Button>}
+      >
+        {students.length === 0 ? (
+          <p className="text-sm text-slate-700">No students have an account yet.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+            {students.map(s => {
+              const hasPaper = researchList.some(r => r.studentIds.includes(s.id));
+              return (
+                <li key={s.id} className="flex items-center gap-3 p-3">
+                  <Avatar name={s.name} src={s.avatar} size="sm" />
+                  <p className="min-w-0 flex-1 break-words text-sm font-semibold text-slate-900">{s.name}</p>
+                  <Badge tone={hasPaper ? 'success' : 'neutral'}>{hasPaper ? 'Paper sent' : 'No paper yet'}</Badge>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Modal>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Posted announcements */}

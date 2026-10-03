@@ -664,6 +664,7 @@ export default function App() {
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
               onGoToSchedule={() => setActiveTab('calendar')}
+              onGoToRepository={() => setActiveTab('repository')}
             />
           );
         } else if (currentUser?.role === 'panelist') {
@@ -808,6 +809,7 @@ export default function App() {
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
               onGoToSchedule={() => setActiveTab('calendar')}
+              onGoToRepository={() => setActiveTab('repository')}
             />
           );
         }
@@ -826,6 +828,7 @@ export default function App() {
               onDeleteAnnouncement={handleDeleteAnnouncement}
               onApproveManuscript={handleApproveManuscript}
               onGoToSchedule={() => setActiveTab('calendar')}
+              onGoToRepository={() => setActiveTab('repository')}
             />
           );
         }
