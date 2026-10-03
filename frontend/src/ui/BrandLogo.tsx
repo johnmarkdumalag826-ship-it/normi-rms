@@ -8,10 +8,10 @@ interface BrandLogoProps {
 export function BrandLogo({ className }: BrandLogoProps) {
   return (
     <img
-      src="/normi-logo.jpg"
+      src="/normi-logo.png"
       alt="Northern Mindanao Colleges, Inc. seal"
-      width={187}
-      height={148}
+      width={320}
+      height={320}
       className={cx('w-auto object-contain', className)}
     />
   );
