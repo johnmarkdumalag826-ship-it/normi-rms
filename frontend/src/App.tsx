@@ -898,6 +898,7 @@ export default function App() {
               comments={comments}
               onAddComment={handleAddComment}
               onApproveManuscript={handleApproveManuscript}
+              onReviewTitleList={handleReviewTitleList}
             />
           );
         }
