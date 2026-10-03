@@ -2,13 +2,14 @@ import React, { useMemo, useState } from 'react';
 import {
   FileText, History, MessageSquare, Send, Upload, Download,
 } from 'lucide-react';
-import { Research, ResearchVersion, ResearchComment, User, CommentAnchor } from '../types';
+import { Research, ResearchVersion, ResearchComment, Schedule, User, CommentAnchor } from '../types';
 import { resolveFileUrl, uploadFile, ApiError } from '../api/client';
 import { downloadFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
+import { TitlesFilePanel } from './TitlesFilePanel';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
-  Textarea, cx, formatDateLong, formatDateTime, researchTitle, roleLabels, type PaperHighlight,
+  Textarea, cx, earlyStatuses, formatDateLong, formatDateTime, journeyProgress, researchTitle, roleLabels, type PaperHighlight,
 } from '../ui';
 
 interface ResearchDetailsViewProps {
@@ -16,8 +17,12 @@ interface ResearchDetailsViewProps {
   versions: ResearchVersion[];
   comments: ResearchComment[];
   user: User;
+  /** Needed to know whether the title hearing is done. */
+  schedules?: Schedule[];
   onBack: () => void;
   onAddComment: (comment: ResearchComment) => void;
+  /** Lets a student send the file with the titles their group prepared for the title hearing. */
+  onSendTitleList?: (researchId: string, file: { name: string; url: string; size: number }) => Promise<void>;
   onStudentUploadRevision: (
     researchId: string, title: string, abstract: string, fileName: string, fileUrl: string,
     type: 'adviser_check' | 'defense_manuscript',
@@ -36,7 +41,7 @@ const chapterFilters = ['all', 'chapter1', 'chapter2', 'chapter3', 'chapter4', '
 type ChapterFilter = (typeof chapterFilters)[number];
 
 export default function ResearchDetailsView({
-  research, versions, comments, user, onBack, onAddComment, onStudentUploadRevision
+  research, versions, comments, user, schedules = [], onBack, onAddComment, onSendTitleList, onStudentUploadRevision
 }: ResearchDetailsViewProps) {
   const [activeChapterFilter, setActiveChapterFilter] = useState<ChapterFilter>('all');
   const [newCommentText, setNewCommentText] = useState('');
@@ -115,6 +120,11 @@ export default function ResearchDetailsView({
   const draftStatuses = ['Submitted', 'Under Review', 'Revision Required'];
   // A group that has not sent its title proposal yet does that from the Home page, not here.
   const canStudentUpload = user.role === 'student' && research.status !== 'Archived' && research.status !== 'Group Registered';
+  // The file with the group's prepared titles can be sent until the title hearing is done.
+  const hasTitleFile = !!research.proposalFiles?.some(f => f.category === 'title_list');
+  const canSendTitles = user.role === 'student' && !!onSendTitleList
+    && earlyStatuses.includes(research.status) && !journeyProgress(research, schedules).hearingDone;
+  const titlesButtonInHeader = canSendTitles && research.status === 'Group Registered';
   const uploadTypeOptions: { value: 'adviser_check' | 'defense_manuscript'; label: string }[] = draftStatuses.includes(research.status)
     ? [
         { value: 'adviser_check', label: 'A new draft for my adviser to check' },
@@ -203,8 +213,15 @@ export default function ResearchDetailsView({
         onBack={onBack}
         backLabel="Go Back"
         action={
-          canStudentUpload ? (
-            <Button icon={Upload} onClick={openUploadModal}>Send a New Version</Button>
+          (canStudentUpload || titlesButtonInHeader) ? (
+            <div className="flex flex-wrap gap-2">
+              {titlesButtonInHeader && (
+                <Button icon={Upload} onClick={() => document.getElementById('titles-input')?.click()}>
+                  {hasTitleFile ? 'Send a New Titles File' : 'Send Titles File'}
+                </Button>
+              )}
+              {canStudentUpload && <Button icon={Upload} onClick={openUploadModal}>Send a New Version</Button>}
+            </div>
           ) : undefined
         }
       />
@@ -214,6 +231,12 @@ export default function ResearchDetailsView({
       {user.role === 'student' && (
         <Card>
           <ResearchStatusBadge status={research.status} explain />
+        </Card>
+      )}
+
+      {user.role === 'student' && onSendTitleList && (hasTitleFile || canSendTitles) && (
+        <Card>
+          <TitlesFilePanel research={research} canSend={canSendTitles} onSendTitleList={onSendTitleList} hideButton={titlesButtonInHeader} />
         </Card>
       )}
 

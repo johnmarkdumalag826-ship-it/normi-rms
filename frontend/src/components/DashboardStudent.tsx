@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
-  Landmark, Compass, Wrench, UploadCloud, Download, ExternalLink, RefreshCw,
+  Landmark, Compass, Wrench,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
-import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
-  Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
+  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
   chapterNames, defenseTypeLabels, earlyStatuses, formatDateAndTime, formatDateLong, formatTime, journeyProgress, researchTitle,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
+import { TitlesFilePanel } from './TitlesFilePanel';
 
 interface DashboardStudentProps {
   user: User;
@@ -35,9 +35,6 @@ export default function DashboardStudent({
   onNavigateToTimeline, onOpenProposalForm, onSendTitleList, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
 
-  // The file with the titles the group prepared for its title hearing
-  const [sendingTitles, setSendingTitles] = useState(false);
-  const [titlesError, setTitlesError] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -194,31 +191,6 @@ export default function DashboardStudent({
   const openTitlesStep = () => {
     setSelectedJourneyStage(0);
     setTimeout(() => document.getElementById('titles-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-  };
-
-  const handleTitleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // so the same file can be chosen again
-    if (!file || !research) return;
-    const lower = file.name.toLowerCase();
-    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
-      setTitlesError('Please choose a PDF or Word (DOCX) file.');
-      return;
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      setTitlesError('That file is too big. Please choose a file smaller than 15 MB.');
-      return;
-    }
-    setTitlesError(null);
-    setSendingTitles(true);
-    try {
-      const uploaded = await uploadFile(file);
-      await onSendTitleList(research.id, { name: uploaded.fileName, url: resolveFileUrl(uploaded.url), size: uploaded.size });
-    } catch (err) {
-      setTitlesError(err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.');
-    } finally {
-      setSendingTitles(false);
-    }
   };
   const getJourneyPhases = () => {
     const phases = [
@@ -429,78 +401,7 @@ export default function DashboardStudent({
 
         {/* Step 1: send the prepared titles, and see the adviser's decision */}
         {shownStage === 0 && (
-          <div id="titles-card" className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-            <div>
-              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <FileText className="h-5 w-5 text-blue-800" aria-hidden="true" />
-                Your prepared titles
-              </h3>
-              <p className="mt-1 text-sm text-slate-600">
-                {canSendTitles
-                  ? 'Put the titles your group prepared in one file (PDF or Word). Your adviser checks it and approves it, then the panel reads it at your title hearing.'
-                  : 'This is the file your group sent for the title hearing.'}
-              </p>
-            </div>
-
-            {titlesError && <Alert tone="danger" title="We could not send your file">{titlesError}</Alert>}
-
-            {titleFile ? (
-              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="success" icon={CheckCircle2}>Sent</Badge>
-                    {titleReviewStatus === 'Approved' && <Badge tone="success" icon={CheckCircle2}>Approved by your adviser</Badge>}
-                    {titleReviewStatus === 'Revision Required' && <Badge tone="warning" icon={Wrench}>Your adviser asked for changes</Badge>}
-                    {titleReviewStatus === 'Pending' && <Badge tone="info" icon={Clock}>Waiting for your adviser</Badge>}
-                  </div>
-                  <p className="mt-2 break-words text-sm font-semibold text-slate-900">{titleFile.name}</p>
-                  <p className="text-xs text-slate-600">Sent {formatDateLong(titleFile.uploadedAt)}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="secondary" size="sm" icon={ExternalLink}
-                    onClick={() => openFile(titleFile.url).catch(err => setTitlesError(fileErrorMessage(err)))}
-                  >
-                    Open File
-                  </Button>
-                  <Button
-                    variant="secondary" size="sm" icon={Download}
-                    onClick={() => downloadFile(titleFile.url, titleFile.name).catch(err => setTitlesError(fileErrorMessage(err)))}
-                  >
-                    Download
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">You have not sent a file yet.</p>
-            )}
-
-            {titleReviewStatus === 'Revision Required' && research.titleReview?.feedback && (
-              <Alert tone="warning" title="What your adviser asked you to change">{research.titleReview.feedback}</Alert>
-            )}
-
-            {canSendTitles && (
-              <div>
-                <input
-                  id="titles-input"
-                  type="file"
-                  accept=".pdf,.docx"
-                  className="sr-only"
-                  tabIndex={-1}
-                  disabled={sendingTitles}
-                  onChange={handleTitleFile}
-                />
-                <Button
-                  icon={sendingTitles ? RefreshCw : UploadCloud}
-                  loading={sendingTitles}
-                  onClick={() => document.getElementById('titles-input')?.click()}
-                >
-                  {sendingTitles ? 'Sending…' : titleFile ? 'Send a New File' : 'Send Titles File'}
-                </Button>
-                <p className="mt-2 text-xs text-slate-600">Only PDF and Word (DOCX) files, smaller than 15 MB. A new file replaces the old one and goes to your adviser to check again.</p>
-              </div>
-            )}
-          </div>
+          <TitlesFilePanel research={research} canSend={canSendTitles} onSendTitleList={onSendTitleList} />
         )}
       </Card>
 

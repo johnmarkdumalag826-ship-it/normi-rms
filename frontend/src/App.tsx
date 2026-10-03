@@ -623,8 +623,10 @@ export default function App() {
           versions={versions}
           comments={comments}
           user={currentUser!}
+          schedules={schedules}
           onBack={() => setSelectedResearchId(null)}
           onAddComment={handleAddComment}
+          onSendTitleList={handleSendTitleList}
           onStudentUploadRevision={handleStudentUploadRevision}
         />
       );
@@ -788,9 +790,11 @@ export default function App() {
                 versions={versions}
                 comments={comments}
                 user={currentUser}
+                schedules={schedules}
                 onBack={() => setActiveTab('dashboard')}
                 onAddComment={handleAddComment}
-                      onStudentUploadRevision={handleStudentUploadRevision}
+                onSendTitleList={handleSendTitleList}
+                onStudentUploadRevision={handleStudentUploadRevision}
               />
             );
           }
