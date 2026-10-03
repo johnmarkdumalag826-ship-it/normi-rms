@@ -388,6 +388,84 @@ async function main() {
   const afterCancel = await request(server, 'GET', `/api/research/${hearingPaperId}`, null, secondStudent.token);
   assert(afterCancel.body.status === 'Submitted', 'cancelling a Title Hearing does not mark the paper "Approved by Adviser"');
 
+  console.log('\n--- Starting as a group: register, send the prepared titles, then the title proposal ---');
+  const leader = await makeUser({ email: 'student3@test.local', name: 'Group Leader', role: 'student', departmentId: dept._id, courseId: course._id }, 'student-pass-4');
+  const noAdviser = await request(server, 'POST', '/api/research', { groupName: 'Team Alpha' }, leader.token);
+  assert(noAdviser.status === 400, 'registering a group without choosing an adviser is refused -> 400');
+  const noName = await request(server, 'POST', '/api/research', { adviserId }, leader.token);
+  assert(noName.status === 400, 'registering a group without a group name is refused -> 400');
+
+  const group = await request(server, 'POST', '/api/research', {
+    groupName: '  Team Alpha  ', adviserId, members: ['Ana Reyes', '  Ben Cruz  ', ''],
+  }, leader.token);
+  assert(group.status === 201 && group.body.status === 'Group Registered', 'a group registers with only a name, an adviser and members -> 201 "Group Registered"');
+  assert(group.body.groupName === 'Team Alpha' && group.body.title === '' && group.body.abstract === '', 'the group has a trimmed name and no title or summary yet');
+  assert(JSON.stringify(group.body.memberNames) === JSON.stringify(['Ana Reyes', 'Ben Cruz']), 'the member names are saved');
+  const groupVersions = await request(server, 'GET', `/api/research/${group.body.id}/versions`, null, leader.token);
+  assert(Array.isArray(groupVersions.body) && groupVersions.body.length === 0, 'no version exists until the title proposal is sent');
+
+  const titlesUpload = await uploadAs(leader.token, 'my-titles.pdf', '%PDF-1.4 three titles we prepared');
+  const sendTitles = await request(server, 'POST', `/api/research/${group.body.id}/title-list`, {
+    name: 'my-titles.pdf', url: titlesUpload.body.url, size: titlesUpload.body.size,
+  }, leader.token);
+  const titleFiles = (sendTitles.body.proposalFiles || []).filter((f) => f.category === 'title_list');
+  assert(sendTitles.status === 200 && titleFiles.length === 1, 'the group sends its prepared titles file -> 200');
+  assert(sendTitles.body.status === 'Group Registered', 'sending the titles file does not change the status');
+
+  const otherOwner = await request(server, 'POST', `/api/research/${group.body.id}/title-list`, {
+    name: 'stolen.pdf', url: mainDocUpload.body.url, size: 10,
+  }, leader.token);
+  assert(otherOwner.status === 400, "a file someone else uploaded cannot be attached as the group's titles -> 400");
+  const otherGroupSends = await request(server, 'POST', `/api/research/${group.body.id}/title-list`, {
+    name: 'x.pdf', url: mainDocUpload.body.url, size: 10,
+  }, secondStudent.token);
+  assert(otherGroupSends.status === 403, 'a student from another group cannot send titles for this group -> 403');
+
+  const titlesAdviser = await request(server, 'POST', '/api/uploads/access', { file: titlesUpload.body.url }, adviserToken);
+  assert(titlesAdviser.status === 200, "the group's adviser can open the titles file -> 200");
+  const titlesOutsider = await request(server, 'POST', '/api/uploads/access', { file: titlesUpload.body.url }, secondStudent.token);
+  assert(titlesOutsider.status === 403, 'a student from another group cannot open it -> 403');
+
+  const titlesUpload2 = await uploadAs(leader.token, 'my-titles-v2.pdf', '%PDF-1.4 better titles');
+  const resend = await request(server, 'POST', `/api/research/${group.body.id}/title-list`, {
+    name: 'my-titles-v2.pdf', url: titlesUpload2.body.url, size: titlesUpload2.body.size,
+  }, leader.token);
+  const afterResend = (resend.body.proposalFiles || []).filter((f) => f.category === 'title_list');
+  assert(afterResend.length === 1 && afterResend[0].name === 'my-titles-v2.pdf', 'sending the titles file again replaces the earlier one');
+
+  const hearingForGroup = await request(server, 'POST', '/api/schedules', {
+    researchId: group.body.id, date: '2026-08-26', startTime: '09:00', endTime: '10:00', roomId: room._id,
+    panelistIds: panelistTokens.map((p) => p.id), type: 'title_hearing',
+  }, coordinatorToken);
+  assert(hearingForGroup.status === 201, 'a title hearing can be booked for a group that has not sent a title proposal');
+  const panelOpens = await request(server, 'POST', '/api/uploads/access', { file: titlesUpload2.body.url }, panelistTokens[0].token);
+  assert(panelOpens.status === 200, 'a panel member booked for the hearing can open the titles file -> 200');
+  const groupAfterHearing = await request(server, 'GET', `/api/research/${group.body.id}`, null, leader.token);
+  assert(groupAfterHearing.body.status === 'Group Registered', 'booking the hearing keeps the group "Group Registered"');
+  const approveEmpty = await request(server, 'POST', `/api/research/${group.body.id}/approve`, { decision: 'Approve' }, adviserToken);
+  assert(approveEmpty.status === 409, 'an adviser cannot approve a group that has not sent its title proposal -> 409');
+
+  const mainForGroup = await uploadAs(leader.token, 'proposal-main.pdf', '%PDF-1.4 the title proposal');
+  const proposalBody = {
+    title: 'Chosen Title', abstract: 'The title the panel picked.', keywords: ['one', ' two '],
+    proposalFiles: [{ name: 'proposal-main.pdf', url: mainForGroup.body.url, size: mainForGroup.body.size, category: 'proposal_document' }],
+  };
+  const noTitle = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, { ...proposalBody, title: '' }, leader.token);
+  assert(noTitle.status === 400, 'a title proposal without a title is refused -> 400');
+  const noMain = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, { ...proposalBody, proposalFiles: [] }, leader.token);
+  assert(noMain.status === 400, 'a title proposal without a main document is refused -> 400');
+  const notMember = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, proposalBody, secondStudent.token);
+  assert(notMember.status === 403, 'only the group can send its title proposal -> 403');
+
+  const sent = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, proposalBody, leader.token);
+  assert(sent.status === 200 && sent.body.status === 'Submitted' && sent.body.title === 'Chosen Title', 'the group sends its title proposal -> "Submitted"');
+  assert(JSON.stringify(sent.body.keywords) === JSON.stringify(['one', 'two']), 'the keywords are saved trimmed');
+  assert((sent.body.proposalFiles || []).some((f) => f.category === 'title_list'), 'the titles file is kept after the proposal is sent');
+  const sentVersions = await request(server, 'GET', `/api/research/${group.body.id}/versions`, null, leader.token);
+  assert(sentVersions.body.length === 1 && sentVersions.body[0].fileUrl === mainForGroup.body.url, "Version 1 is made from the proposal's real main document");
+  const sentTwice = await request(server, 'POST', `/api/research/${group.body.id}/title-proposal`, proposalBody, leader.token);
+  assert(sentTwice.status === 409, 'the title proposal cannot be sent a second time -> 409');
+
   console.log('\n--- Uploaded files are private ---');
   // Attach the student's file to their paper as a draft for the adviser.
   const attach = await request(server, 'POST', `/api/research/${researchId}/versions`, {

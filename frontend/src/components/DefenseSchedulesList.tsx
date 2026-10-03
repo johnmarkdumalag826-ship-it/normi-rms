@@ -6,7 +6,7 @@ import {
 import { Schedule, Room, User as UserType, Research } from '../types';
 import {
   Badge, Button, Card, EmptyState, PageHeader, Select, StatusBadge, Table, cx, defenseTypeLabels, formatDate, formatDateLong,
-  formatDateAndTime, formatTime, scheduleStatus, type Column,
+  formatDateAndTime, formatTime, scheduleStatus, type Column, researchTitle,
 } from '../ui';
 
 interface DefenseSchedulesListProps {
@@ -35,7 +35,10 @@ export default function DefenseSchedulesList({
 
   const getRoomName = (roomId: string) => rooms.find(x => x.id === roomId)?.name ?? 'Online meeting';
   const getRoomLocation = (roomId: string) => rooms.find(x => x.id === roomId)?.location ?? 'Online';
-  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
+  const getResearchTitle = (researchId: string) => {
+    const r = researchList.find(x => x.id === researchId);
+    return r ? researchTitle(r) : 'Research paper';
+  };
 
   const getAdviserName = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);

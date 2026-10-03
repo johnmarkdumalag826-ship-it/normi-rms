@@ -7,7 +7,7 @@ import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
 import {
   Alert, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, PageHeader, Select, Textarea, type PaperHighlight,
-  chapterNames, cx, formatDate, formatDateLong, getResearchStatus,
+  chapterNames, cx, formatDate, formatDateLong, getResearchStatus, researchTitle,
 } from '../ui';
 
 interface DocumentReviewProps {
@@ -44,7 +44,8 @@ export default function DocumentReview({
 }: DocumentReviewProps) {
   // Papers where this adviser is the adviser
   const myAssignedResearches = useMemo(() => {
-    return researchList.filter(r => r.adviserId === user.id);
+    // A group that has not sent its title proposal has nothing to review yet.
+    return researchList.filter(r => r.adviserId === user.id && r.status !== 'Group Registered');
   }, [researchList, user.id]);
 
   const [selectedResearchId, setSelectedResearchId] = useState<string>(
@@ -161,7 +162,7 @@ export default function DocumentReview({
             <option value="" disabled>Choose a research paper…</option>
             {myAssignedResearches.map(res => (
               <option key={res.id} value={res.id}>
-                [{getResearchStatus(res.status).label}] {res.title.substring(0, 60)}{res.title.length > 60 ? '…' : ''}
+                [{getResearchStatus(res.status).label}] {researchTitle(res).substring(0, 60)}{researchTitle(res).length > 60 ? '…' : ''}
               </option>
             ))}
           </Select>

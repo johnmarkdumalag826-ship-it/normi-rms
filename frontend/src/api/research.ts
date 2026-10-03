@@ -4,10 +4,21 @@ import { Research, ResearchStatus, ResearchVersion, ResearchComment, ProposalFil
 export const listResearch = (): Promise<Research[]> => api.get('/research');
 export const getResearch = (id: string): Promise<Research> => api.get(`/research/${id}`);
 
+// A student starts by registering their group (name, adviser, other members). The title,
+// summary and main document come later through submitTitleProposal.
 export const createResearch = (input: {
-  title: string; abstract: string; keywords?: string[]; adviserId: string; fileName?: string; proposalFiles?: ProposalFile[];
-  members?: string[];
+  groupName?: string; adviserId: string; members?: string[];
+  title?: string; abstract?: string; keywords?: string[]; fileName?: string; proposalFiles?: ProposalFile[];
 }): Promise<Research> => api.post('/research', input);
+
+// The registered group sends its chosen title, summary, keywords and main document.
+export const submitTitleProposal = (id: string, input: {
+  title: string; abstract: string; keywords: string[]; proposalFiles: ProposalFile[];
+}): Promise<Research> => api.post(`/research/${id}/title-proposal`, input);
+
+// The group sends one file with the titles it prepared for the title hearing (sending again replaces it).
+export const sendTitleList = (id: string, file: { name: string; url: string; size: number }): Promise<Research> =>
+  api.post(`/research/${id}/title-list`, file);
 
 // Admin archiving a manuscript directly into the repository (no student submitter/version)
 export const createArchivedResearch = (input: {

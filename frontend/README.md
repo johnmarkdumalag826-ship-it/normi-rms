@@ -81,7 +81,8 @@ src/
 │   ├── Sidebar.tsx, Header.tsx              The menu and top bar
 │   ├── DashboardStudent / Adviser / Coordinator / Panelist / Admin.tsx
 │   │                                        One home page for each role
-│   ├── ResearchInformationForm.tsx          A student's first form
+│   ├── GroupStartForm.tsx                   A student's first form: group name, adviser, other members
+│   ├── TitleProposalForm.tsx                The title, summary and main document, sent after the title hearing
 │   ├── ResearchGroupCard.tsx                The group leader and members, shown on the student's home page
 │   ├── ResearchDetailsView.tsx              A paper's chapters, versions and comments
 │   ├── DocumentReview.tsx                   Adviser's review and decision screen

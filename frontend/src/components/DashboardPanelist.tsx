@@ -3,7 +3,7 @@ import { ClipboardList, CheckCircle2, FileText, Award, Calendar, Compass, Clock,
 import { User, Schedule, Research, Evaluation } from '../types';
 import {
   Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Textarea,
-  cx, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, recommendationLabels, scheduleStatus,
+  cx, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, recommendationLabels, scheduleStatus, researchTitle,
 } from '../ui';
 
 interface DashboardPanelistProps {
@@ -40,7 +40,10 @@ export default function DashboardPanelist({
   const pendingDefenses = assignedDefenses.filter(s => s.status === 'scheduled' && !isEvaluated(s.id));
   const myEvaluations = evaluations.filter(e => e.panelistId === user.id);
 
-  const getResearchTitle = (researchId: string) => researchList.find(x => x.id === researchId)?.title ?? 'Research paper';
+  const getResearchTitle = (researchId: string) => {
+    const r = researchList.find(x => x.id === researchId);
+    return r ? researchTitle(r) : 'Research paper';
+  };
 
   const getStudentNames = (researchId: string) => {
     const res = researchList.find(x => x.id === researchId);

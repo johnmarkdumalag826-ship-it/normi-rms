@@ -12,7 +12,8 @@ import { ApiError } from './api/client';
 import { listDirectory, listUsers, updateUser as apiUpdateUser, deleteUser as apiDeleteUser } from './api/users';
 import { listDepartments, listCourses, listSchoolYears, listRooms } from './api/lookups';
 import {
-  listResearch, createResearch, createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
+  listResearch, createResearch, submitTitleProposal as apiSubmitTitleProposal, sendTitleList as apiSendTitleList,
+  createArchivedResearch, updateResearch as apiUpdateResearch, deleteResearch,
   approveManuscript as apiApproveManuscript, updateResearchStatus as apiUpdateResearchStatus,
   updateResearchAdviser as apiUpdateResearchAdviser, incrementResearchCounts,
   listAllVersions, listVersionsForResearch, addVersion,
@@ -46,7 +47,8 @@ import DashboardAdviser from './components/DashboardAdviser';
 import DashboardCoordinator from './components/DashboardCoordinator';
 import DashboardPanelist from './components/DashboardPanelist';
 import DashboardAdmin from './components/DashboardAdmin';
-import ResearchInformationForm from './components/ResearchInformationForm';
+import GroupStartForm from './components/GroupStartForm';
+import TitleProposalForm from './components/TitleProposalForm';
 
 export default function App() {
   // Session authentication states
@@ -75,6 +77,7 @@ export default function App() {
 
   // Navigation tracking
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [proposalFormOpen, setProposalFormOpen] = useState(false); // a student writing their title proposal
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
@@ -181,6 +184,7 @@ export default function App() {
     setCurrentUser(null);
     setActiveTab('dashboard');
     setSelectedResearchId(null);
+    setProposalFormOpen(false);
   };
 
   // Notifications
@@ -538,28 +542,42 @@ export default function App() {
     triggerAlert('Your profile was saved.');
   };
 
-  const handleCreateTitleProposal = async (data: {
-    title: string;
-    abstract: string;
-    keywords: string[];
-    adviserId: string;
-    members: string[];
-    fileName: string;
-    proposalFiles?: ProposalFile[];
-  }) => {
+  // Starting out: the student registers their group (name, adviser, members). The title and
+  // main document come later, as the title proposal.
+  const handleRegisterGroup = async (data: { groupName: string; adviserId: string; members: string[] }) => {
     if (!currentUser) return;
     try {
-      const created = await createResearch({
-        title: data.title, abstract: data.abstract, keywords: data.keywords,
-        adviserId: data.adviserId, fileName: data.fileName, proposalFiles: data.proposalFiles,
-        members: data.members,
-      });
+      const created = await createResearch(data);
       setResearchList(prev => [created, ...prev]);
-      const freshVersions = await listVersionsForResearch(created.id);
-      setVersions(prev => [...freshVersions, ...prev]);
-      triggerAlert("Research Title Proposal submitted successfully!");
+      triggerAlert('Your group is registered. Next, send the file with your prepared titles for the title hearing.');
     } catch (err) {
-      handleApiError(err, 'Could not submit research proposal.');
+      handleApiError(err, 'Could not register your group.');
+    }
+  };
+
+  const handleSubmitTitleProposal = async (
+    researchId: string,
+    data: { title: string; abstract: string; keywords: string[]; proposalFiles: ProposalFile[] },
+  ) => {
+    try {
+      const updated = await apiSubmitTitleProposal(researchId, data);
+      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
+      const freshVersions = await listVersionsForResearch(updated.id);
+      setVersions(prev => [...freshVersions, ...prev.filter(v => v.researchId !== updated.id)]);
+      setProposalFormOpen(false);
+      triggerAlert('Your title proposal was sent to your adviser.');
+    } catch (err) {
+      handleApiError(err, 'Could not send your title proposal.');
+    }
+  };
+
+  const handleSendTitleList = async (researchId: string, file: { name: string; url: string; size: number }) => {
+    try {
+      const updated = await apiSendTitleList(researchId, file);
+      setResearchList(prev => prev.map(r => r.id === updated.id ? updated : r));
+      triggerAlert('Your file with the prepared titles was sent.');
+    } catch (err) {
+      handleApiError(err, 'Could not send your file.');
     }
   };
 
@@ -620,6 +638,8 @@ export default function App() {
               onNavigateToTimeline={() => {
                 if (res) setSelectedResearchId(res.id);
               }}
+              onOpenProposalForm={() => setProposalFormOpen(true)}
+              onSendTitleList={handleSendTitleList}
               onStudentUploadRevision={handleStudentUploadRevision}
               onUpdateResearchDetails={async (updated: Research) => {
                 try {
@@ -952,18 +972,31 @@ export default function App() {
 
   // Active Workspace
   if (currentUser && currentUser.role === 'student') {
-    const hasResearch = researchList.some(r => r.studentIds.includes(currentUser.id));
-    if (!hasResearch) {
+    const myResearch = researchList.find(r => r.studentIds.includes(currentUser.id));
+    const writingProposal = !!myResearch && myResearch.status === 'Group Registered' && proposalFormOpen;
+    if (!myResearch || writingProposal) {
       return (
         <>
           {alert && <Toast message={alert.message} type={alert.type} />}
-          <ResearchInformationForm
-            user={currentUser}
-            advisers={users.filter(u => u.role === 'adviser')}
-            onSubmit={handleCreateTitleProposal}
-            onLogout={handleLogout}
-            onOpenProfile={() => setShowMyProfile(true)}
-          />
+          {myResearch ? (
+            <TitleProposalForm
+              user={currentUser}
+              research={myResearch}
+              adviserName={users.find(u => u.id === myResearch.adviserId)?.name ?? 'your adviser'}
+              onSubmit={data => handleSubmitTitleProposal(myResearch.id, data)}
+              onBack={() => setProposalFormOpen(false)}
+              onLogout={handleLogout}
+              onOpenProfile={() => setShowMyProfile(true)}
+            />
+          ) : (
+            <GroupStartForm
+              user={currentUser}
+              advisers={users.filter(u => u.role === 'adviser')}
+              onSubmit={handleRegisterGroup}
+              onLogout={handleLogout}
+              onOpenProfile={() => setShowMyProfile(true)}
+            />
+          )}
           <MyProfileModal
             open={showMyProfile}
             onClose={() => setShowMyProfile(false)}

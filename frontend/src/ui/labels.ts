@@ -4,10 +4,10 @@
 // Approved by Adviser, Repository, Revision needed.
 import {
   Archive, CalendarCheck, CheckCircle2, Clock, Eye, Hourglass, Send, Wrench, XCircle,
-  Award, type LucideIcon,
+  Award, Users, type LucideIcon,
 } from 'lucide-react';
 import type {
-  ResearchStatus, UserRole, ChapterStatus, Schedule, Consultation, User, Announcement, Evaluation,
+  Research, ResearchStatus, UserRole, ChapterStatus, Schedule, Consultation, User, Announcement, Evaluation,
 } from '../types';
 
 export type Tone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
@@ -50,6 +50,13 @@ export interface StatusInfo {
 }
 
 export const researchStatus: Record<ResearchStatus, StatusInfo> = {
+  'Group Registered': {
+    label: 'Group registered',
+    tone: 'info',
+    icon: Users,
+    meaning: 'Your group is registered with your adviser.',
+    next: 'Send the file with your prepared titles for the title hearing, then your title proposal.',
+  },
   'Submitted': {
     label: 'Submitted',
     tone: 'info',
@@ -107,6 +114,10 @@ export const researchStatus: Record<ResearchStatus, StatusInfo> = {
     next: 'Nothing more to do. Congratulations!',
   },
 };
+
+/** What to call a paper on screen: its title, or its group while no title has been sent yet. */
+export const researchTitle = (r: Pick<Research, 'title' | 'groupName'>): string =>
+  r.title || (r.groupName ? `${r.groupName} (title not sent yet)` : 'Title not sent yet');
 
 export const getResearchStatus = (status: string): StatusInfo =>
   researchStatus[status as ResearchStatus] ?? {

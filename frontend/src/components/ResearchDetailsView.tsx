@@ -8,7 +8,7 @@ import { downloadFile, fileErrorMessage } from '../api/files';
 import { AnnotatedPaper } from './AnnotatedPaper';
 import {
   Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
-  Textarea, cx, formatDateLong, formatDateTime, roleLabels, type PaperHighlight,
+  Textarea, cx, formatDateLong, formatDateTime, researchTitle, roleLabels, type PaperHighlight,
 } from '../ui';
 
 interface ResearchDetailsViewProps {
@@ -113,7 +113,8 @@ export default function ResearchDetailsView({
 
   // ---- What the student may send, based on where the paper is ----
   const draftStatuses = ['Submitted', 'Under Review', 'Revision Required'];
-  const canStudentUpload = user.role === 'student' && research.status !== 'Archived';
+  // A group that has not sent its title proposal yet does that from the Home page, not here.
+  const canStudentUpload = user.role === 'student' && research.status !== 'Archived' && research.status !== 'Group Registered';
   const uploadTypeOptions: { value: 'adviser_check' | 'defense_manuscript'; label: string }[] = draftStatuses.includes(research.status)
     ? [
         { value: 'adviser_check', label: 'A new draft for my adviser to check' },
@@ -197,7 +198,7 @@ export default function ResearchDetailsView({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={research.title}
+        title={researchTitle(research)}
         subtitle={subtitles[user.role]}
         onBack={onBack}
         backLabel="Go Back"
@@ -222,13 +223,21 @@ export default function ResearchDetailsView({
             <Card padded={false}>
               <EmptyState
                 icon={FileText}
-                title={user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'}
+                title={
+                  research.status === 'Group Registered'
+                    ? 'The title proposal has not been sent yet'
+                    : user.role === 'panelist' ? 'The defense copy has not been sent yet' : 'No paper has been uploaded yet'
+                }
                 description={
-                  user.role === 'panelist'
-                    ? 'When the students upload their defense copy for the panel, it will show here.'
-                    : user.role === 'student'
-                      ? 'Use “Send a New Version” to upload your first file.'
-                      : 'The students have not uploaded a file yet.'
+                  research.status === 'Group Registered'
+                    ? user.role === 'student'
+                      ? 'After your title hearing, choose “Send Title Proposal” on your Home page.'
+                      : 'The group is registered. Its title and main document come after the title hearing.'
+                    : user.role === 'panelist'
+                      ? 'When the students upload their defense copy for the panel, it will show here.'
+                      : user.role === 'student'
+                        ? 'Use “Send a New Version” to upload your first file.'
+                        : 'The students have not uploaded a file yet.'
                 }
               />
             </Card>
@@ -268,6 +277,7 @@ export default function ResearchDetailsView({
                   const catLabel = file.category === 'proposal_document' ? 'Main document'
                     : file.category === 'research_summary' ? 'Research summary'
                     : file.category === 'supporting_files' ? 'Supporting file'
+                    : file.category === 'title_list' ? 'Prepared titles'
                     : 'Other file';
                   return (
                     <li key={file.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">

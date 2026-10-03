@@ -6,7 +6,7 @@ import {
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
   Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
-  cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column,
+  cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column, researchTitle,
 } from '../ui';
 
 interface DashboardAdminProps {
@@ -487,7 +487,7 @@ export default function DashboardAdmin({
                       </div>
                       <div className="space-y-1">
                         <h3 className="text-base font-bold leading-snug text-slate-900 line-clamp-3" title={res?.title}>
-                          {res ? res.title : 'Research paper'}
+                          {res ? researchTitle(res) : 'Research paper'}
                         </h3>
                         <p className="text-sm text-slate-700">{defenseTypeLabels[sched.type] ?? sched.type}</p>
                         <p className="flex items-center gap-1.5 text-sm text-slate-800">

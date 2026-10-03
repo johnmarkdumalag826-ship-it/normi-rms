@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
 import {
-  FileText, Users, ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, LogOut, ExternalLink, Send,
+  ArrowRight, ArrowLeft, UploadCloud, Eye, Trash2, Download, RefreshCw, LogOut, ExternalLink, Send,
 } from 'lucide-react';
-import { User, ProposalFile } from '../types';
+import { User, Research, ProposalFile } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
   Alert, Avatar, Badge, BrandLogo, Button, Card, ConfirmDialog, Input, Modal, Select, Textarea, cx, formatDateLong, roleLabels,
 } from '../ui';
 
-interface ResearchInformationFormProps {
+interface TitleProposalFormProps {
   user: User;
-  advisers: User[];
+  /** The group that is already registered; its adviser and members were chosen at the start. */
+  research: Research;
+  adviserName: string;
   onSubmit: (data: {
     title: string;
     abstract: string;
     keywords: string[];
-    adviserId: string;
-    members: string[];
-    fileName: string;
-    proposalFiles?: ProposalFile[];
+    proposalFiles: ProposalFile[];
   }) => void;
+  onBack: () => void;
   onLogout: () => void;
   onOpenProfile: () => void;
 }
@@ -30,17 +30,17 @@ const categoryLabels: Record<ProposalFile['category'], string> = {
   research_summary: 'Research summary',
   supporting_files: 'Supporting file',
   other_attachments: 'Other file',
+  title_list: 'Prepared titles',
 };
 
-export default function ResearchInformationForm({
-  user, advisers, onSubmit, onLogout, onOpenProfile
-}: ResearchInformationFormProps) {
+/** The second part of starting: after the title hearing, the group sends its chosen title, summary and main document. */
+export default function TitleProposalForm({
+  user, research, adviserName, onSubmit, onBack, onLogout, onOpenProfile
+}: TitleProposalFormProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState('');
   const [abstract, setAbstract] = useState('');
   const [keywordsStr, setKeywordsStr] = useState('');
-  const [adviserId, setAdviserId] = useState('');
-  const [memberNames, setMemberNames] = useState('');
   const [attemptedNext, setAttemptedNext] = useState(false);
 
   // Files
@@ -153,12 +153,11 @@ export default function ResearchInformationForm({
 
   const titleError = attemptedNext && !title.trim() ? 'Please write your research title.' : undefined;
   const abstractError = attemptedNext && !abstract.trim() ? 'Please write a short summary of your research.' : undefined;
-  const adviserError = attemptedNext && !adviserId ? 'Please choose your adviser.' : undefined;
   const keywordsError = attemptedNext && !keywordsStr.split(',').some(k => k.trim()) ? 'Please add at least one keyword.' : undefined;
 
   const handleNextStep = () => {
     setAttemptedNext(true);
-    if (!title.trim() || !abstract.trim() || !adviserId || !keywordsStr.split(',').some(k => k.trim())) {
+    if (!title.trim() || !abstract.trim() || !keywordsStr.split(',').some(k => k.trim())) {
       setError('Some details are missing. Please fix the fields marked in red.');
       return;
     }
@@ -188,25 +187,16 @@ export default function ResearchInformationForm({
       .map(k => k.trim())
       .filter(k => k.length > 0);
 
-    const members = memberNames
-      .split(',')
-      .map(m => m.trim())
-      .filter(m => m.length > 0);
-
     onSubmit({
       title: title.trim(),
       abstract: abstract.trim(),
       keywords,
-      adviserId,
-      members,
-      fileName: mainDoc.name,
-      proposalFiles: proposalFiles
+      proposalFiles,
     });
     setConfirmingSubmit(false);
   };
 
-  const adviserName = advisers.find(a => a.id === adviserId)?.name ?? '—';
-  const stepTitle = step === 1 ? 'Your research details' : 'Your group and your files';
+  const stepTitle = step === 1 ? 'Your title and summary' : 'Your files';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -240,9 +230,10 @@ export default function ResearchInformationForm({
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900">Start your research paper</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Send your title proposal</h1>
           <p className="text-base text-slate-600">
-            Welcome, {user.name}. Before you can use the system, tell us about your research paper. It takes about 5 minutes.
+            {research.groupName ? <>Group <strong>{research.groupName}</strong>. </> : null}
+            Write the title your group chose, a short summary, and add your main document. Your adviser, <strong>{adviserName}</strong>, will read it.
           </p>
         </div>
 
@@ -266,7 +257,7 @@ export default function ResearchInformationForm({
           {error && <Alert tone="danger" title="Please check the form">{error}</Alert>}
 
           {step === 1 ? (
-            /* Step 1: title, summary, adviser */
+            /* Step 1: title, summary, keywords */
             <div className="space-y-5">
               <p className="text-sm text-slate-600">Fields marked with * are required.</p>
 
@@ -290,54 +281,24 @@ export default function ResearchInformationForm({
                 error={abstractError}
               />
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <Select
-                  label="Your adviser"
-                  required
-                  value={adviserId}
-                  onChange={e => setAdviserId(e.target.value)}
-                  hint="The teacher who will guide your group."
-                  error={adviserError}
-                >
-                  <option value="">Choose your adviser…</option>
-                  {advisers.map(adv => (
-                    <option key={adv.id} value={adv.id}>{adv.name}</option>
-                  ))}
-                </Select>
+              <Input
+                label="Keywords"
+                required
+                value={keywordsStr}
+                onChange={e => setKeywordsStr(e.target.value)}
+                hint="Separate each keyword with a comma."
+                placeholder="e.g. Web-based, Monitoring"
+                error={keywordsError}
+              />
 
-                <Input
-                  label="Keywords"
-                  required
-                  value={keywordsStr}
-                  onChange={e => setKeywordsStr(e.target.value)}
-                  hint="Separate each keyword with a comma."
-                  placeholder="e.g. Web-based, Monitoring"
-                  error={keywordsError}
-                />
-              </div>
-
-              <div className="flex justify-end pt-2">
+              <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-between">
+                <Button variant="secondary" icon={ArrowLeft} onClick={onBack}>Back to Home</Button>
                 <Button icon={ArrowRight} onClick={handleNextStep}>Continue to Step 2</Button>
               </div>
             </div>
           ) : (
-            /* Step 2: group members and files */
+            /* Step 2: files */
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Input
-                  label="Other students in your group"
-                  optional
-                  value={memberNames}
-                  onChange={e => setMemberNames(e.target.value)}
-                  hint="Type their names separated by commas. Do not type your own name."
-                  placeholder="e.g. Juan dela Cruz, Maria Santos"
-                />
-                <p className="flex items-start gap-2 text-sm text-slate-700">
-                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" aria-hidden="true" />
-                  <span>You (<strong>{user.name}</strong>) are added automatically as the group leader.</span>
-                </p>
-              </div>
-
               <fieldset className="space-y-4 rounded-xl border border-slate-200 p-4">
                 <legend className="px-2 text-base font-bold text-slate-900">Your files</legend>
                 <p className="text-sm text-slate-600">
@@ -422,7 +383,7 @@ export default function ResearchInformationForm({
 
               <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
                 <Button variant="secondary" icon={ArrowLeft} onClick={() => setStep(1)}>Back to Step 1</Button>
-                <Button type="submit" icon={Send}>Send My Research Title</Button>
+                <Button type="submit" icon={Send}>Send My Title Proposal</Button>
               </div>
             </form>
           )}
@@ -473,9 +434,9 @@ export default function ResearchInformationForm({
         open={confirmingSubmit}
         onCancel={() => setConfirmingSubmit(false)}
         onConfirm={submitConfirmed}
-        title="Send your research title?"
+        title="Send your title proposal?"
         message={`“${title.trim()}” will be sent to ${adviserName}. You can send new versions later from your home page.`}
-        confirmLabel="Yes, Send My Research Title"
+        confirmLabel="Yes, Send My Title Proposal"
         cancelLabel="No, Let Me Check"
       />
     </div>

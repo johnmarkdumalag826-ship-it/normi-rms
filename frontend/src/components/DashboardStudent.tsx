@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import {
   FileText, Calendar, MessageSquare, TrendingUp, CheckCircle2, Clock, ArrowRight,
-  Landmark, Compass, Wrench,
+  Landmark, Compass, Wrench, UploadCloud, Download, ExternalLink, RefreshCw, Send,
 } from 'lucide-react';
 import { User, Research, ResearchVersion, ResearchComment, Schedule, Room } from '../types';
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
+import { downloadFile, openFile, fileErrorMessage } from '../api/files';
 import {
-  Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
-  chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime,
+  Alert, Badge, Button, Card, CardHeader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea,
+  chapterNames, defenseTypeLabels, formatDateAndTime, formatDateLong, formatTime, researchTitle,
 } from '../ui';
 import { ResearchGroupCard, groupPeople } from './ResearchGroupCard';
 
@@ -21,14 +22,22 @@ interface DashboardStudentProps {
   rooms: Room[];
   users: User[];
   onNavigateToTimeline: () => void;
+  /** Opens the page where the group writes its title proposal. */
+  onOpenProposalForm: () => void;
+  /** Sends the file with the titles the group prepared for the title hearing. */
+  onSendTitleList: (researchId: string, file: { name: string; url: string; size: number }) => Promise<void>;
   onStudentUploadRevision: (researchId: string, title: string, abstract: string, fileName: string, fileUrl: string, type: 'adviser_check' | 'defense_manuscript') => void;
   onUpdateResearchDetails?: (updated: Research) => void;
 }
 
 export default function DashboardStudent({
   user, research, currentVersion, versions, comments, schedules, rooms, users, 
-  onNavigateToTimeline, onStudentUploadRevision, onUpdateResearchDetails
+  onNavigateToTimeline, onOpenProposalForm, onSendTitleList, onStudentUploadRevision, onUpdateResearchDetails
 }: DashboardStudentProps) {
+
+  // The file with the titles the group prepared for its title hearing
+  const [sendingTitles, setSendingTitles] = useState(false);
+  const [titlesError, setTitlesError] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -86,6 +95,7 @@ export default function DashboardStudent({
   const getProgressPercentage = () => {
     if (!research) return 0;
     switch (research.status) {
+      case 'Group Registered': return 5;
       case 'Submitted': return 15;
       case 'Under Review': return 30;
       case 'Revision Required': return 45;
@@ -185,15 +195,41 @@ export default function DashboardStudent({
   // A research paper's journey in three steps, in plain words: the title hearing, the title
   // proposal, then the final title (the final defense and the Repository). Nothing is blocked:
   // a paper that is already further along simply counts the earlier steps as done.
-  const earlyStatuses = ['Submitted', 'Under Review', 'Revision Required'];
+  const earlyStatuses = ['Group Registered', 'Submitted', 'Under Review', 'Revision Required'];
+  const titleFile = research?.proposalFiles?.find(f => f.category === 'title_list');
+
+  const handleTitleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // so the same file can be chosen again
+    if (!file || !research) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.docx')) {
+      setTitlesError('Please choose a PDF or Word (DOCX) file.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      setTitlesError('That file is too big. Please choose a file smaller than 15 MB.');
+      return;
+    }
+    setTitlesError(null);
+    setSendingTitles(true);
+    try {
+      const uploaded = await uploadFile(file);
+      await onSendTitleList(research.id, { name: uploaded.fileName, url: resolveFileUrl(uploaded.url), size: uploaded.size });
+    } catch (err) {
+      setTitlesError(err instanceof ApiError ? err.message : 'We could not upload your file. Please check your internet connection and try again.');
+    } finally {
+      setSendingTitles(false);
+    }
+  };
   const getJourneyPhases = () => {
     const phases = [
       {
         idx: 0,
         title: 'Title Hearing',
         subtitle: 'Present your title',
-        description: 'The coordinator sets a date, a room and 3 panel members for your title hearing. You present your research title and the panel hears it.',
-        guide: 'Prepare to explain your research title. Your hearing details are shown on this page.',
+        description: 'Send one file with the titles your group prepared. The coordinator then sets a date, a room and 3 panel members for your title hearing, where the panel hears your titles.',
+        guide: 'Send your titles file, then prepare to explain your titles. Your hearing details are shown on this page.',
       },
       {
         idx: 1,
@@ -238,6 +274,7 @@ export default function DashboardStudent({
     switch (stageIndex) {
       case 0:
         return [
+          { label: 'Send the file with your prepared titles', met: !!titleFile || hearingDone || pastEarlySteps },
           { label: 'You have a title hearing date and time', met: !!myHearing || hearingDone || pastEarlySteps },
           { label: 'You have a room and 3 panel members', met: (!!myHearing && !!myHearing.roomId && myHearing.panelistIds.length === 3) || hearingDone || pastEarlySteps },
           { label: 'Finish your title hearing', met: hearingDone || pastEarlySteps },
@@ -267,8 +304,42 @@ export default function DashboardStudent({
   const roomName = mySchedule ? rooms.find(r => r.id === mySchedule.roomId)?.name || 'Online meeting room' : '';
 
   // "What should I do next?" — one clear step for every stage.
-  const nextStep: { title: string; text: string; showAction: boolean } = (() => {
+  const nextStep: { title: string; text: string; showAction: boolean; action?: { label: string; onClick: () => void } } = (() => {
     switch (research.status) {
+      case 'Group Registered':
+        if (hearingDone) {
+          return {
+            title: 'Send your title proposal',
+            text: 'Your title hearing is done. Write the title your group chose and a short summary, and add your main document.',
+            showAction: false,
+            action: { label: 'Send Title Proposal', onClick: onOpenProposalForm },
+          };
+        }
+        if (myHearing) {
+          return {
+            title: `Get ready for your title hearing on ${formatDateAndTime(myHearing.date, myHearing.startTime)}`,
+            text: titleFile
+              ? 'Your prepared titles are sent. Prepare to present them to the panel. The date, room and panel members are shown on this page.'
+              : 'Send the file with your prepared titles before the hearing. The date, room and panel members are shown on this page.',
+            showAction: false,
+          };
+        }
+        if (!titleFile) {
+          return {
+            title: 'Send your prepared titles',
+            text: 'Put the titles your group prepared in one file (PDF or Word) and send it. The panel will read it at your title hearing.',
+            showAction: false,
+            action: {
+              label: 'Send Titles File',
+              onClick: () => document.getElementById('titles-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+            },
+          };
+        }
+        return {
+          title: 'Wait for your title hearing date',
+          text: 'Your prepared titles are sent. The coordinator will set the date, the room and your panel. You will be told here and by notification.',
+          showAction: false,
+        };
       case 'Revision Required':
         return {
           title: 'Fix your paper and upload the new version',
@@ -340,7 +411,11 @@ export default function DashboardStudent({
               <h2 className="text-xl font-bold text-slate-900">{nextStep.title}</h2>
               <p className="max-w-2xl text-base text-slate-700">{nextStep.text}</p>
             </div>
-            {nextStep.showAction && (
+            {nextStep.action ? (
+              <Button icon={ArrowRight} onClick={nextStep.action.onClick} className="shrink-0">
+                {nextStep.action.label}
+              </Button>
+            ) : nextStep.showAction && (
               <Button icon={ArrowRight} onClick={onNavigateToTimeline} className="shrink-0">
                 Open My Research
               </Button>
@@ -349,6 +424,76 @@ export default function DashboardStudent({
         </Card>
       </section>
 
+      {/* The titles the group prepared for its title hearing */}
+      {earlyStatuses.includes(research.status) && !hearingDone && (
+        <Card id="titles-card">
+          <CardHeader
+            title="Your prepared titles"
+            description="Put the titles your group prepared in one file (PDF or Word). The panel reads it at your title hearing."
+            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+          />
+          <div className="space-y-4">
+            {titlesError && <Alert tone="danger" title="We could not send your file">{titlesError}</Alert>}
+            {titleFile ? (
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="min-w-0">
+                  <Badge tone="success" icon={CheckCircle2}>Sent</Badge>
+                  <p className="mt-2 break-words text-sm font-semibold text-slate-900">{titleFile.name}</p>
+                  <p className="text-xs text-slate-600">Sent {formatDateLong(titleFile.uploadedAt)}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="secondary" size="sm" icon={ExternalLink}
+                    onClick={() => openFile(titleFile.url).catch(err => setTitlesError(fileErrorMessage(err)))}
+                  >
+                    Open File
+                  </Button>
+                  <Button
+                    variant="secondary" size="sm" icon={Download}
+                    onClick={() => downloadFile(titleFile.url, titleFile.name).catch(err => setTitlesError(fileErrorMessage(err)))}
+                  >
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">You have not sent a file yet.</p>
+            )}
+            <div>
+              <input
+                id="titles-input"
+                type="file"
+                accept=".pdf,.docx"
+                className="sr-only"
+                tabIndex={-1}
+                disabled={sendingTitles}
+                onChange={handleTitleFile}
+              />
+              <Button
+                icon={sendingTitles ? RefreshCw : UploadCloud}
+                loading={sendingTitles}
+                onClick={() => document.getElementById('titles-input')?.click()}
+              >
+                {sendingTitles ? 'Sending…' : titleFile ? 'Send a New File' : 'Send Titles File'}
+              </Button>
+              <p className="mt-2 text-xs text-slate-600">Only PDF and Word (DOCX) files, smaller than 15 MB. A new file replaces the old one.</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* After the hearing: the title proposal */}
+      {research.status === 'Group Registered' && (
+        <Card className={hearingDone ? 'border-blue-200 bg-blue-50' : undefined}>
+          <CardHeader
+            title="Your title proposal"
+            description="After your title hearing, send the title your group chose, a short summary and your main document."
+            icon={<Send className="h-5 w-5" aria-hidden="true" />}
+          />
+          <Button icon={ArrowRight} onClick={onOpenProposalForm}>Send Title Proposal</Button>
+        </Card>
+      )}
+
       {/* Your research paper */}
       <Card>
         <CardHeader
@@ -356,7 +501,7 @@ export default function DashboardStudent({
           icon={<FileText className="h-5 w-5" aria-hidden="true" />}
         />
         <div className="space-y-4">
-          <p className="text-lg font-semibold text-slate-900">{research.title}</p>
+          <p className="text-lg font-semibold text-slate-900">{researchTitle(research)}</p>
           <p className="text-sm text-slate-700">
             Adviser: <strong className="text-slate-900">{getAdviserName()}</strong>
           </p>

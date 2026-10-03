@@ -7,7 +7,7 @@ import { User, Research, ResearchVersion, ResearchComment, Consultation, Schedul
 import {
   Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select,
   StatusBadge, Table, chapterNames, chapterStatus, cx, defenseTypeLabels, formatDate, formatDateAndTime, formatDateLong,
-  formatDateTime, formatTime, type Column,
+  formatDateTime, formatTime, type Column, researchTitle,
 } from '../ui';
 
 interface DashboardAdviserProps {
@@ -86,7 +86,7 @@ export default function DashboardAdviser({
         events.push({
           id: `notif-ver-${res.id}`,
           title: 'New paper uploaded',
-          message: `The group “${res.title.substring(0, 40)}${res.title.length > 40 ? '…' : ''}” sent Version ${sorted[0].versionNumber} for your review.`,
+          message: `The group “${researchTitle(res).substring(0, 40)}${researchTitle(res).length > 40 ? '…' : ''}” sent Version ${sorted[0].versionNumber} for your review.`,
           date: formatDateTime(sorted[0].submittedAt),
           type: 'info',
         });
@@ -97,8 +97,8 @@ export default function DashboardAdviser({
         const roomName = rooms.find(r => r.id === sched.roomId)?.name;
         events.push({
           id: `notif-sched-${res.id}`,
-          title: 'Defense scheduled',
-          message: `The defense for “${res.title.substring(0, 40)}${res.title.length > 40 ? '…' : ''}” is on ${formatDateAndTime(sched.date, sched.startTime)}${roomName ? ` in ${roomName}` : ''}.`,
+          title: sched.type === 'title_hearing' ? 'Title hearing scheduled' : 'Defense scheduled',
+          message: `The ${sched.type === 'title_hearing' ? 'title hearing' : 'defense'} for “${researchTitle(res).substring(0, 40)}${researchTitle(res).length > 40 ? '…' : ''}” is on ${formatDateAndTime(sched.date, sched.startTime)}${roomName ? ` in ${roomName}` : ''}.`,
           date: formatDate(sched.date),
           type: 'success',
         });
@@ -267,7 +267,7 @@ export default function DashboardAdviser({
                   return (
                     <li key={res.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-900">{res.title}</p>
+                        <p className="text-base font-semibold text-slate-900">{researchTitle(res)}</p>
                         <p className="text-sm text-slate-600">
                           {getStudentNames(res.studentIds)}
                           {latest && ` · Version ${latest.versionNumber} sent ${formatDateTime(latest.submittedAt)}`}
@@ -336,7 +336,7 @@ export default function DashboardAdviser({
                           isSelected ? 'border-blue-800 bg-blue-50' : 'border-transparent hover:bg-slate-50',
                         )}
                       >
-                        <span className="text-sm font-semibold text-slate-900 line-clamp-2">{res.title}</span>
+                        <span className="text-sm font-semibold text-slate-900 line-clamp-2">{researchTitle(res)}</span>
                         <span className="text-sm text-slate-600 truncate">{getStudentNames(res.studentIds).split(',')[0]} (group leader)</span>
                         <ResearchStatusBadge status={res.status} />
                       </button>
