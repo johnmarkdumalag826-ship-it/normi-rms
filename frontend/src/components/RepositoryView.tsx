@@ -4,7 +4,7 @@ import { Research, Department, Course, SchoolYear, User, ProposalFile } from '..
 import { uploadFile, resolveFileUrl, ApiError } from '../api/client';
 import { downloadFile, openFile, useFileLink, fileErrorMessage } from '../api/files';
 import {
-  Alert, Badge, Button, Card, ConfirmDialog, PdfReader, EmptyState, Input, Modal, PageHeader, ResearchStatusBadge, Select, Textarea, cx,
+  Alert, Badge, Button, Card, ConfirmDialog, PdfReader, EmptyState, Input, Modal, PageHeader, Select, Textarea, cx,
 } from '../ui';
 
 interface RepositoryViewProps {
@@ -54,13 +54,12 @@ export default function RepositoryView({
   // Shown when a file could not be opened (for example: not allowed, or no internet)
   const [fileNotice, setFileNotice] = useState<string | null>(null);
 
-  // Everyone sees finished papers. Admins also see papers that are still in progress.
-  const repoPapers = useMemo(() => {
-    if (user.role === 'admin') {
-      return researchList;
-    }
-    return researchList.filter(r => r.status === 'Completed' || r.status === 'Archived');
-  }, [researchList, user.role]);
+  // The Repository is for finished papers, and it is the same for every role. Papers still in
+  // progress are followed on the other pages (Review Papers, Schedule Defenses, Manage Accounts).
+  const repoPapers = useMemo(
+    () => researchList.filter(r => r.status === 'Completed' || r.status === 'Archived'),
+    [researchList],
+  );
 
   const uploadPaperFile = async (file: File): Promise<ProposalFile> => {
     const uploaded = await uploadFile(file);
@@ -379,11 +378,7 @@ export default function RepositoryView({
     <div className="space-y-6">
       <PageHeader
         title="Research Repository"
-        subtitle={
-          user.role === 'admin'
-            ? 'Every research paper in the system, including papers still in progress. Other people only see finished papers.'
-            : 'Search finished research papers from Northern Mindanao Colleges, Inc.'
-        }
+        subtitle="Search finished research papers from Northern Mindanao Colleges, Inc."
         action={
           user.role === 'admin' ? (
             <Button
@@ -496,9 +491,6 @@ export default function RepositoryView({
                     <span className="text-sm text-slate-700">{getDepartmentName(paper.departmentId)}</span>
                     <span className="text-slate-500" aria-hidden="true">·</span>
                     <span className="text-sm text-slate-700">{getSchoolYearName(paper.schoolYearId)}</span>
-                    {user.role === 'admin' && paper.status !== 'Archived' && paper.status !== 'Completed' && (
-                      <ResearchStatusBadge status={paper.status} />
-                    )}
                   </div>
 
                   <div className="space-y-1.5">
