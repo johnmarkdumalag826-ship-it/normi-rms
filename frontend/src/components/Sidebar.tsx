@@ -86,22 +86,20 @@ export default function Sidebar({
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        {/* Brand */}
-        <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-white/10">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white p-1 shrink-0">
-              <BrandLogo className="h-full" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-serif text-lg font-bold leading-none">NORMI</p>
-              <p className="mt-1 text-xs text-blue-100 leading-tight">Research Management System</p>
-            </div>
+        {/* Brand: the seal and name, centered */}
+        <div className="relative flex flex-col items-center gap-2 border-b border-white/10 px-5 py-5 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white p-1.5">
+            <BrandLogo className="h-full" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-serif text-lg font-bold leading-none">NORMI</p>
+            <p className="mt-1 text-xs leading-tight text-blue-100">Research Management System</p>
           </div>
           <button
             type="button"
             onClick={onCloseSidebar}
             aria-label="Close menu"
-            className="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-100 hover:bg-white/10 cursor-pointer"
+            className="absolute right-2 top-2 inline-flex h-11 w-11 items-center justify-center rounded-lg text-blue-100 hover:bg-white/10 cursor-pointer lg:hidden"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
