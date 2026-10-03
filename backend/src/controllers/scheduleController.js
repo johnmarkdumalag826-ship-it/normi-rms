@@ -25,12 +25,17 @@ const createSchedule = async (req, res, next) => {
     status: 'scheduled', type: type || 'proposal',
   });
 
-  const research = await Research.findByIdAndUpdate(researchId, { status: 'Scheduled' }, { returnDocument: 'after' });
+  // A title hearing happens before the adviser's review, so it must not move the paper along
+  // the review steps; only a real defense marks the paper "Scheduled".
+  const isTitleHearing = schedule.type === 'title_hearing';
+  const research = isTitleHearing
+    ? await Research.findById(researchId)
+    : await Research.findByIdAndUpdate(researchId, { status: 'Scheduled' }, { returnDocument: 'after' });
   if (research) {
     await notifyMany(
       research.studentIds,
-      'Defense Schedule Published!',
-      `Your defense is set for ${date} @ ${startTime} in the presentation rooms. Check coordinates.`,
+      isTitleHearing ? 'Title Hearing Scheduled!' : 'Defense Schedule Published!',
+      `Your ${isTitleHearing ? 'title hearing' : 'defense'} is set for ${date} @ ${startTime} in the presentation rooms. Check coordinates.`,
       'success',
     );
   }
@@ -49,7 +54,7 @@ const updateSchedule = async (req, res, next) => {
 const cancelSchedule = async (req, res, next) => {
   const schedule = await Schedule.findByIdAndUpdate(req.params.id, { status: 'cancelled' }, { returnDocument: 'after' });
   if (!schedule) return next(new AppError('Schedule not found', 404));
-  await Research.findByIdAndUpdate(schedule.researchId, { status: 'Approved by Adviser' });
+  if (schedule.type !== 'title_hearing') await Research.findByIdAndUpdate(schedule.researchId, { status: 'Approved by Adviser' });
   await logAction(req, 'CANCEL_SCHEDULE', `Coordinator cancelled defense schedule ID ${schedule._id}`);
   res.json(schedule);
 };
@@ -57,7 +62,7 @@ const cancelSchedule = async (req, res, next) => {
 const deleteSchedule = async (req, res, next) => {
   const schedule = await Schedule.findByIdAndDelete(req.params.id);
   if (!schedule) return next(new AppError('Schedule not found', 404));
-  await Research.findByIdAndUpdate(schedule.researchId, { status: 'Approved by Adviser' });
+  if (schedule.type !== 'title_hearing') await Research.findByIdAndUpdate(schedule.researchId, { status: 'Approved by Adviser' });
   await logAction(req, 'DELETE_SCHEDULE', `Coordinator permanently deleted schedule ID ${req.params.id}`);
   res.status(204).send();
 };
@@ -93,7 +98,9 @@ const autoGenerate = async (req, res) => {
     PanelAvailability.find({ isAvailable: true }),
   ]);
 
-  const scheduledResearchIds = new Set(existingSchedules.map((s) => String(s.researchId)));
+  const scheduledResearchIds = new Set(
+    existingSchedules.filter((s) => s.type !== 'title_hearing').map((s) => String(s.researchId)),
+  );
   const eligibleResearch = await Research.find({
     status: { $in: ['Approved by Adviser', 'Pending Coordinator'] },
     _id: { $nin: [...scheduledResearchIds] },

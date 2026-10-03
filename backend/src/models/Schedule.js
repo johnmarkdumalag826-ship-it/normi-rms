@@ -9,7 +9,7 @@ const scheduleSchema = new mongoose.Schema({
   panelistIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   status: { type: String, enum: ['scheduled', 'completed', 'cancelled'], default: 'scheduled' },
   conflictsDetected: [String],
-  type: { type: String, enum: ['proposal', 'final'], required: true },
+  type: { type: String, enum: ['title_hearing', 'proposal', 'final'], required: true },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Schedule', scheduleSchema);

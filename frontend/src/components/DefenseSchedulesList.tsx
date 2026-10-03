@@ -222,6 +222,7 @@ export default function DefenseSchedulesList({
           <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
             <Select label="Type of defense" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
               <option value="all">All types</option>
+              <option value="title_hearing">Title Hearing</option>
               <option value="proposal">Proposal Defense</option>
               <option value="final">Final Defense</option>
             </Select>

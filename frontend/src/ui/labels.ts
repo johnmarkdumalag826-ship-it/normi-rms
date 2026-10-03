@@ -159,6 +159,7 @@ export const scheduleStatus: Record<Schedule['status'], StatusInfo> = {
 };
 
 export const defenseTypeLabels: Record<Schedule['type'], string> = {
+  title_hearing: 'Title Hearing',
   proposal: 'Proposal Defense',
   final: 'Final Defense',
 };

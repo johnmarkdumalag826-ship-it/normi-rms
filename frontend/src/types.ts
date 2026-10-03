@@ -177,7 +177,7 @@ export interface Schedule {
   panelistIds: string[]; // 3 panelists
   status: 'scheduled' | 'completed' | 'cancelled';
   conflictsDetected?: string[];
-  type: 'proposal' | 'final';
+  type: 'title_hearing' | 'proposal' | 'final';
 }
 
 export interface Evaluation {

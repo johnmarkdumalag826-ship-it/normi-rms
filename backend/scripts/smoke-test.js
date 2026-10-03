@@ -372,6 +372,22 @@ async function main() {
   const v1Access = await request(server, 'POST', '/api/uploads/access', { file: v1.fileUrl }, secondStudent.token);
   assert(v1Access.status === 200, 'that file is actually openable, end to end -> 200');
 
+  console.log('\n--- A title hearing is a defense type that does not move the paper along ---');
+  const hearingPaperId = proposalWithFile.body.id; // still "Submitted": the adviser has not reviewed it
+  const hearingBody = {
+    researchId: hearingPaperId, date: '2026-08-25', startTime: '09:00', endTime: '10:00', roomId: room._id,
+    panelistIds: panelistTokens.map((p) => p.id), type: 'title_hearing',
+  };
+  const badType = await request(server, 'POST', '/api/schedules', { ...hearingBody, type: 'made-up' }, coordinatorToken);
+  assert(badType.status === 400, 'an unknown defense type is refused -> 400');
+  const hearing = await request(server, 'POST', '/api/schedules', hearingBody, coordinatorToken);
+  assert(hearing.status === 201 && hearing.body.type === 'title_hearing', 'coordinator schedules a Title Hearing -> 201');
+  const afterHearing = await request(server, 'GET', `/api/research/${hearingPaperId}`, null, secondStudent.token);
+  assert(afterHearing.body.status === 'Submitted', 'a Title Hearing does not change the paper\'s status (not "Scheduled")');
+  await request(server, 'PATCH', `/api/schedules/${hearing.body.id}/cancel`, null, coordinatorToken);
+  const afterCancel = await request(server, 'GET', `/api/research/${hearingPaperId}`, null, secondStudent.token);
+  assert(afterCancel.body.status === 'Submitted', 'cancelling a Title Hearing does not mark the paper "Approved by Adviser"');
+
   console.log('\n--- Uploaded files are private ---');
   // Attach the student's file to their paper as a draft for the adviser.
   const attach = await request(server, 'POST', `/api/research/${researchId}/versions`, {

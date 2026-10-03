@@ -590,6 +590,7 @@ export default function SchedulerCalendar({
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Select label="Type of defense" value={formType} onChange={e => setFormType(e.target.value as Schedule['type'])}>
+              <option value="title_hearing">Title Hearing</option>
               <option value="proposal">Proposal Defense</option>
               <option value="final">Final Defense</option>
             </Select>
