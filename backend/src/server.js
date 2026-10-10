@@ -17,7 +17,20 @@ if (require.main === module) {
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
+// Which web addresses may talk to this server. CLIENT_URL can list several, separated by commas.
+// While developing (not in production) any computer, phone or tablet on the same private network
+// (192.168.x.x, 10.x.x.x, 172.16-31.x.x) and "localhost" are also allowed, so other devices can use the app.
+const allowedOrigins = String(process.env.CLIENT_URL || '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
+const privateNetworkOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})(:\d+)?$/;
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // not a browser (for example a script or a health check)
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== 'production' && privateNetworkOrigin.test(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
