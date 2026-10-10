@@ -3,7 +3,7 @@ import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { User, UserRole, Department, Course } from '../types';
 import { login as loginRequest, signUp, forgotPassword, resetPassword } from '../api/auth';
 import { listDepartments, listCourses } from '../api/lookups';
-import { ApiError } from '../api/client';
+import { ApiError, API_URL } from '../api/client';
 import { Alert, BrandLogo, Button, Card, IconButton, Input, Select, roleDescriptions, roleLabels } from '../ui';
 
 interface LoginProps {
@@ -79,7 +79,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setPostResetMessage(null);
   };
 
-  const networkMessage = 'We could not reach the server. Please check your internet connection and try again.';
+  // Say which address was tried, so a wrong or blocked address is easy to spot (for example on a phone).
+  const networkMessage = `We could not reach the server at ${API_URL.replace(/\/api\/?$/, '')}. Check that this device is on the same network as the computer that runs the system, then try again.`;
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();

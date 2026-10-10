@@ -2,7 +2,7 @@
 // (so a phone that opens http://192.168.1.20:3001 talks to http://192.168.1.20:<port>/api, not to
 // its own "localhost"). VITE_API_PORT changes the port; it defaults to the backend's 5000.
 const viteEnv = (import.meta as any).env ?? {};
-const API_URL: string = viteEnv.VITE_API_URL
+export const API_URL: string = viteEnv.VITE_API_URL
   || `${window.location.protocol}//${window.location.hostname}:${viteEnv.VITE_API_PORT || 5000}/api`;
 
 // Uploaded files are served statically from the server root (see server.js:

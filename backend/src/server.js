@@ -21,7 +21,8 @@ const app = express();
 // While developing (not in production) any computer, phone or tablet on the same private network
 // (192.168.x.x, 10.x.x.x, 172.16-31.x.x) and "localhost" are also allowed, so other devices can use the app.
 const allowedOrigins = String(process.env.CLIENT_URL || '').split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
-const privateNetworkOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2})(:\d+)?$/;
+// ...and computer names on the network (for example http://DESKTOP-ABC:3001 or http://my-pc.local:3001).
+const privateNetworkOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10(\.\d{1,3}){3}|192\.168(\.\d{1,3}){2}|172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}|[a-z0-9][a-z0-9-]*(\.local)?)(:\d+)?$/i;
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // not a browser (for example a script or a health check)
