@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Users, UserCheck, Shield, Calendar, Clock, MapPin, Save, Database, RotateCcw, Search,
+  Users, UserCheck, Shield, Calendar, Clock, MapPin, Search,
   Eye, Pencil, Trash2, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 import { Schedule, Research, User, UserRole, Room } from '../types';
 import {
-  Alert, Avatar, Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
+  Alert, Avatar, Badge, Button, Card, ConfirmDialog, EmptyState, Input, Modal, PageHeader, Select, StatusBadge, Table,
   cx, defenseTypeLabels, formatDate, formatDateLong, formatTime, roleLabels, scheduleStatus, userStatus, type Column,
 } from '../ui';
 
@@ -22,8 +22,6 @@ interface DashboardAdminProps {
   onUpdateUserRole: (id: string, role: UserRole) => void;
   onUpdateUser: (updatedUser: User) => void;
   onDeleteUserAccount: (id: string) => void;
-  onBackupDatabase: () => void;
-  onRestoreDatabase: () => void;
   /** Pulls a fresh account list from the server (new registrations sent in by others don't show up on their own). */
   onRefreshUsers: () => void;
 }
@@ -34,7 +32,7 @@ const sectionInfo: Record<Section, { label: string; title: string; subtitle: str
   dashboard: {
     label: 'Overview',
     title: 'Admin Home',
-    subtitle: 'See how many accounts and defenses there are, and keep the system’s data safe.',
+    subtitle: 'See how many accounts and defenses there are.',
   },
   'user-management': {
     label: 'Active Accounts',
@@ -64,7 +62,7 @@ const rolePluralLabels: Record<UserRole, string> = {
 export default function DashboardAdmin({
   user, users, schedules, researchList, departments, courses, rooms, activeSection = 'dashboard',
   onToggleUserStatus, onUpdateUserRole, onUpdateUser, onDeleteUserAccount,
-  onBackupDatabase, onRestoreDatabase, onRefreshUsers
+  onRefreshUsers
 }: DashboardAdminProps) {
 
   // New registrations someone else sends in don't appear until we ask again — do that
@@ -94,7 +92,6 @@ export default function DashboardAdmin({
   // "Are you sure?" for risky actions
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToReject, setUserToReject] = useState<User | null>(null);
-  const [confirmingRestore, setConfirmingRestore] = useState(false);
 
   const [newUserForm, setNewUserForm] = useState({
     name: '',
@@ -297,42 +294,6 @@ export default function DashboardAdmin({
               </Card>
             ))}
           </dl>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <Card as="section" className="lg:col-span-12">
-              <CardHeader
-                title="Keep the data safe"
-                description="Save a copy of the system’s data, or go back to the last saved copy."
-                icon={<Database className="h-5 w-5" aria-hidden="true" />}
-              />
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <Save className="h-5 w-5 text-blue-800" aria-hidden="true" />
-                    Back up the data
-                  </h3>
-                  <p className="text-sm text-slate-700">
-                    Saves a copy of all accounts, papers, defenses and comments. It is safe to do at any time.
-                  </p>
-                  <Button icon={Save} fullWidth onClick={onBackupDatabase}>Back Up Now</Button>
-                </div>
-
-                <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
-                  <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <RotateCcw className="h-5 w-5 text-amber-800" aria-hidden="true" />
-                    Restore the last backup
-                  </h3>
-                  <p className="text-sm text-slate-800">
-                    Puts the data back to how it was at the last backup. Anything added since then will be lost.
-                  </p>
-                  <Button variant="secondary" icon={RotateCcw} fullWidth onClick={() => setConfirmingRestore(true)}>
-                    Restore Last Backup
-                  </Button>
-                </div>
-              </div>
-            </Card>
-
-          </div>
         </div>
       )}
 
@@ -597,16 +558,6 @@ export default function DashboardAdmin({
         message="Their request is removed for good. If they still want an account, they will need to register again."
         confirmLabel="Yes, Reject Registration"
         cancelLabel="No, Keep Waiting"
-        destructive
-      />
-      <ConfirmDialog
-        open={confirmingRestore}
-        onCancel={() => setConfirmingRestore(false)}
-        onConfirm={() => { onRestoreDatabase(); setConfirmingRestore(false); }}
-        title="Restore the last backup?"
-        message="All data goes back to how it was at the last backup. Anything added since then will be lost. This cannot be undone."
-        confirmLabel="Yes, Restore Backup"
-        cancelLabel="No, Keep Current Data"
         destructive
       />
     </div>

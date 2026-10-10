@@ -27,7 +27,7 @@ import {
   cancelSchedule as apiCancelSchedule, deleteSchedule as apiDeleteSchedule, clearDraftSchedules,
 } from './api/schedules';
 import { listEvaluations, createEvaluation } from './api/evaluations';
-import { listAuditLogs, backupDatabase, restoreDatabase } from './api/auditLogs';
+import { listAuditLogs } from './api/auditLogs';
 
 // Importing Modular sub-components
 import Login from './components/Login';
@@ -438,28 +438,6 @@ export default function App() {
     }
   };
 
-  // Database backup/restore — stub actions with no real infra behind them (a managed
-  // Atlas cluster handles that), kept only so the admin audit trail stays complete.
-  const handleBackupDatabase = async () => {
-    try {
-      await backupDatabase();
-      setAuditLogs(await listAuditLogs());
-      triggerAlert("Database backup completed.");
-    } catch (err) {
-      handleApiError(err, 'Backup failed.');
-    }
-  };
-
-  const handleRestoreDatabase = async () => {
-    try {
-      await restoreDatabase();
-      setAuditLogs(await listAuditLogs());
-      triggerAlert("Database restore point recovered.");
-    } catch (err) {
-      handleApiError(err, 'Restore failed.');
-    }
-  };
-
   // Student & Faculty Profile Updater (admin editing another user's profile)
   const handleUpdateUser = async (updatedUser: User) => {
     try {
@@ -589,7 +567,7 @@ export default function App() {
             icon={ShieldAlert}
             title="This page is not available for your account"
             description={`Your role is ${roleLabels[currentUser.role]}, and this page is for someone else. You can go back to your home page.`}
-            action={<Button onClick={() => setActiveTab('dashboard')}>Go to My Home Page</Button>}
+            action={<Button onClick={() => setActiveTab('dashboard')}>Go to My Dashboard</Button>}
           />
         </Card>
       );
@@ -713,8 +691,6 @@ export default function App() {
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
               onRefreshUsers={refreshUsers}
-              onBackupDatabase={handleBackupDatabase}
-              onRestoreDatabase={handleRestoreDatabase}
             />
           );
         }
@@ -901,8 +877,6 @@ export default function App() {
               onUpdateUser={handleUpdateUser}
               onDeleteUserAccount={handleDeleteUserAccount}
               onRefreshUsers={refreshUsers}
-              onBackupDatabase={handleBackupDatabase}
-              onRestoreDatabase={handleRestoreDatabase}
             />
           );
         }
@@ -914,7 +888,7 @@ export default function App() {
             <EmptyState
               title="We could not find that page"
               description="Please choose a page from the menu."
-              action={<Button onClick={() => setActiveTab('dashboard')}>Go to Home</Button>}
+              action={<Button onClick={() => setActiveTab('dashboard')}>Go to Dashboard</Button>}
             />
           </Card>
         );

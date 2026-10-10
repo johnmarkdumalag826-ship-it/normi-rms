@@ -235,7 +235,7 @@ export const recommendationLabels: Record<Evaluation['recommendation'], { label:
 // ------------------------------------------------------------- Page titles
 /** Names shown in the top bar for each page (keyed by the internal page id). */
 export const pageTitles: Record<string, string> = {
-  dashboard: 'Home',
+  dashboard: 'Dashboard',
   'research-details': 'My Research',
   'assigned-students': 'My Student Groups',
   'document-review': 'Review Papers',
@@ -296,4 +296,4 @@ export const formatDateAndTime = (date: string, time: string): string =>
 
 /** The name of a page for the top bar. The coordinator's calendar is where they set dates. */
 export const getPageTitle = (tab: string, role?: UserRole): string =>
-  tab === 'calendar' && role === 'coordinator' ? 'Schedule Defenses' : pageTitles[tab] ?? 'Home';
+  tab === 'calendar' && role === 'coordinator' ? 'Schedule Defenses' : pageTitles[tab] ?? 'Dashboard';

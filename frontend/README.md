@@ -18,7 +18,7 @@ adviser feedback, defense scheduling, panel scoring, and a searchable research r
 | **Adviser** | See student groups, read papers, give chapter-by-chapter feedback, approve or ask for changes |
 | **Coordinator** | Set defense dates, rooms and panels (warns about double-booking), post announcements |
 | **Panel Member** | See assigned defenses, read the defense copy, score each defense |
-| **Admin** | Approve, reject, edit or delete accounts, view all defenses, back up and restore data |
+| **Admin** | Approve, reject, edit or delete accounts, view all defenses |
 | **Everyone** | Search the Research Repository and see the defense schedule |
 
 ### How a research paper moves through the system
@@ -109,8 +109,7 @@ src/
   Buttons and fields are at least 44 px tall.
 - **Accessible.** Strong colour contrast, visible keyboard focus, labels on every field, and reduced
   motion for people who ask for it.
-- **Safe actions.** Final or hard-to-undo actions (approving a paper, deleting an account, restoring a
-  backup) ask "Are you sure?" first.
+- **Safe actions.** Final or hard-to-undo actions (approving a paper, deleting an account) ask "Are you sure?" first.
 
 ## Good to know
 

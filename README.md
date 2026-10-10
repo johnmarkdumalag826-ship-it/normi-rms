@@ -23,7 +23,7 @@ Browser  ──►  frontend (port 3000)  ──►  backend (port 5000)  ──
 | **Adviser** | See student groups, read papers, give chapter-by-chapter feedback, approve or ask for changes |
 | **Coordinator** | Set defense dates, rooms and panels (warns about double-booking), post announcements |
 | **Panel Member** | See assigned defenses, read the defense copy, score each defense |
-| **Admin** | Manage accounts, view all defenses, back up and restore data |
+| **Admin** | Manage accounts, view all defenses |
 
 ## Run the whole system on your computer
 
